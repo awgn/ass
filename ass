@@ -379,7 +379,53 @@ operator<<(std::basic_ostream<CharT,Traits> &out, const O & rhs)
     O::print(out, ss.str().c_str());
     return out;
 }
- 
+
+
+namespace ass {
+
+   /// initializer
+  template<class _E>
+    struct fake_list
+    {
+    public:
+      typedef _E 		    value_type;
+      typedef const _E& 	reference;
+      typedef const _E& 	const_reference;
+      typedef std::size_t 	size_type;
+      typedef const _E* 	iterator;
+      typedef const _E* 	const_iterator;
+
+    private:
+      iterator			_M_array;
+      size_type			_M_len;
+
+    public:
+      fake_list(const_iterator __a, size_type __l)
+      : _M_array(__a), _M_len(__l) { }
+    };
+}
+
+
+template <typename Tp>
+std::initializer_list<Tp> 
+R(Tp a0, Tp a1, Tp b)
+{
+    const int size = (b-a0+1)/(a1-a0); 
+    Tp * leak = new Tp[size], s = a1-a0;
+    for(int n = 0; a0 <= b; a0+=s, n++)
+        leak[n] = a0;  
+
+    ass::fake_list<Tp> ret(leak,size);
+    return reinterpret_cast<std::initializer_list<Tp> &>(ret);
+}
+
+template <typename Tp>
+std::initializer_list<Tp> 
+R(Tp a, Tp b)
+{
+    return R(a,a+1,b);
+}
+
 using namespace std;
 using namespace std::placeholders;
 

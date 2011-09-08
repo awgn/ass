@@ -1,0 +1,386 @@
+/* $Id$ */
+/*
+ * ----------------------------------------------------------------------------
+ * "THE BEER-WARE LICENSE" (Revision 42):
+ * <bonelli@antifork.org> wrote this file. As long as you retain this notice you
+ * can do whatever you want with this stuff. If we meet some day, and you think
+ * this stuff is worth it, you can buy me a beer in return. Nicola Bonelli
+ * ----------------------------------------------------------------------------
+ */
+
+#ifndef _ASS_HPP_
+#define _ASS_HPP_ 
+
+#include <cxxabi.h>
+
+#include <ccomplex>
+#include <cstdlib>
+#include <cstdio>
+#include <cstring>
+#include <cassert>
+#include <cmath>
+#include <cctype>
+#include <cerrno>
+#include <climits>
+#include <ctime>
+#include <cfenv>
+#include <cfloat>
+#include <cstdint>
+#include <cinttypes>
+#include <clocale>
+#include <csetjmp>
+#include <csignal>
+#include <cstdarg>
+#include <cstddef>
+#include <cstdbool>
+#include <cwchar>
+#include <cwctype>
+
+#include <ios>
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <streambuf>
+#include <iomanip>
+#include <exception>
+#include <stdexcept>
+#include <typeinfo>
+#include <memory>
+#include <limits>
+#include <numeric>
+#include <utility>
+#include <string>
+#include <locale>
+#include <new>
+#include <system_error>
+
+#include <algorithm>
+#include <functional>
+#include <iterator>
+
+#include <vector>
+#include <list>
+#include <map>
+#include <set>
+#include <deque>
+#include <queue>
+#include <stack>
+#include <bitset>
+
+#include <initializer_list>
+
+#include <chrono>
+#include <ratio>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <forward_list>
+
+#if __GNUC__ == 4 &&  __GNUC_MINOR__ == 4  
+#include <cstdatomic>
+#elif __GNUC__ == 4 &&  __GNUC_MINOR__ == 5
+#include <atomic>
+#include <future>
+#endif
+
+#include <complex>
+#include <array>
+#include <valarray>
+#include <tuple>
+#include <type_traits>
+#include <random>
+#include <regex>
+
+#include <unordered_set>
+#include <unordered_map>
+
+//////////////////////////////////////////////////////// additional type_traits...
+
+namespace ass 
+{
+    namespace traits {
+
+    // For use in __is_convertible_simple.
+    struct __sfinae_types
+    {
+      typedef char __one;
+      typedef struct { char __arr[2]; } __two;
+    };
+
+    // has member type helper (using SFINAE... Vandevoorde/Josuttis)
+    #define __has_member_type_helper(abc) \
+    template <typename T>   \
+    class __has_ ## abc ## _helper : public __sfinae_types   \
+    {   \
+        template <typename C> static __one test(typename std::remove_reference<typename C::abc>::type *);  \
+        template <typename C> static __two test(...);   \
+    \
+    public: \
+        enum { value = sizeof(test<T>(0)) == sizeof(__one) };   \
+    }
+
+    __has_member_type_helper(value_type);
+    __has_member_type_helper(pointer);
+    __has_member_type_helper(reference);
+    __has_member_type_helper(const_reference);
+    __has_member_type_helper(iterator);
+    __has_member_type_helper(const_iterator);
+    __has_member_type_helper(reverse_iterator);
+    __has_member_type_helper(const_reverse_iterator);
+    __has_member_type_helper(size_type);
+    __has_member_type_helper(difference_type);
+
+    template <typename T>
+    struct has_value_type : public std::integral_constant<bool, __has_value_type_helper<T>::value>
+    {};
+
+    template <typename T>
+    struct has_pointer : public std::integral_constant<bool, __has_pointer_helper<T>::value>
+    {};
+
+    template <typename T>
+    struct has_reference : public std::integral_constant<bool, __has_reference_helper<T>::value>
+    {};
+
+    template <typename T>
+    struct has_const_reference : public std::integral_constant<bool, __has_const_reference_helper<T>::value>
+    {};
+
+    template <typename T>
+    struct has_iterator : public std::integral_constant<bool, __has_iterator_helper<T>::value>
+    {};
+
+    template <typename T>
+    struct has_const_iterator : public std::integral_constant<bool, __has_const_iterator_helper<T>::value>
+    {};
+
+    template <typename T>
+    struct has_reverse_iterator : public std::integral_constant<bool, __has_reverse_iterator_helper<T>::value>
+    {};
+
+    template <typename T>
+    struct has_const_reverse_iterator : public std::integral_constant<bool, __has_const_reverse_iterator_helper<T>::value>
+    {};
+    
+    template <typename T>
+    struct has_size_type : public std::integral_constant<bool, __has_size_type_helper<T>::value>
+    {};
+    
+    template <typename T>
+    struct has_difference_type : public std::integral_constant<bool, __has_difference_type_helper<T>::value>
+    {};
+    
+    template <typename T>
+    struct is_container : public std::integral_constant<bool, __has_value_type_helper<T>::value && 
+                                                              __has_reference_helper<T>::value &&  
+                                                              __has_const_reference_helper<T>::value &&  
+                                                              __has_iterator_helper<T>::value && 
+                                                              __has_const_iterator_helper<T>::value && 
+                                                              __has_pointer_helper<T>::value &&  
+                                                              __has_size_type_helper<T>::value &&  
+                                                              __has_difference_type_helper<T>::value 
+                                                               >
+    {};
+
+    // is_tuple 
+
+    template <typename T>
+    struct is_tuple : public std::integral_constant<bool, false>
+    {};
+
+    template <typename ...Ti>
+    struct is_tuple<std::tuple<Ti...>> : public std::integral_constant<bool, true>
+    {};
+
+    // is_pair
+
+    template <typename T>
+    struct is_pair : public std::integral_constant<bool, false>
+    {};
+
+    template <typename T, typename U>
+    struct is_pair<std::pair<T,U>> : public std::integral_constant<bool, true>
+    {};
+
+    } // namespace traits
+
+} // namespace ass 
+
+////////////////////////////////////////////////////////////// streamer
+
+namespace ass { namespace streamer {
+
+    namespace tuplarr {
+
+        // printon policy 
+        //
+
+        template <typename CharT, typename Traits, typename T, int N>
+        struct printon
+        {
+            static void apply(std::basic_ostream<CharT,Traits> &out, const T &tupl)
+            {
+                out << std::get< std::tuple_size<T>::value - N>(tupl) << ' ';
+                printon<CharT, Traits, T,N-1>::apply(out,tupl);
+            }
+
+        };
+        template <typename CharT, typename Traits, typename T>
+        struct printon<CharT, Traits, T,0>
+        {
+            static void apply(std::basic_ostream<CharT, Traits> &, const T &)
+            {}
+        };
+    }
+
+} // namespace streamer
+} // namespace ass
+
+
+namespace std {
+
+    ///////////////////////////////////////
+    // operator<< for generic containers...
+    //
+
+    template <typename CharT, typename Traits, typename T>
+    inline typename std::enable_if<ass::traits::is_container<T>::value && 
+    !is_same<typename std::string,T>::value, 
+        std::basic_ostream<CharT,Traits>>::type &
+    operator<<(std::basic_ostream<CharT,Traits> &out, const T &v)
+    {
+        out << '{';  
+        std::copy(v.begin(), v.end(), 
+                  std::ostream_iterator<typename T::value_type>(
+                      out, " "));
+        return out << '}';
+    };
+
+    //////////////////////////
+    // operator<< for pair...
+
+    template <typename CharT, typename Traits, typename U, typename V>
+    inline std::basic_ostream<CharT, Traits> &
+    operator<< (std::basic_ostream<CharT, Traits> &out, const std::pair<U,V> &r)
+    {
+        return out << '(' << r.first << ',' << r.second << ')';
+    }
+
+    ///////////////////////////
+    // operator<< for array...
+
+    template <typename CharT, typename Traits, typename T, std::size_t N>
+    std::basic_ostream<CharT,Traits> &
+    operator<<(std::basic_ostream<CharT,Traits> &out, const std::array<T,N> &rhs)
+    {
+        out << "[ ";
+        ass::streamer::tuplarr::printon<CharT, Traits, std::array<T,N>, N>::apply(out,rhs);
+        return out << "]";
+    }
+
+    ////////////////////////////////////////////////////////
+    // operator<< for tuple: (enabled if T is a tuple<>)... 
+
+    template <typename CharT, typename Traits, typename T>
+    typename std::enable_if< ass::traits::is_tuple<T>::value, std::basic_ostream<CharT,Traits> >::type &
+    operator<<(std::basic_ostream<CharT,Traits> &out, const T &rhs)
+    {
+        out << "{ ";
+        ass::streamer::tuplarr::printon<CharT, Traits, T, std::tuple_size<T>::value>::apply(out,rhs);
+        return out << "}";
+    }
+
+} // namespace std
+
+
+/////////////////////////////////////////////////////////////////////////////////
+// simple c++0x Oracle
+//
+
+
+struct O
+{
+    template <typename T, typename CharT, typename Traits>
+    static void print(std::basic_ostream<CharT,Traits> &out, T elem)
+    {
+         static std::string last_token;
+ 
+ #ifdef _REENTRANT 
+         static std::mutex _S_mutex;
+         std::lock_guard<std::mutex> _L_(_S_mutex);
+ #endif
+         std::ostringstream ss; ss << elem;
+         std::string token = ss.str();
+ 
+         if ( last_token != token ) {
+             out << token; last_token = std::move(token);
+         }
+         else {
+             out << '.';
+         }
+    }
+
+    static std::string
+    cxa_demangle(const char *name)
+    {
+#ifdef _REENTRANT 
+        static std::mutex _S_mutex;
+        std::lock_guard<std::mutex> _L_(_S_mutex);
+#endif
+        int status;
+        std::shared_ptr<char> ret(abi::__cxa_demangle(name,0,0, &status), ::free);
+        if (status < 0) {
+            return std::string("?");
+        }
+        return std::string(ret.get());
+    }
+
+    O()                         { print(std::cout," O()"); } 
+    O(const O &)                { print(std::cout," O(const O&)"); } 
+    O &operator=(const O &)     { print(std::cout," op=(const O&)"); return *this; } 
+    ~O()                        { print(std::cout," ~O()"); } 
+    O(O &&)                     { print(std::cout," O(O&&)"); } 
+    O &operator=(O &&)          { print(std::cout," op=(O&&)"); return *this; } 
+    
+    template <typename T>
+    static void type(std::ostringstream &out, T&&)
+    {
+        out << cxa_demangle(typeid(T).name());
+    }
+    template <typename T, typename ...Ti>
+    static void type(std::ostringstream &out, T&&, Ti&&...arg)
+    {
+        out << cxa_demangle(typeid(T).name()) << ',';
+        type(out, std::forward<Ti>(arg)...);
+    }
+
+    template <typename ...Ti> 
+    explicit O(Ti&& ...arg)  
+    {
+        std::ostringstream ss; ss << " O(";
+        type(ss, std::forward<Ti>(arg)...);
+        ss << ")";
+        print(std::cout,ss.str().c_str()); 
+    } 
+
+    void swap(O &rhs)           { print(std::cout," swap(O,O)"); }
+    bool operator<(const O &rhs) const
+    {
+         print(std::cout," <");
+         return this < &rhs;
+    }
+};  
+
+template <typename CharT, typename Traits>
+typename std::basic_ostream<CharT, Traits> &
+operator<<(std::basic_ostream<CharT,Traits> &out, const O & rhs)
+{
+    std::ostringstream ss; ss << " O@" << (void *)&rhs;
+    O::print(out, ss.str().c_str());
+    return out;
+}
+ 
+using namespace std;
+using namespace std::placeholders;
+
+#endif /* _ASS_HPP_ */

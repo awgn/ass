@@ -56,12 +56,12 @@ main(int argc, char *argv[])
     body.push_back("}");
     std::move(body.begin(), body.end(), std::back_inserter(translation_unit));
 
-    std::ofstream cpp("/tmp/ass.cpp");
+    std::ofstream cpp("/tmp/runme.cpp");
     std::copy(translation_unit.begin(), translation_unit.end(), std::ostream_iterator<std::string>(cpp));
     cpp.close();
 
     int status = system("g++ -std=c++0x -O0 -g2 -Wall -Weffc++ -Wextra -Wno-unused-parameter -pthread "
-                        "-D_GLIBCXX_DEBUG /tmp/ass.cpp -o /tmp/runme");
+                        "-D_GLIBCXX_DEBUG /tmp/runme.cpp -o /tmp/runme");
     if( WEXITSTATUS(status) == 0)
     {
         std::cout << "running..." << std::endl;

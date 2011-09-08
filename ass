@@ -460,29 +460,29 @@ namespace ass {
 }
 
 
-template <typename Tp>
+template <typename Tp = int>
 std::initializer_list<Tp> 
-R(Tp a0, Tp a1, Tp b)
+R(int a0, int a1, int b)
 {                                 
-    Tp step = a1 - a0;
+    int step = a1 - a0;
     int size = (b-a0+ (step < 0 ? -1 : 1))/step; 
     size = (size > 0 ? size : 0);
     
     Tp * leak = nullptr;
     if (size) {
-        leak = new Tp[size];
+        leak = reinterpret_cast<Tp *>(malloc(size * sizeof(Tp)));
         for(int n = 0; (step > 0  ? a0 <= b : a0 >= b); a0 += step, n++)
-            leak[n] = a0;  
+            new (leak+n) Tp(a0);  
     }
     ass::fake_list<Tp> ret(leak,size);
     return reinterpret_cast<std::initializer_list<Tp> &>(ret);
 }
 
-template <typename Tp>
+template <typename Tp = int>
 std::initializer_list<Tp> 
-R(Tp a, Tp b)
+R(int a, int b)
 {
-    return R(a,a+1,b);
+    return R<Tp>(a,a+1,b);
 }
 
 using namespace std;

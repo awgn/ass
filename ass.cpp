@@ -37,7 +37,7 @@ int
 main(int argc, char *argv[])
 {
     std::vector<std::string> translation_unit = { "#include <ass>\n" };
-    std::vector<std::string> body = { "int main(int argc, char *argv[]) {\n" };
+    std::vector<std::string> body = { "int main(int argc, char *argv[]) { cout << boolalpha;\n" };
 
     bool state = true;
 

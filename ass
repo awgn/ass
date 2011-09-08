@@ -292,11 +292,8 @@ namespace std {
 
 } // namespace std
 
-
-/////////////////////////////////////////////////////////////////////////////////
-// simple c++0x Oracle
+////////////////////////////////////////////////////////////// simple c++0x Oracle
 //
-
 
 struct O
 {
@@ -335,39 +332,95 @@ struct O
         return std::string(ret.get());
     }
 
-    O()                         { print(std::cout," O()"); } 
-    O(const O &)                { print(std::cout," O(const O&)"); } 
-    O &operator=(const O &)     { print(std::cout," op=(const O&)"); return *this; } 
-    ~O()                        { print(std::cout," ~O()"); } 
-    O(O &&)                     { print(std::cout," O(O&&)"); } 
-    O &operator=(O &&)          { print(std::cout," op=(O&&)"); return *this; } 
-    
     template <typename T>
-    static void type(std::ostringstream &out, T&&)
+    static void print_type(std::ostringstream &out, T&&)
     {
         out << cxa_demangle(typeid(T).name());
     }
     template <typename T, typename ...Ti>
-    static void type(std::ostringstream &out, T&&, Ti&&...arg)
+    static void print_type(std::ostringstream &out, T&&, Ti&&...arg)
     {
         out << cxa_demangle(typeid(T).name()) << ',';
         type(out, std::forward<Ti>(arg)...);
     }
 
+    std::intptr_t value;
+    
+    O() : 
+    value(reinterpret_cast<std::intptr_t>(this)) 
+    { print(std::cout," O()"); } 
+   
+    O(O &other) :
+    value(other.value) 
+    { print(std::cout," O(O&)"); } 
+
+    O(const O &other) :
+    value(other.value) 
+    { print(std::cout," O(const O&)"); } 
+
+    O &operator=(const O &other) 
+    { value = other.value;
+            print(std::cout," op=(const O&)"); return *this; } 
+
+    ~O() 
+    { print(std::cout," ~O()"); }
+
+    O(O &&other) :
+    value(other.value)    
+    { 
+        other.value = 0xdead;
+            print(std::cout," O(O&&)"); } 
+
+    O &operator=(O &&other) 
+    { 
+        value = other.value;
+        other.value = 0xdead;        
+            print(std::cout," op=(O&&)"); return *this; } 
+    
     template <typename ...Ti> 
-    explicit O(Ti&& ...arg)  
+    explicit O(Ti&& ...arg) :
+    value(reinterpret_cast<std::intptr_t>(this)) 
     {
         std::ostringstream ss; ss << " O(";
-        type(ss, std::forward<Ti>(arg)...);
+        print_type(ss, std::forward<Ti>(arg)...);
         ss << ")";
-        print(std::cout,ss.str().c_str()); 
+            print(std::cout,ss.str().c_str()); 
     } 
 
-    void swap(O &rhs)           { print(std::cout," swap(O,O)"); }
+    void swap(O &rhs) 
+    { std::swap(value, rhs.value);
+            print(std::cout," swap(O,O)"); }
+
     bool operator<(const O &rhs) const
     {
          print(std::cout," <");
-         return this < &rhs;
+         return value < rhs.value;
+    }
+    bool operator>=(const O &rhs) const
+    {
+         print(std::cout," >=");
+         return !(*this < rhs);   
+    }
+    bool operator>(const O &rhs) const
+    {
+         print(std::cout," >");
+         return rhs < *this;
+    }
+    bool operator<=(const O &rhs) const
+    {
+         print(std::cout," <=");
+         return !(rhs < *this);   
+    }
+
+    bool operator==(const O &rhs) const
+    {
+         print(std::cout," ==");
+         return value == rhs.value;
+    }
+    bool operator!=(const O &rhs) const
+    {
+         print(std::cout," !=");
+         return !(*this == rhs);
     }
 };  
 
@@ -375,11 +428,12 @@ template <typename CharT, typename Traits>
 typename std::basic_ostream<CharT, Traits> &
 operator<<(std::basic_ostream<CharT,Traits> &out, const O & rhs)
 {
-    std::ostringstream ss; ss << " O@" << (void *)&rhs;
+    std::ostringstream ss; ss << " O@" << (void *)rhs.value;
     O::print(out, ss.str().c_str());
     return out;
 }
 
+////////////////////////////////////////////////////////////// Ranges 
 
 namespace ass {
 

@@ -292,8 +292,8 @@ namespace std {
 
 } // namespace std
 
+
 ////////////////////////////////////////////////////////////// simple c++0x Oracle
-//
 
 struct O
 {
@@ -496,6 +496,19 @@ void P(T &&arg, Ti&&... args)
 {
     std::cout << arg << ' ';
     P(std::forward<Ti>(args)...);
+}
+
+////////////////////////////////////////////////////////////// Assert 
+
+#define A(x) assert(x)
+#define S(x) static_assert(x, #x)
+
+////////////////////////////////////////////////////////////// Throw
+
+static inline
+void T(const char *s)
+{
+    throw std::runtime_error(s);
 }
 
 

@@ -459,7 +459,6 @@ namespace ass {
     };
 }
 
-
 template <typename Tp = int>
 std::initializer_list<Tp> 
 R(int a0, int a1, int b)
@@ -484,6 +483,21 @@ R(int a, int b)
 {
     return R<Tp>(a,a+1,b);
 }
+
+////////////////////////////////////////////////////////////// Print 
+
+template <typename T>
+void P(T &&arg)
+{
+    std::cout << std::forward<T>(arg);
+}
+template <typename T, typename ...Ti>
+void P(T &&arg, Ti&&... args)
+{
+    std::cout << arg << ' ';
+    P(std::forward<Ti>(args)...);
+}
+
 
 using namespace std;
 using namespace std::placeholders;

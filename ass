@@ -8,8 +8,8 @@
  * ----------------------------------------------------------------------------
  */
 
-#ifndef _ASS_HPP_
-#define _ASS_HPP_ 
+#ifndef __ASS__
+#define __ASS__ 
 
 #include <cxxabi.h>
 
@@ -78,7 +78,7 @@
 
 #if __GNUC__ == 4 &&  __GNUC_MINOR__ == 4  
 #include <cstdatomic>
-#elif __GNUC__ == 4 &&  __GNUC_MINOR__ == 5
+#elif __GNUC__ == 4 &&  __GNUC_MINOR__ > 4
 #include <atomic>
 #include <future>
 #endif
@@ -341,7 +341,7 @@ struct O
     static void print_type(std::ostringstream &out, T&&, Ti&&...arg)
     {
         out << cxa_demangle(typeid(T).name()) << ',';
-        type(out, std::forward<Ti>(arg)...);
+        print_type(out, std::forward<Ti>(arg)...);
     }
 
     std::intptr_t value;
@@ -488,4 +488,4 @@ R(int a, int b)
 using namespace std;
 using namespace std::placeholders;
 
-#endif /* _ASS_HPP_ */
+#endif /* __ASS__ */

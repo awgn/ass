@@ -19,6 +19,8 @@
 
 #include <ass.hpp>
 
+#define RUNME   "/tmp/runme"
+
 struct line
 { 
     std::string str;
@@ -40,6 +42,9 @@ main(int argc, char *argv[])
     std::vector<std::string> main_ = { "int main(int argc, char *argv[]) { cout << boolalpha;\n" };
 
     bool state = true;
+
+    // create the source code...
+    //
 
     std::for_each(std::istream_iterator<line>(std::cin),
                   std::istream_iterator<line>(),
@@ -67,14 +72,17 @@ main(int argc, char *argv[])
     main_.push_back("}");
     std::move(main_.begin(), main_.end(), std::back_inserter(translation_unit));
 
-    std::ofstream cpp("/tmp/runme.cpp");
+    std::ofstream cpp(RUNME ".cpp");
     if (!cpp)
         throw std::runtime_error("ofstream");
     std::copy(translation_unit.begin(), translation_unit.end(), std::ostream_iterator<std::string>(cpp));
     cpp.close();
 
+    // compile the test...
+    //
+
     std::string compile("g++ -std=c++0x -O0 -Wall -Wextra -Wno-unused-parameter "
-                    "-D_GLIBXX_DEBUG /tmp/runme.cpp -I/usr/local/include/ -o /tmp/runme ");
+                    "-D_GLIBXX_DEBUG " RUNME ".cpp -I/usr/local/include/ -o " RUNME);
 
     auto argx = argv + 1;
     for(; argx != (argv+argc); ++argx)
@@ -83,21 +91,22 @@ main(int argc, char *argv[])
         {
             argx++; break;
         }
-        compile.append(*argx).append(1, ' ');
+        compile.append(1, ' ').append(*argx);
     }
 
     int status = system(compile.c_str());
-    if( WEXITSTATUS(status) == 0)
-    {
-        std::cout << "running..." << std::endl;
-        std::ostringstream runme; runme << "/tmp/runme ";
-        std::copy(argx, argv + argc, std::ostream_iterator<const char *>(runme, " "));
-        int rc = system(runme.str().c_str());
-        return WIFEXITED(rc) ? WEXITSTATUS(rc) : EXIT_FAILURE;
-    }
-    else {
-        std::cout << "...aborted!" << std::endl;
-        return EXIT_FAILURE; 
-    }
+
+    if( WEXITSTATUS(status))
+        return EXIT_FAILURE;
+    
+    // run it...
+    //
+
+    std::cout << "---\n";
+    std::ostringstream runme; runme << RUNME << ' ';
+    std::copy(argx, argv + argc, std::ostream_iterator<const char *>(runme, " "));
+
+    int rc = system(runme.str().c_str());
+    return WIFEXITED(rc) ? WEXITSTATUS(rc) : EXIT_FAILURE;
 }
  

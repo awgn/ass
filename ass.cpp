@@ -68,35 +68,36 @@ main(int argc, char *argv[])
     std::move(main_.begin(), main_.end(), std::back_inserter(translation_unit));
 
     std::ofstream cpp("/tmp/runme.cpp");
+    if (!cpp)
+        throw std::runtime_error("ofstream");
     std::copy(translation_unit.begin(), translation_unit.end(), std::ostream_iterator<std::string>(cpp));
     cpp.close();
 
-    std::string cmd("g++ -std=c++0x -O0 -Wall -Wextra -Wno-unused-parameter "
+    std::string compile("g++ -std=c++0x -O0 -Wall -Wextra -Wno-unused-parameter "
                     "-D_GLIBXX_DEBUG /tmp/runme.cpp -I/usr/local/include/ -o /tmp/runme ");
 
     auto argx = argv + 1;
-
     for(; argx != (argv+argc); ++argx)
     {
         if (!std::string("--").compare(*argx))
         {
             argx++; break;
         }
-        cmd.append(*argx).append(1, ' ');
+        compile.append(*argx).append(1, ' ');
     }
 
-    int status = system(cmd.c_str());
-
+    int status = system(compile.c_str());
     if( WEXITSTATUS(status) == 0)
     {
         std::cout << "running..." << std::endl;
         std::ostringstream runme; runme << "/tmp/runme ";
         std::copy(argx, argv + argc, std::ostream_iterator<const char *>(runme, " "));
-        return system(runme.str().c_str());
+        int rc = system(runme.str().c_str());
+        return WIFEXITED(rc) ? WEXITSTATUS(rc) : EXIT_FAILURE;
     }
     else {
         std::cout << "...aborted!" << std::endl;
-        return 1; 
+        return EXIT_FAILURE; 
     }
 }
  

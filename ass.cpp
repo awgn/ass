@@ -37,7 +37,7 @@ int
 main(int argc, char *argv[])
 {
     std::vector<std::string> translation_unit = { "#include <ass.hpp>\n" };
-    std::vector<std::string> body = { "int main(int argc, char *argv[]) { cout << boolalpha;\n" };
+    std::vector<std::string> main_ = { "int main(int argc, char *argv[]) { cout << boolalpha;\n" };
 
     bool state = true;
 
@@ -49,24 +49,49 @@ main(int argc, char *argv[])
             state = !state;
             return;
         }        
-        auto & where = (state ? body : translation_unit);
+
+        bool pp = false;
+        for(auto c : l.str)
+        {
+            if (isspace(c))
+                continue;
+            if (c == '#')
+                pp = true;
+            break;    
+        }
+
+        auto & where = (state && !pp ? main_ : translation_unit);
         where.push_back(std::move(l.str));
     });
 
-    body.push_back("}");
-    std::move(body.begin(), body.end(), std::back_inserter(translation_unit));
+    main_.push_back("}");
+    std::move(main_.begin(), main_.end(), std::back_inserter(translation_unit));
 
     std::ofstream cpp("/tmp/runme.cpp");
     std::copy(translation_unit.begin(), translation_unit.end(), std::ostream_iterator<std::string>(cpp));
     cpp.close();
 
-    int status = system("g++ -std=c++0x -O0 -Wall -Wextra -Wno-unused-parameter -pthread "
-                        "-D_GLIBXX_DEBUG /tmp/runme.cpp -I/usr/local/include/ -o /tmp/runme");
+    std::string cmd("g++ -std=c++0x -O0 -Wall -Wextra -Wno-unused-parameter "
+                    "-D_GLIBXX_DEBUG /tmp/runme.cpp -I/usr/local/include/ -o /tmp/runme ");
+
+    auto argx = argv + 1;
+
+    for(; argx != (argv+argc); ++argx)
+    {
+        if (!std::string("--").compare(*argx))
+        {
+            argx++; break;
+        }
+        cmd.append(*argx).append(1, ' ');
+    }
+
+    int status = system(cmd.c_str());
+
     if( WEXITSTATUS(status) == 0)
     {
         std::cout << "running..." << std::endl;
         std::ostringstream runme; runme << "/tmp/runme ";
-        std::copy(argv + 1, argv + argc, std::ostream_iterator<const char *>(runme, " "));
+        std::copy(argx, argv + argc, std::ostream_iterator<const char *>(runme, " "));
         return system(runme.str().c_str());
     }
     else {

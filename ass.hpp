@@ -8,8 +8,8 @@
  * ----------------------------------------------------------------------------
  */
 
-#ifndef __ASS__
-#define __ASS__ 
+#ifndef __ASS_HPP__
+#define __ASS_HPP__ 
 
 #include <cxxabi.h>
 
@@ -210,8 +210,6 @@ namespace ass
 
 namespace ass { namespace streamer {
 
-    namespace tuplarr {
-
         // printon policy 
         //
 
@@ -220,18 +218,16 @@ namespace ass { namespace streamer {
         {
             static void apply(std::basic_ostream<CharT,Traits> &out, const T &tupl)
             {
-                out << std::get< std::tuple_size<T>::value - N>(tupl) << ' ';
+                out << std::get< std::tuple_size<T>::value - N>(tupl) << " ";
                 printon<CharT, Traits, T,N-1>::apply(out,tupl);
             }
-
-        };
+        }; 
         template <typename CharT, typename Traits, typename T>
         struct printon<CharT, Traits, T,0>
         {
             static void apply(std::basic_ostream<CharT, Traits> &, const T &)
             {}
         };
-    }
 
 } // namespace streamer
 } // namespace ass
@@ -274,7 +270,7 @@ namespace std {
     operator<<(std::basic_ostream<CharT,Traits> &out, const std::array<T,N> &rhs)
     {
         out << "[ ";
-        ass::streamer::tuplarr::printon<CharT, Traits, std::array<T,N>, N>::apply(out,rhs);
+        ass::streamer::printon<CharT, Traits, std::array<T,N>, N>::apply(out,rhs);
         return out << "]";
     }
 
@@ -286,7 +282,7 @@ namespace std {
     operator<<(std::basic_ostream<CharT,Traits> &out, const T &rhs)
     {
         out << "{ ";
-        ass::streamer::tuplarr::printon<CharT, Traits, T, std::tuple_size<T>::value>::apply(out,rhs);
+        ass::streamer::printon<CharT, Traits, T, std::tuple_size<T>::value>::apply(out,rhs);
         return out << "}";
     }
 
@@ -435,6 +431,9 @@ operator<<(std::basic_ostream<CharT,Traits> &out, const O & rhs)
 
 ////////////////////////////////////////////////////////////// Ranges 
 
+// We all know that what follows is very nasty, but alas there's no better 
+// way to do it (Nicola).
+
 namespace ass {
 
    /// initializer
@@ -458,6 +457,9 @@ namespace ass {
       : _M_array(__a), _M_len(__l) { }
     };
 }
+
+// leak, uhm LEAK!!!
+//
 
 template <typename Tp = int>
 std::initializer_list<Tp> 
@@ -515,4 +517,4 @@ void T(const char *s)
 using namespace std;
 using namespace std::placeholders;
 
-#endif /* __ASS__ */
+#endif /* __ASS_HPP__ */

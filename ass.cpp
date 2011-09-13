@@ -17,7 +17,7 @@
  *
  */
 
-#include <ass>
+#include <ass.hpp>
 
 struct line
 { 
@@ -36,7 +36,7 @@ operator>>(std::basic_istream<CharT,Traits> &in, line& other)
 int
 main(int argc, char *argv[])
 {
-    std::vector<std::string> translation_unit = { "#include <ass>\n" };
+    std::vector<std::string> translation_unit = { "#include <ass.hpp>\n" };
     std::vector<std::string> body = { "int main(int argc, char *argv[]) { cout << boolalpha;\n" };
 
     bool state = true;
@@ -60,8 +60,8 @@ main(int argc, char *argv[])
     std::copy(translation_unit.begin(), translation_unit.end(), std::ostream_iterator<std::string>(cpp));
     cpp.close();
 
-    int status = system("g++ -std=c++0x -O0 -g2 -Wall -Weffc++ -Wextra -Wno-unused-parameter -pthread "
-                        "-D_GLIBCXX_DEBUG /tmp/runme.cpp -o /tmp/runme");
+    int status = system("g++ -std=c++0x -O0 -Wall -Wextra -Wno-unused-parameter -pthread "
+                        "-D_GLIBXX_DEBUG /tmp/runme.cpp -I/usr/local/include/ -o /tmp/runme");
     if( WEXITSTATUS(status) == 0)
     {
         std::cout << "running..." << std::endl;

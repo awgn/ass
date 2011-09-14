@@ -38,20 +38,20 @@ operator>>(std::basic_istream<CharT,Traits> &in, line& other)
 int
 main(int argc, char *argv[])
 {
-    std::vector<std::string> translation_unit = { "#include <ass.hpp>\n" };
-    std::vector<std::string> main_ = { "int main(int argc, char *argv[]) { cout << boolalpha;\n" };
+    std::vector<std::pair<std::string,int>> translation_unit = { make_pair("#include <ass.hpp>\n",0) };
+    std::vector<std::pair<std::string,int>> main_ = { make_pair("int main(int argc, char *argv[]) { cout << boolalpha;\n",0) };
 
     bool state = true;
 
     // create the source code...
     //
-
+    int n = 1;
     std::for_each(std::istream_iterator<line>(std::cin),
                   std::istream_iterator<line>(),
                   [&](const line &l) {
 
         if (l.str.find_first_of("...") == 0) {
-            state = !state;
+            state = !state; n++;
             return;
         }        
 
@@ -66,16 +66,19 @@ main(int argc, char *argv[])
         }
 
         auto & where = (state && !pp ? main_ : translation_unit);
-        where.push_back(std::move(l.str));
+        where.push_back( make_pair(std::move(l.str),n++) );
     });
 
-    main_.push_back("}");
+    main_.push_back(make_pair("}",0));
     std::move(main_.begin(), main_.end(), std::back_inserter(translation_unit));
 
     std::ofstream cpp(RUNME ".cpp");
     if (!cpp)
         throw std::runtime_error("ofstream");
-    std::copy(translation_unit.begin(), translation_unit.end(), std::ostream_iterator<std::string>(cpp));
+    
+    std::for_each(translation_unit.begin(), translation_unit.end(), [&](const std::pair<std::string, int> &l) {
+                        cpp << "#line " << l.second << '\n' << l.first;
+                  });
     cpp.close();
 
     // compile the test...

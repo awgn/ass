@@ -513,6 +513,17 @@ void T(const char *s)
     throw std::runtime_error(s);
 }
 
+////////////////////////////////////////////////////////////// Input
+
+template <typename Tp = int>
+Tp I(const Tp & = Tp())
+{
+    Tp value;
+    if (!(std::cin >> value))
+        throw std::runtime_error("cin");
+    return value;
+}
+
 
 using namespace std;
 using namespace std::placeholders;

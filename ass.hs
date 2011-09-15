@@ -21,12 +21,12 @@ import Char
 import System(getArgs)
 import System.Process
 import System.IO
+import System.Exit
 
 data CodeLine = CodeLine Int String 
 
 type TranslationUnit = [CodeLine]
 type MainFunction    = [CodeLine]
-type LineNumber      = Int
 
 instance Show CodeLine where
     show (CodeLine n s) = "#line " ++ show n ++ "\n" ++ s  
@@ -49,7 +49,7 @@ getCompilerArgs = takeWhile ( /= "--" )
 
 tail' :: [String] -> [String]
 tail' [] = []
-tail' (x:xs) = xs
+tail' (_:xs) = xs
 
 getTestArgs :: [String] -> [String]
 getTestArgs = tail' . dropWhile ( /= "--" ) 
@@ -67,28 +67,29 @@ parseSource :: TranslationUnit -> MainFunction -> [CodeLine] -> (TranslationUnit
 parseSource t m code = parseSource' t m False code
 
 toCodeLine :: String -> IO [CodeLine]
-toCodeLine xs = return (map (\ (xs,n) -> CodeLine n xs) $ zip (lines xs) [1..])
+toCodeLine cline = return (map (\ (xs,n) -> CodeLine n xs) $ zip (lines cline) [1..])
 
+main :: IO Int
 main = do
     args <- getArgs
     
-    let translation = [ CodeLine 0 "#include <ass.hpp>" ]
-    let main = [ CodeLine 0 "int main(int argc, char *argv[]) { cout << boolalpha;" ]
+    let translationUnit = [ CodeLine 0 "#include <ass.hpp>" ]
+    let mainFunction = [ CodeLine 0 "int main(int argc, char *argv[]) { cout << boolalpha;" ]
     let compileCmd = "/usr/bin/g++ -std=c++0x -Wall -Wextra -Wno-unused-parameter " 
                         ++ "-D_GLIBXX_DEBUG /tmp/runme.cpp -o /tmp/runme "  ++ ( unwords $ getCompilerArgs args )
     let testCmd = "/tmp/runme " ++ ( unwords $ getTestArgs args ) 
 
     -- parse the snippet.
     source <- hGetContents stdin >>= toCodeLine
-    let (translation',main') = parseSource translation main source
+    let (translationUnit',mainFunction') = parseSource translationUnit mainFunction source
 
     -- create source code.
     handle <- openFile "/tmp/runme.cpp" WriteMode
-    mapM (hPrint handle ) translation'
-    mapM (hPrint handle ) main'
+    _ <- mapM (hPrint handle) translationUnit'
+    _ <- mapM (hPrint handle) mainFunction'
     hClose handle
     
     -- compile and run it.
     rc <- runCommand compileCmd >>= waitForProcess >> runCommand testCmd >>= waitForProcess
-    return rc
+    exitWith rc
 

@@ -74,7 +74,7 @@ main(int argc, char *argv[])
 
     std::ofstream cpp(RUNME ".cpp");
     if (!cpp)
-        throw std::runtime_error("ofstream");
+        throw std::runtime_error("ass: ofstream");
     
     std::for_each(translation_unit.begin(), translation_unit.end(), [&](const std::pair<std::string, int> &l) {
                         cpp << "#line " << l.second << '\n' << l.first;
@@ -84,8 +84,14 @@ main(int argc, char *argv[])
     // compile the test...
     //
 
-    std::string compile("g++ -std=c++0x -O0 -Wall -Wextra -Wno-unused-parameter "
+    char path[PATH_MAX];
+    if (!getcwd(path, PATH_MAX))
+        throw std::runtime_error("ass: getcwd");
+
+    std::string compile("/usr/bin/g++ -std=c++0x -Wall -Wextra -Wno-unused-parameter "
                     "-D_GLIBXX_DEBUG " RUNME ".cpp -I/usr/local/include/ -o " RUNME);
+
+    compile.append(" -I").append(path);
 
     auto argx = argv + 1;
     for(; argx != (argv+argc); ++argx)

@@ -25,12 +25,15 @@ import System.Exit
 
 data CodeLine = CodeLine Int String 
 
-type TranslationUnit = [CodeLine]
-type MainFunction    = [CodeLine]
-type Section         = Bool
-
 instance Show CodeLine where
     show (CodeLine n s) = "#line " ++ show n ++ "\n" ++ s  
+
+type SourceCode      = [CodeLine]
+
+type TranslationUnit = SourceCode
+type MainFunction    = SourceCode
+type Section         = Bool
+
 
 isPreprocessor :: String -> Bool
 isPreprocessor [] = False
@@ -57,20 +60,19 @@ getTestArgs = tail' . dropWhile ( /= "--" )
 
 type ParserState = (TranslationUnit, MainFunction, Section)
 
-parseLine :: ParserState -> CodeLine -> ParserState
-parseLine (t,m,s) (CodeLine n x) 
+parseCodeLine :: ParserState -> CodeLine -> ParserState
+parseCodeLine (t,m,s) (CodeLine n x) 
     | isSeparator x     = (t, m, not s)
     | isPreprocessor x  = ((t ++ [CodeLine n x]), m, s)
     | otherwise         = if s 
                             then ((t ++ [CodeLine n x]), m, s)
                             else (t, (m ++ [CodeLine n x]), s)
 
-parseSource :: ParserState -> [CodeLine] -> ParserState
-parseSource s [] = s
-parseSource s (x:xs) = parseSource (parseLine s x) xs
+parseSourceCode :: ParserState -> SourceCode -> ParserState
+parseSourceCode s [] = s
+parseSourceCode s (x:xs) = parseSourceCode (parseCodeLine s x) xs
 
-
-toCode :: String -> IO [CodeLine]
+toCode :: String -> IO SourceCode
 toCode l = return (map (\ (xs,n) -> CodeLine n xs) $ zip (lines l) [1..])
 
 
@@ -91,7 +93,7 @@ main = do
     -- parse the snippet.
     source <- hGetContents stdin >>= closeMain >>= toCode
 
-    let (translationUnit',mainFunction',_) = parseSource (translationUnit,mainFunction,False) source
+    let (translationUnit',mainFunction',_) = parseSourceCode (translationUnit,mainFunction,False) source
 
     -- create source code.
     handle <- openFile "/tmp/runme.cpp" WriteMode

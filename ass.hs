@@ -27,6 +27,7 @@ data CodeLine = CodeLine Int String
 
 type TranslationUnit = [CodeLine]
 type MainFunction    = [CodeLine]
+type Section         = Bool
 
 instance Show CodeLine where
     show (CodeLine n s) = "#line " ++ show n ++ "\n" ++ s  
@@ -38,8 +39,8 @@ isPreprocessor (x:xs)
    | x == '#'  = True
    | otherwise = False
 
-isSep :: String -> Bool
-isSep xs = (spaces + dots) == (length xs) && (dots > 2)
+isSeparator :: String -> Bool
+isSeparator xs = (spaces + dots) == (length xs) && (dots > 2)
             where
                 spaces = length $ filter isSpace xs
                 dots   = length $ filter ( == '.') xs 
@@ -54,20 +55,28 @@ tail' (_:xs) = xs
 getTestArgs :: [String] -> [String]
 getTestArgs = tail' . dropWhile ( /= "--" ) 
 
-parseSource' :: TranslationUnit -> MainFunction ->  Bool -> [CodeLine] -> (TranslationUnit, MainFunction)
-parseSource' t m  _  [] =  (t, m ++ [ CodeLine 0 "}" ])
-parseSource' t m state (CodeLine n x:xs)
-     | isSep x          =   parseSource' t m (not state) xs
-     | isPreprocessor x =   parseSource' (t ++ [CodeLine n x] ) m state xs
-     | otherwise        =   if state
-                             then parseSource' (t ++ [CodeLine n x]) m state xs
-                             else parseSource' t (m ++ [CodeLine n x]) state xs
- 
-parseSource :: TranslationUnit -> MainFunction -> [CodeLine] -> (TranslationUnit, MainFunction)
-parseSource t m code = parseSource' t m False code
+type ParserState = (TranslationUnit, MainFunction, Section)
 
-toCodeLine :: String -> IO [CodeLine]
-toCodeLine cline = return (map (\ (xs,n) -> CodeLine n xs) $ zip (lines cline) [1..])
+parseLine :: ParserState -> CodeLine -> ParserState
+parseLine (t,m,s) (CodeLine n x) 
+    | isSeparator x     = (t, m, not s)
+    | isPreprocessor x  = ((t ++ [CodeLine n x]), m, s)
+    | otherwise         = if s 
+                            then ((t ++ [CodeLine n x]), m, s)
+                            else (t, (m ++ [CodeLine n x]), s)
+
+parseSource :: ParserState -> [CodeLine] -> ParserState
+parseSource s [] = s
+parseSource s (x:xs) = parseSource (parseLine s x) xs
+
+
+toCode :: String -> IO [CodeLine]
+toCode l = return (map (\ (xs,n) -> CodeLine n xs) $ zip (lines l) [1..])
+
+
+closeMain :: String -> IO String
+closeMain x = return (x ++ "\n};")
+
 
 main :: IO Int
 main = do
@@ -80,8 +89,9 @@ main = do
     let testCmd = "/tmp/runme " ++ ( unwords $ getTestArgs args ) 
 
     -- parse the snippet.
-    source <- hGetContents stdin >>= toCodeLine
-    let (translationUnit',mainFunction') = parseSource translationUnit mainFunction source
+    source <- hGetContents stdin >>= closeMain >>= toCode
+
+    let (translationUnit',mainFunction',_) = parseSource (translationUnit,mainFunction,False) source
 
     -- create source code.
     handle <- openFile "/tmp/runme.cpp" WriteMode
@@ -90,6 +100,5 @@ main = do
     hClose handle
     
     -- compile and run it.
-    rc <- runCommand compileCmd >>= waitForProcess >> runCommand testCmd >>= waitForProcess
-    exitWith rc
+    runCommand compileCmd >>= waitForProcess >> runCommand testCmd >>= waitForProcess >>= exitWith
 

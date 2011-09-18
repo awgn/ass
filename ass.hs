@@ -75,30 +75,29 @@ parseSourceCode s (x:xs) = parseSourceCode (parseCodeLine s x) xs
 toCode :: String -> IO SourceCode
 toCode l = return (map (\ (xs,n) -> CodeLine n xs) $ zip (lines l) [1..])
 
-
-closeMain :: String -> IO String
-closeMain x = return (x ++ "\n};")
-
-
 main :: IO Int
 main = do
     args <- getArgs
     
-    let translationUnit = [ CodeLine 0 "#include <ass.hpp>" ]
-    let mainFunction = [ CodeLine 0 "int main(int argc, char *argv[]) { cout << boolalpha;" ]
+    let mainHeader = [ CodeLine 0 "#include <ass.hpp>" ]
+    let mainBegin  = [ CodeLine 0 "int main(int argc, char *argv[]) { cout << boolalpha;" ]
+    let mainEnd    = [ CodeLine 0 "}" ]
+
     let compileCmd = "/usr/bin/g++ -std=c++0x -Wall -Wextra -Wno-unused-parameter " 
                         ++ "-D_GLIBXX_DEBUG /tmp/runme.cpp -o /tmp/runme "  ++ ( unwords $ getCompilerArgs args )
     let testCmd = "/tmp/runme " ++ ( unwords $ getTestArgs args ) 
 
     -- parse the snippet.
-    source <- hGetContents stdin >>= closeMain >>= toCode
+    snippet <- hGetContents stdin >>= toCode
 
-    let (translationUnit',mainFunction',_) = parseSourceCode (translationUnit,mainFunction,False) source
+    let (translationUnit,mainBody,_) = parseSourceCode (mainHeader,[],False) snippet
 
     -- create source code.
     handle <- openFile "/tmp/runme.cpp" WriteMode
-    _ <- mapM (hPrint handle) translationUnit'
-    _ <- mapM (hPrint handle) mainFunction'
+    mapM_ (hPrint handle) translationUnit
+    mapM_ (hPrint handle) mainBegin
+    mapM_ (hPrint handle) mainBody
+    mapM_ (hPrint handle) mainEnd
     hClose handle
     
     -- compile and run it.

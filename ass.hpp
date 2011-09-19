@@ -471,7 +471,7 @@ R(int a0, int a1, int b)
     
     Tp * leak = nullptr;
     if (size) {
-        leak = reinterpret_cast<Tp *>(malloc(size * sizeof(Tp)));
+        leak = static_cast<Tp *>(malloc(size * sizeof(Tp)));
         for(int n = 0; (step > 0  ? a0 <= b : a0 >= b); a0 += step, n++)
             new (leak+n) Tp(a0);  
     }

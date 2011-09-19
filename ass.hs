@@ -103,5 +103,9 @@ main = do
     hClose handle
     
     -- compile and run it.
-    runCommand compileCmd >>= waitForProcess >> runCommand testCmd >>= waitForProcess >>= exitWith
+    ec <- runCommand compileCmd >>= waitForProcess 
+    if (ec == ExitSuccess)  
+        then do 
+            runCommand testCmd >>= waitForProcess >>= exitWith
+        else exitWith $ ExitFailure 1
 

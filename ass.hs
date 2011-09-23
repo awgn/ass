@@ -24,6 +24,8 @@ import System.IO
 import System.Exit
 import System.Directory
 
+import Compiler
+
 data CodeLine = CodeLine Int String 
 
 instance Show CodeLine where
@@ -79,15 +81,12 @@ toCode l = return (map (\ (xs,n) -> CodeLine n xs) $ zip (lines l) [1..])
 main :: IO Int
 main = do
     args <- getArgs
-    cwd  <- getCurrentDirectory
+    cwd' <- getCurrentDirectory
 
     let mainHeader = [ CodeLine 0 "#include <ass.hpp>" ]
     let mainBegin  = [ CodeLine 0 "int main(int argc, char *argv[]) { cout << boolalpha;" ]
     let mainEnd    = [ CodeLine 0 "}" ]
-
-    let compileCmd = "/usr/bin/g++ -std=c++0x -Wall -Wextra -Wno-unused-parameter " 
-                        ++ "-D_GLIBXX_DEBUG -I" ++ cwd ++  " /tmp/runme.cpp -o /tmp/runme "  ++ ( unwords $ getCompilerArgs args )
-    let testCmd = "/tmp/runme " ++ ( unwords $ getTestArgs args ) 
+    let testCmd    = "/tmp/runme " ++ ( unwords $ getTestArgs args ) 
 
     -- parse the snippet.
     snippet <- hGetContents stdin >>= toCode
@@ -103,9 +102,9 @@ main = do
     hClose handle
     
     -- compile and run it.
-    ec <- runCommand compileCmd >>= waitForProcess 
+    ec <- compileWith Gxx "/tmp/runme.cpp" "/tmp/runme" (("-I " ++ cwd'):(getCompilerArgs args))  
     if (ec == ExitSuccess)  
         then do 
-            runCommand testCmd >>= waitForProcess >>= exitWith
+            system testCmd >>= exitWith
         else exitWith $ ExitFailure 1
 

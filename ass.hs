@@ -35,48 +35,8 @@ type SourceCode      = [CodeLine]
 
 type TranslationUnit = SourceCode
 type MainFunction    = SourceCode
-type Section         = Bool
 
-
-isPreprocessor :: String -> Bool
-isPreprocessor [] = False
-isPreprocessor (x:xs) 
-   | isSpace x = isPreprocessor xs
-   | x == '#'  = True
-   | otherwise = False
-
-isSeparator :: String -> Bool
-isSeparator xs = (spaces + dots) == (length xs) && (dots > 2)
-            where
-                spaces = length $ filter isSpace xs
-                dots   = length $ filter ( == '.') xs 
-
-getCompilerArgs :: [String] -> [String]
-getCompilerArgs = takeWhile ( /= "--" )  
-
-tail' :: [String] -> [String]
-tail' [] = []
-tail' (_:xs) = xs
-
-getTestArgs :: [String] -> [String]
-getTestArgs = tail' . dropWhile ( /= "--" ) 
-
-type ParserState = (TranslationUnit, MainFunction, Section)
-
-parseCodeLine :: ParserState -> CodeLine -> ParserState
-parseCodeLine (t,m,s) (CodeLine n x) 
-    | isSeparator x     = (t, m, not s)
-    | isPreprocessor x  = ((t ++ [CodeLine n x]), m, s)
-    | otherwise         = if s 
-                            then ((t ++ [CodeLine n x]), m, s)
-                            else (t, (m ++ [CodeLine n x]), s)
-
-parseSourceCode :: ParserState -> SourceCode -> ParserState
-parseSourceCode s [] = s
-parseSourceCode s (x:xs) = parseSourceCode (parseCodeLine s x) xs
-
-toCode :: String -> IO SourceCode
-toCode l = return (map (\ (xs,n) -> CodeLine n xs) $ zip (lines l) [1..])
+type ParserState = (TranslationUnit, MainFunction)
 
 main :: IO Int
 main = do
@@ -91,7 +51,7 @@ main = do
     -- parse the snippet.
     snippet <- hGetContents stdin >>= toCode
 
-    let (translationUnit,mainBody,_) = parseSourceCode (mainHeader,[],False) snippet
+    let (translationUnit,mainBody) = parseSourceCode (mainHeader,[]) snippet
 
     -- create source code.
     handle <- openFile "/tmp/runme.cpp" WriteMode
@@ -107,4 +67,47 @@ main = do
         then do 
             system testCmd >>= exitWith
         else exitWith $ ExitFailure 1
+
+
+getCompilerArgs :: [String] -> [String]
+getCompilerArgs = takeWhile ( /= "--" )  
+
+getTestArgs :: [String] -> [String]
+getTestArgs = tail' . dropWhile ( /= "--" ) 
+
+tail' :: [String] -> [String]
+tail' [] = []
+tail' (_:xs) = xs
+
+
+isPreprocessor :: String -> Bool
+isPreprocessor [] = False
+isPreprocessor (x:xs) 
+   | isSpace x = isPreprocessor xs
+   | x == '#'  = True
+   | otherwise = False
+
+
+asGlobal :: String -> Maybe String
+asGlobal [] = Nothing
+asGlobal (x:xs)
+    | isSpace x = getGlobal xs
+    | x == '$' =  Just xs
+    | otherwise = Nothing
+
+
+parseSourceCode :: ParserState -> SourceCode -> ParserState
+parseSourceCode s [] = s
+parseSourceCode s (x:xs) = parseSourceCode (parseCodeLine s x) xs
+
+
+parseCodeLine :: ParserState -> CodeLine -> ParserState
+parseCodeLine (t,m) (CodeLine n x) 
+    | isPreprocessor x = (t ++ [CodeLine n x], m)
+    | Just x' <- asGlobal x = (t ++ [CodeLine n x'], m)
+    | otherwise  =  (t, m ++ [CodeLine n x])
+
+
+toCode :: String -> IO SourceCode
+toCode l = return (map (\ (xs,n) -> CodeLine n xs) $ zip (lines l) [1..])
 

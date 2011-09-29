@@ -524,6 +524,20 @@ Tp I(const Tp & = Tp())
     return value;
 }
 
+////////////////////////////////////////////////////////////// _() 
+
+template <typename T1, typename T2>
+std::pair<T1,T2> _(T1 &&arg1, T2 &&arg2)
+{
+    return std::make_pair(std::forward<T1>(arg1),
+                          std::forward<T2>(arg2));
+}
+template <typename ... T>
+std::tuple<T...> _(T&& ...arg)
+{
+    return std::make_tuple(std::forward<T>(arg) ...);
+}
+
 
 using namespace std;
 using namespace std::placeholders;

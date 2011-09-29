@@ -88,9 +88,9 @@ isPreprocessor (x:xs)
    | otherwise = False
 
 
-asGlobal :: String -> Maybe String
-asGlobal [] = Nothing
-asGlobal (x:xs)
+getGlobal :: String -> Maybe String
+getGlobal [] = Nothing
+getGlobal (x:xs)
     | isSpace x = getGlobal xs
     | x == '$' =  Just xs
     | otherwise = Nothing
@@ -104,7 +104,7 @@ parseSourceCode s (x:xs) = parseSourceCode (parseCodeLine s x) xs
 parseCodeLine :: ParserState -> CodeLine -> ParserState
 parseCodeLine (t,m) (CodeLine n x) 
     | isPreprocessor x = (t ++ [CodeLine n x], m)
-    | Just x' <- asGlobal x = (t ++ [CodeLine n x'], m)
+    | Just x' <- getGlobal x = (t ++ [CodeLine n x'], m)
     | otherwise  =  (t, m ++ [CodeLine n x])
 
 

@@ -289,7 +289,7 @@ namespace std {
 } // namespace std
 
 
-////////////////////////////////////////////////////////////// simple c++0x Oracle
+////////////////////////////////////////////////////////////// simple Oracle class
 
 struct O
 {
@@ -321,7 +321,7 @@ struct O
         std::lock_guard<std::mutex> _L_(_S_mutex);
 #endif
         int status;
-        std::shared_ptr<char> ret(abi::__cxa_demangle(name,0,0, &status), ::free);
+        std::unique_ptr<char, void(*)(void *)> ret(abi::__cxa_demangle(name,0,0, &status), ::free);
         if (status < 0) {
             return std::string("?");
         }
@@ -429,7 +429,7 @@ operator<<(std::basic_ostream<CharT,Traits> &out, const O & rhs)
     return out;
 }
 
-////////////////////////////////////////////////////////////// Ranges 
+////////////////////////////////////////////////////////////// R(): Ranges ala Haskell 
 
 // We all know that what follows is very nasty, but alas there's no better 
 // way to do it (Nicola).
@@ -486,7 +486,7 @@ R(int a, int b)
     return R<Tp>(a,a+1,b);
 }
 
-////////////////////////////////////////////////////////////// Print 
+////////////////////////////////////////////////////////////// P(): generic variadic print
 
 template <typename T>
 void P(T &&arg)
@@ -500,18 +500,10 @@ void P(T &&arg, Ti&&... args)
     P(std::forward<Ti>(args)...);
 }
 
-////////////////////////////////////////////////////////////// Assert 
+////////////////////////////////////////////////////////////// A() and S(): assert and static_assert 
 
 #define A(x) assert(x)
 #define S(x) static_assert(x, #x)
-
-////////////////////////////////////////////////////////////// Throw
-
-static inline
-void T(const char *s)
-{
-    throw std::runtime_error(s);
-}
 
 ////////////////////////////////////////////////////////////// Input
 
@@ -524,7 +516,7 @@ Tp I(const Tp & = Tp())
     return value;
 }
 
-////////////////////////////////////////////////////////////// _() 
+////////////////////////////////////////////////////////////// _(): build pairs and tuples 
 
 template <typename T1, typename T2>
 std::pair<T1,T2> _(T1 &&arg1, T2 &&arg2)
@@ -536,6 +528,15 @@ template <typename ... T>
 std::tuple<T...> _(T&& ...arg)
 {
     return std::make_tuple(std::forward<T>(arg) ...);
+}
+
+////////////////////////////////////////////////////////////// T(): print type of an expression
+//
+
+template <typename Tp>
+void T(Tp &&x)
+{
+    std::cout << O::cxa_demangle(typeid(std::forward<Tp>(x)).name());
 }
 
 

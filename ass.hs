@@ -23,8 +23,7 @@ import System.Process
 import System.IO
 import System.Exit
 import System.Directory
-
-import Compiler
+import Control.Applicative
 
 data CodeLine = CodeLine Int String 
 
@@ -40,6 +39,7 @@ type ParserState = (TranslationUnit, MainFunction)
 
 main :: IO Int
 main = do
+
     args <- getArgs
     cwd' <- getCurrentDirectory
 
@@ -49,20 +49,20 @@ main = do
     let testCmd    = "/tmp/runme " ++ ( unwords $ getTestArgs args ) 
 
     -- parse the snippet.
-    snippet <- hGetContents stdin >>= toCode
-
-    let (translationUnit,mainBody) = parseSourceCode (mainHeader,[]) snippet
+    
+    (translationUnit, mainBody) <- (parseSourceCode (mainHeader,[])) <$> toCode <$> (hGetContents stdin)   
 
     -- create source code.
-    handle <- openFile "/tmp/runme.cpp" WriteMode
-    mapM_ (hPrint handle) translationUnit
-    mapM_ (hPrint handle) mainBegin
-    mapM_ (hPrint handle) mainBody
-    mapM_ (hPrint handle) mainEnd
-    hClose handle
+    
+    h <- openFile "/tmp/runme.cpp" WriteMode 
+    mapM_ (hPrint h) translationUnit
+    mapM_ (hPrint h) mainBegin
+    mapM_ (hPrint h) mainBody
+    mapM_ (hPrint h) mainEnd
+    hClose h
     
     -- compile and run it.
-    ec <- compileWith Gxx "/tmp/runme.cpp" "/tmp/runme" (("-I " ++ cwd'):(getCompilerArgs args))  
+    ec <- compileWith "/usr/bin/g++" "/tmp/runme.cpp" "/tmp/runme" (("-I " ++ cwd'):(getCompilerArgs args))  
     if (ec == ExitSuccess)  
         then do 
             system testCmd >>= exitWith
@@ -72,12 +72,11 @@ main = do
 getCompilerArgs :: [String] -> [String]
 getCompilerArgs = takeWhile ( /= "--" )  
 
+
 getTestArgs :: [String] -> [String]
 getTestArgs = tail' . dropWhile ( /= "--" ) 
-
-tail' :: [String] -> [String]
-tail' [] = []
-tail' (_:xs) = xs
+                where tail' [] = []
+                      tail' (_:xs) = xs
 
 
 isPreprocessor :: String -> Bool
@@ -108,6 +107,13 @@ parseCodeLine (t,m) (CodeLine n x)
     | otherwise  =  (t, m ++ [CodeLine n x])
 
 
-toCode :: String -> IO SourceCode
-toCode l = return (map (\ (xs,n) -> CodeLine n xs) $ zip (lines l) [1..])
+toCode :: String -> SourceCode
+toCode l = map (\ (xs,n) -> CodeLine n xs) $ zip (lines l) [1..]
+
+
+compileWith :: String -> String -> String -> [String] -> IO ExitCode
+compileWith comp source out extra = system (
+                        unwords $ [ comp, source, "-o", out ] 
+                            ++ [ "-std=c++0x", "-O0", "-D_GLIBXX_DEBUG", "-Wall", "-Wextra", "-Wno-unused-parameter" ]  
+                            ++ extra ) 
 

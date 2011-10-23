@@ -50,7 +50,7 @@ main = do
 
     -- parse the snippet.
     
-    (translationUnit, mainBody) <- (parseSourceCode (mainHeader,[])) <$> toCode <$> (hGetContents stdin)   
+    (translationUnit, mainBody) <- (foldl parseCodeLine (mainHeader,[])) <$> toCode <$> (hGetContents stdin)   
 
     -- create source code.
     
@@ -95,13 +95,8 @@ getGlobal (x:xs)
     | otherwise = Nothing
 
 
-parseSourceCode :: ParserState -> SourceCode -> ParserState
-parseSourceCode s [] = s
-parseSourceCode s (x:xs) = parseSourceCode (parseCodeLine s x) xs
-
-
 parseCodeLine :: ParserState -> CodeLine -> ParserState
-parseCodeLine (t,m) (CodeLine n x) 
+parseCodeLine (t,m) (CodeLine n x)  
     | isPreprocessor x = (t ++ [CodeLine n x], m)
     | Just x' <- getGlobal x = (t ++ [CodeLine n x'], m)
     | otherwise  =  (t, m ++ [CodeLine n x])

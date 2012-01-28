@@ -15,9 +15,10 @@
 -- along with this program; if not, write to the Free Software
 -- Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 --
--- ass: C++ code ass'istant
+-- ass: C++ code ass'istant for vim
 
 import Char
+import Data.List
 import System(getArgs)
 import System.Process
 import System.IO
@@ -50,7 +51,7 @@ main = do
 
     -- parse the snippet.
     
-    (translationUnit, mainBody) <- (foldl parseCodeLine (mainHeader,[])) <$> toCode <$> (hGetContents stdin)   
+    (translationUnit, mainBody) <- (foldl parseCodeLine (mainHeader,[])) <$> toSourceCode <$> (hGetContents stdin)   
 
     -- create source code.
     
@@ -78,37 +79,28 @@ getTestArgs = tail' . dropWhile ( /= "--" )
                 where tail' [] = []
                       tail' (_:xs) = xs
 
-
 isPreprocessor :: String -> Bool
-isPreprocessor [] = False
-isPreprocessor (x:xs) 
-   | isSpace x = isPreprocessor xs
-   | x == '#'  = True
-   | otherwise = False
+isPreprocessor = isPrefixOf "#" . dropWhile isSpace 
 
-
-getGlobal :: String -> Maybe String
-getGlobal [] = Nothing
-getGlobal (x:xs)
-    | isSpace x = getGlobal xs
-    | x == '$' =  Just xs
-    | otherwise = Nothing
-
+getGlobalLine :: String -> Maybe String
+getGlobalLine xs | "..." `isPrefixOf` line = Just $ tail $ tail $ tail line 
+                 | otherwise = Nothing
+                 where line = dropWhile isSpace xs
 
 parseCodeLine :: ParserState -> CodeLine -> ParserState
 parseCodeLine (t,m) (CodeLine n x)  
     | isPreprocessor x = (t ++ [CodeLine n x], m)
-    | Just x' <- getGlobal x = (t ++ [CodeLine n x'], m)
+    | Just x' <- getGlobalLine x = (t ++ [CodeLine n x'], m)
     | otherwise  =  (t, m ++ [CodeLine n x])
 
 
-toCode :: String -> SourceCode
-toCode l = map (\ (xs,n) -> CodeLine n xs) $ zip (lines l) [1..]
+toSourceCode :: String -> SourceCode
+toSourceCode l = map (\(xs,n) -> CodeLine n xs) $ zip (lines l) [1..]
 
 
 compileWith :: String -> String -> String -> [String] -> IO ExitCode
 compileWith comp source out extra = system (
-                        unwords $ [ comp, source, "-o", out ] 
+                            unwords $ [ comp, source, "-o", out ] 
                             ++ [ "-std=c++0x", "-O0", "-D_GLIBXX_DEBUG", "-Wall", "-Wextra", "-Wno-unused-parameter" ]  
                             ++ extra ) 
 

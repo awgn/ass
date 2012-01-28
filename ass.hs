@@ -29,7 +29,7 @@ import Control.Applicative
 data CodeLine = CodeLine Int String 
 
 instance Show CodeLine where
-    show (CodeLine n s) = "#line " ++ show n ++ "\n" ++ s  
+    show (CodeLine n xs) = "#line " ++ show n ++ "\n" ++ xs  
 
 type SourceCode      = [CodeLine]
 type TranslationUnit = SourceCode
@@ -46,11 +46,11 @@ main = do
     let mainHeader = [ CodeLine 0 "#include <ass.hpp>" ]
     let mainBegin  = [ CodeLine 0 "int main(int argc, char *argv[]) { cout << boolalpha;" ]
     let mainEnd    = [ CodeLine 0 "}" ]
-    let testCmd    = "/tmp/runme " ++ ( unwords $ getTestArgs args ) 
+    let testCmd    = "/tmp/runme " ++ (unwords $ getTestArgs args)  
 
     -- parse the snippet.
     
-    (translationUnit, mainBody) <- (foldl parseCodeLine (mainHeader,[])) <$> toSourceCode <$> (hGetContents stdin)   
+    (translationUnit, mainBody) <- foldl parseCodeLine (mainHeader,[]) <$> toSourceCode <$> hGetContents stdin   
 
     -- create source code.
     
@@ -62,7 +62,8 @@ main = do
     hClose h
     
     -- compile and run it.
-    ec <- compileWith "/usr/bin/g++" "/tmp/runme.cpp" "/tmp/runme" (("-I " ++ cwd'):(getCompilerArgs args))  
+
+    ec <- compileWith "/usr/bin/g++" "/tmp/runme.cpp" "/tmp/runme" $ ("-I " ++ cwd'):(getCompilerArgs args)  
     if (ec == ExitSuccess)  
         then do 
             system testCmd >>= exitWith
@@ -98,7 +99,7 @@ parseCodeLine (t,m) (CodeLine n x)
 
 
 toSourceCode :: String -> SourceCode
-toSourceCode l = map (\(xs,n) -> CodeLine n xs) $ zip (lines l) [1..]
+toSourceCode xs = zipWith (\n xs' -> CodeLine n xs') [1..] (lines xs)
 
 
 compileWith :: String -> String -> String -> [String] -> IO ExitCode

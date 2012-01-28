@@ -32,7 +32,6 @@ instance Show CodeLine where
     show (CodeLine n s) = "#line " ++ show n ++ "\n" ++ s  
 
 type SourceCode      = [CodeLine]
-
 type TranslationUnit = SourceCode
 type MainFunction    = SourceCode
 
@@ -79,13 +78,17 @@ getTestArgs = tail' . dropWhile ( /= "--" )
                 where tail' [] = []
                       tail' (_:xs) = xs
 
+
 isPreprocessor :: String -> Bool
 isPreprocessor = isPrefixOf "#" . dropWhile isSpace 
 
+
 getGlobalLine :: String -> Maybe String
-getGlobalLine xs | "..." `isPrefixOf` line = Just $ tail $ tail $ tail line 
-                 | otherwise = Nothing
-                 where line = dropWhile isSpace xs
+getGlobalLine xs 
+    | "..." `isPrefixOf` xs' = Just $ tail $ tail $ tail xs'
+    | otherwise = Nothing
+    where xs' = dropWhile isSpace xs
+
 
 parseCodeLine :: ParserState -> CodeLine -> ParserState
 parseCodeLine (t,m) (CodeLine n x)  

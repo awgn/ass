@@ -456,9 +456,11 @@ namespace ass {
       fake_list(const_iterator __a, size_type __l)
       : _M_array(__a), _M_len(__l) { }
     };
+                                                    
+    static_assert(sizeof(fake_list<int>) == sizeof(std::initializer_list<int>), "fake_list<> implementation not compliant!");
 }
 
-// leak, uhm LEAK!!!
+// leak, uhm LEAK!!! In this case it's not worth avoiding it!!!
 //
 
 template <typename Tp = int>

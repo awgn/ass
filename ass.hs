@@ -99,7 +99,7 @@ parseCodeLine (t,m) (CodeLine n x)
 
 
 toSourceCode :: String -> SourceCode
-toSourceCode xs = zipWith (\n xs' -> CodeLine n xs') [1..] (lines xs)
+toSourceCode xs = zipWith CodeLine [1..] (lines xs)
 
 
 compileWith :: String -> String -> String -> [String] -> IO ExitCode

@@ -431,7 +431,7 @@ operator<<(std::basic_ostream<CharT,Traits> &out, const O & rhs)
 
 ////////////////////////////////////////////////////////////// R(): Ranges ala Haskell 
 
-// We all know that what follows is very nasty, but alas there's no better 
+// We all know that what follows is very nasty, but alas there's no legal
 // way to do it (Nicola).
 
 namespace ass {
@@ -507,17 +507,6 @@ void P(T &&arg, Ti&&... args)
 #define A(x) assert(x)
 #define S(x) static_assert(x, #x)
 
-////////////////////////////////////////////////////////////// Input
-
-template <typename Tp = int>
-Tp I(const Tp & = Tp())
-{
-    Tp value;
-    if (!(std::cin >> value))
-        throw std::runtime_error("cin");
-    return value;
-}
-
 ////////////////////////////////////////////////////////////// _(): build pairs and tuples 
 
 template <typename T1, typename T2>
@@ -532,7 +521,7 @@ std::tuple<T...> _(T&& ...arg)
     return std::make_tuple(std::forward<T>(arg) ...);
 }
 
-////////////////////////////////////////////////////////////// T(): print type of an expression
+////////////////////////////////////////////////////////////// T(): print the type of an expression
 //
 
 template <typename Tp>

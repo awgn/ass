@@ -25,6 +25,7 @@ import System.IO
 import System.Exit
 import System.Directory
 import Control.Applicative
+import Control.Monad
 
 data CodeLine = CodeLine Int String 
 
@@ -55,19 +56,18 @@ main = do
     -- create source code.
     
     h <- openFile "/tmp/runme.cpp" WriteMode 
-    mapM_ (hPrint h) translationUnit
-    mapM_ (hPrint h) mainBegin
-    mapM_ (hPrint h) mainBody
-    mapM_ (hPrint h) mainEnd
+    _ <- forM [translationUnit, mainBegin, mainBody, mainEnd] $ (\xs ->
+         mapM (hPrint h) xs
+         )
     hClose h
     
     -- compile and run it.
 
     ec <- compileWith "/usr/bin/g++" "/tmp/runme.cpp" "/tmp/runme" $ ("-I " ++ cwd'):(getCompilerArgs args)  
     if (ec == ExitSuccess)  
-        then do 
-            system testCmd >>= exitWith
-        else exitWith $ ExitFailure 1
+    then do 
+        system testCmd >>= exitWith
+    else exitWith $ ExitFailure 1
 
 
 getCompilerArgs :: [String] -> [String]

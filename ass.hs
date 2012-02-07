@@ -17,14 +17,13 @@
 --
 -- ass: C++ code ass'istant for vim
 
-import Char
+import Data.Char
 import Data.List
 import System(getArgs)
 import System.Process
 import System.IO
 import System.Exit
 import System.Directory
-import Control.Applicative
 import Control.Monad
 
 data CodeLine = CodeLine Int String 
@@ -40,35 +39,48 @@ type ParserState = (TranslationUnit, MainFunction)
 
 main :: IO Int
 main = do
-
+    
     args <- getArgs
     cwd' <- getCurrentDirectory
 
-    let mainHeader = [ CodeLine 0 "#include <ass.hpp>" ]
-    let mainBegin  = [ CodeLine 0 "int main(int argc, char *argv[]) { cout << boolalpha;" ]
-    let mainEnd    = [ CodeLine 0 "}" ]
-    let testCmd    = "/tmp/runme " ++ (unwords $ getTestArgs args)  
+    let testCmd = "/tmp/snippet " ++ (unwords $ getTestArgs args)  
 
-    -- parse the snippet.
-    
-    (translationUnit, mainBody) <- foldl parseCodeLine (mainHeader,[]) <$> toSourceCode <$> hGetContents stdin   
+    -- get the snippet.
 
-    -- create source code.
-    
-    h <- openFile "/tmp/runme.cpp" WriteMode 
-    _ <- forM [translationUnit, mainBegin, mainBody, mainEnd] $ (\xs ->
-         mapM (hPrint h) xs
-         )
-    hClose h
+    src <- hGetContents stdin
+
+    -- build the source code...
+
+    buildSource "/tmp/snippet.cpp" $ getSourceCode src
     
     -- compile and run it.
 
-    ec <- compileWith "/usr/bin/g++" "/tmp/runme.cpp" "/tmp/runme" $ ("-I " ++ cwd'):(getCompilerArgs args)  
+    ec <- compileWith "/usr/bin/g++" "/tmp/snippet.cpp" "/tmp/snippet" $ ("-I " ++ cwd'):(getCompilerArgs args)  
     if (ec == ExitSuccess)  
     then do 
         system testCmd >>= exitWith
     else exitWith $ ExitFailure 1
 
+
+getSourceCode :: String -> [ SourceCode ]
+getSourceCode xs | isSnippet xs = [ toSourceCode xs ]
+                 | otherwise    = composeSrc $ foldl parseCodeLine (mainHeader, []) $ toSourceCode xs
+                 where mainHeader = [ CodeLine 0 "#include <ass.hpp>" ]
+                       mainBegin  = [ CodeLine 0 "int main(int argc, char *argv[]) { cout << boolalpha;" ]
+                       mainEnd    = [ CodeLine 0 "}" ]
+                       composeSrc (global,body) = [global, mainBegin, body, mainEnd]
+
+
+isSnippet :: String -> Bool
+isSnippet xs = ["int", "main"] `isInfixOf` (words $ map (\x -> if isAlphaNum(x) then x else ' ') xs)
+
+
+buildSource :: String -> [ SourceCode ] -> IO ()
+buildSource name xs = do
+                      h <- openFile name WriteMode 
+                      _ <- forM xs $ (\ys -> mapM (hPrint h) ys)
+                      hClose h
+            
 
 getCompilerArgs :: [String] -> [String]
 getCompilerArgs = takeWhile ( /= "--" )  
@@ -82,6 +94,7 @@ getTestArgs = tail' . dropWhile ( /= "--" )
 
 isPreprocessor :: String -> Bool
 isPreprocessor = isPrefixOf "#" . dropWhile isSpace 
+
 
 
 getGlobalLine :: String -> Maybe String

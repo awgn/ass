@@ -63,7 +63,7 @@ main = do
 
 
 getSourceCode :: String -> [ SourceCode ]
-getSourceCode xs | isSnippet xs = [ toSourceCode xs ]
+getSourceCode xs | isSnippet xs = [ mainHeader, toSourceCode xs ]
                  | otherwise    = composeSrc $ foldl parseCodeLine (mainHeader, []) $ toSourceCode xs
                  where mainHeader = [ CodeLine 0 "#include <ass.hpp>" ]
                        mainBegin  = [ CodeLine 0 "int main(int argc, char *argv[]) { cout << boolalpha;" ]

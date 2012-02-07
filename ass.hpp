@@ -121,6 +121,7 @@ namespace ass
 
     __has_member_type_helper(value_type);
     __has_member_type_helper(pointer);
+    __has_member_type_helper(const_pointer);
     __has_member_type_helper(reference);
     __has_member_type_helper(const_reference);
     __has_member_type_helper(iterator);
@@ -138,6 +139,10 @@ namespace ass
     struct has_pointer : public std::integral_constant<bool, __has_pointer_helper<T>::value>
     {};
 
+    template <typename T>
+    struct has_const_pointer : public std::integral_constant<bool, __has_const_pointer_helper<T>::value>
+    {};
+    
     template <typename T>
     struct has_reference : public std::integral_constant<bool, __has_reference_helper<T>::value>
     {};
@@ -177,6 +182,7 @@ namespace ass
                                                               __has_iterator_helper<T>::value && 
                                                               __has_const_iterator_helper<T>::value && 
                                                               __has_pointer_helper<T>::value &&  
+                                                              __has_const_pointer_helper<T>::value &&  
                                                               __has_size_type_helper<T>::value &&  
                                                               __has_difference_type_helper<T>::value 
                                                                >

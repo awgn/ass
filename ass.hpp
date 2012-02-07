@@ -202,6 +202,16 @@ namespace ass
     struct is_pair<std::pair<T,U>> : public std::integral_constant<bool, true>
     {};
 
+    // duration traits
+    template <typename T>
+    struct _duration_traits;
+        template <> struct _duration_traits<std::chrono::nanoseconds> { static constexpr const char  *str = "_ns"; };
+        template <> struct _duration_traits<std::chrono::microseconds> { static constexpr const char *str = "_us"; };
+        template <> struct _duration_traits<std::chrono::milliseconds> { static constexpr const char *str = "_ms"; };
+        template <> struct _duration_traits<std::chrono::seconds> { static constexpr const char *str = "_s"; };
+        template <> struct _duration_traits<std::chrono::minutes> { static constexpr const char *str = "_m"; };
+        template <> struct _duration_traits<std::chrono::hours> { static constexpr const char *str = "_h"; };
+
     } // namespace traits
 
 } // namespace ass 
@@ -284,6 +294,29 @@ namespace std {
         out << "{ ";
         ass::streamer::printon<CharT, Traits, T, std::tuple_size<T>::value>::apply(out,rhs);
         return out << "}";
+    }
+
+    ////////////////////////////////////////////////////////
+    // operator<< for chrono types... 
+
+    template <typename CharT, typename Traits, typename Tp>
+    typename std::enable_if< std::is_same<Tp, std::chrono::nanoseconds>::value ||
+                             std::is_same<Tp, std::chrono::microseconds>::value || 
+                             std::is_same<Tp, std::chrono::milliseconds>::value || 
+                             std::is_same<Tp, std::chrono::seconds>::value || 
+                             std::is_same<Tp, std::chrono::minutes>::value || 
+                             std::is_same<Tp, std::chrono::hours>::value, 
+             std::basic_ostream<CharT, Traits>>::type &
+    operator<< (std::basic_ostream<CharT, Traits> &out, const Tp &r)
+    {
+        return out << r.count() << ass::traits::_duration_traits<Tp>::str;
+    }
+
+    template <typename CharT, typename Traits, typename Clock, typename Dur>
+    inline std::basic_ostream<CharT, Traits> &
+    operator<< (std::basic_ostream<CharT, Traits> &out, std::chrono::time_point<Clock, Dur> const &r)
+    {
+        return out << r.time_since_epoch();
     }
 
 } // namespace std

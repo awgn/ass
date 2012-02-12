@@ -76,9 +76,9 @@ data FuncDecl = FuncDecl [Specifier] Type Identifier [Argument]
                     deriving (Show, Read)
 
 instance CppShow FuncDecl where
-    prettyShow (FuncDecl sp ty id as) = "\n" ++ spec ++ ( if(null spec) then "" else " ") ++ ty ++ 
+    prettyShow (FuncDecl sp ty i as) = "\n" ++ spec ++ ( if(null spec) then "" else " ") ++ ty ++ 
                                         ( if (null spec && null ty) then "" else "\n" ) ++
-                                        id ++ "("  ++ (intercalate ", " $ map prettyShow as) ++ ")" 
+                                        i ++ "("  ++ (intercalate ", " $ map prettyShow as) ++ ")" 
                                             where spec = prettyShow sp
 
 -- Fuctions Body
@@ -90,13 +90,13 @@ data FuncBody = FuncBody [String] | MembFuncBody [String] (Maybe Qualifier)
 instance CppShow FuncBody where
     prettyShow (FuncBody xs) =  "\n{" ++ bodyToString xs ++ "}"
                                         where bodyToString [] = []
-                                              bodyToString xs = intercalate "\n    " ( "" :xs) ++ "\n"
+                                              bodyToString ys = intercalate "\n    " ( "" :ys) ++ "\n"
     prettyShow (MembFuncBody xs Nothing) = prettyShow $ FuncBody xs
     prettyShow (MembFuncBody xs (Just Const))   = " const" ++ (prettyShow $ FuncBody xs)
     prettyShow (MembFuncBody xs (Just Volatile))= " volatile" ++ (prettyShow $ FuncBody xs)
-    prettyShow (MembFuncBody xs (Just Delete))  = " = delete;"
-    prettyShow (MembFuncBody xs (Just Default)) = " = default;" 
-    prettyShow (MembFuncBody xs (Just Pure))    = " = 0;"
+    prettyShow (MembFuncBody _ (Just Delete))  = " = delete;"
+    prettyShow (MembFuncBody _ (Just Default)) = " = default;" 
+    prettyShow (MembFuncBody _ (Just Pure))    = " = 0;"
 
 
 -- Some predefined Fuctions
@@ -147,17 +147,17 @@ instance CppShow Function where
                                                 (FuncDecl [] "template <typename CharT, typename Traits>\ntypename std::basic_istream<CharT, Traits> &" 
                                                                      "operator>>" [Named "std::basic_istream<CharT,Traits>&" "in", Named (xs ++ "&") "that"])
                                                 (FuncBody ["return in;"])
-                               (Ctor id q)  -> prettyShow $ Function (FuncDecl [] "" id []) 
+                               (Ctor i q)  -> prettyShow $ Function (FuncDecl [] "" i []) 
                                                                      (MembFuncBody [] q)
-                               (Dtor id xs q) -> prettyShow $ Function (FuncDecl xs "" ("~" ++ id) []) 
+                               (Dtor i xs q) -> prettyShow $ Function (FuncDecl xs "" ("~" ++ i) []) 
                                                                        (MembFuncBody [] q)
-                               (CopyCtor id q)-> prettyShow $ Function (FuncDecl [] "" id [Named (constLvalRef id) "other"]) 
+                               (CopyCtor i q)-> prettyShow $ Function (FuncDecl [] "" i [Named (constLvalRef i) "other"]) 
                                                                        (MembFuncBody [] q)
-                               (OpAssign id q)-> prettyShow $ Function (FuncDecl [] (lvalRef id) "operator=" [Named (constLvalRef id) "other"]) 
+                               (OpAssign i q)-> prettyShow $ Function (FuncDecl [] (lvalRef i) "operator=" [Named (constLvalRef i) "other"]) 
                                                                        (MembFuncBody ["return *this;"] q)
-                               (MoveCtor id q)-> prettyShow $ Function (FuncDecl [] "" id [Named (rvalRef id) "other"]) 
+                               (MoveCtor i q)-> prettyShow $ Function (FuncDecl [] "" i [Named (rvalRef i) "other"]) 
                                                                        (MembFuncBody [] q)
-                               (OpMoveAssign id q) -> prettyShow $ Function (FuncDecl [] (lvalRef id) "operator=" [Named (rvalRef id) "other"]) 
+                               (OpMoveAssign i q) -> prettyShow $ Function (FuncDecl [] (lvalRef i) "operator=" [Named (rvalRef i) "other"]) 
                                                                             (MembFuncBody ["return *this;"] q)
 
 -- List of Functions...
@@ -175,6 +175,7 @@ instance CppShow Functions where
     prettyShow (Protected xs) = "\nprotected:\n" ++ intercalateFunctions xs
     prettyShow (Private xs)   = "\nprivate:\n" ++ intercalateFunctions xs
     
+intercalateFunctions :: [Function] -> String  
 intercalateFunctions xs =  if (null xs) then "" else (intercalate "\n" $ map prettyShow xs)  
 
 -- Cpp class, including free functions operating on it
@@ -190,50 +191,50 @@ data Class = RawClass Identifier [Functions] Functions |
                 deriving (Show, Read)
 
 instance CppShow Class where
-    prettyShow (RawClass id fs xs) = "class " ++ id ++ " {\n" ++
+    prettyShow (RawClass i fs xs) = "class " ++ i ++ " {\n" ++
                                         (intercalate "\n" $ map prettyShow fs) ++
                                          "\n\n};\n" ++
                                             prettyShow xs
     -- Class
-    prettyShow (Class id)  = prettyShow $ 
-            RawClass id [Public [Ctor id Nothing, 
-                                 Dtor id [] Nothing, 
-                                 CopyCtor id (Just Delete), 
-                                 OpAssign id (Just Delete)]] (Free [])
+    prettyShow (Class i)  = prettyShow $ 
+            RawClass i [Public [Ctor i Nothing, 
+                                 Dtor i [] Nothing, 
+                                 CopyCtor i (Just Delete), 
+                                 OpAssign i (Just Delete)]] (Free [])
     -- Class2
-    prettyShow (Class2 id)  = prettyShow $ 
-            RawClass id [Public [Ctor id Nothing, 
-                                 Dtor id [] Nothing, 
-                                 CopyCtor id (Just Delete), 
-                                 OpAssign id (Just Delete)]] (Free [OpInsrt id, OpExtrc id])
+    prettyShow (Class2 i)  = prettyShow $ 
+            RawClass i [Public [Ctor i Nothing, 
+                                 Dtor i [] Nothing, 
+                                 CopyCtor i (Just Delete), 
+                                 OpAssign i (Just Delete)]] (Free [OpInsrt i, OpExtrc i])
     -- MoveableClass
-    prettyShow (MoveableClass id) = prettyShow $ 
-            RawClass id [Public [Ctor id Nothing, 
-                                 Dtor id [] Nothing, 
-                                 CopyCtor id (Just Delete), 
-                                 OpAssign id (Just Delete), 
-                                 MoveCtor id Nothing, 
-                                 OpMoveAssign id Nothing]] (Free [])
+    prettyShow (MoveableClass i) = prettyShow $ 
+            RawClass i [Public [Ctor i Nothing, 
+                                 Dtor i [] Nothing, 
+                                 CopyCtor i (Just Delete), 
+                                 OpAssign i (Just Delete), 
+                                 MoveCtor i Nothing, 
+                                 OpMoveAssign i Nothing]] (Free [])
     -- ValueClass
-    prettyShow (ValueClass id) = prettyShow $ 
-            RawClass id [Public [Ctor id Nothing, 
-                                 Dtor id [] Nothing, 
-                                 CopyCtor id Nothing, 
-                                 OpAssign id Nothing]] (Free [OpEq id, OpNotEq id, OpInsrt id, OpExtrc id])
+    prettyShow (ValueClass i) = prettyShow $ 
+            RawClass i [Public [Ctor i Nothing, 
+                                 Dtor i [] Nothing, 
+                                 CopyCtor i Nothing, 
+                                 OpAssign i Nothing]] (Free [OpEq i, OpNotEq i, OpInsrt i, OpExtrc i])
     -- ValueClass2
-    prettyShow (ValueClass2 id) = prettyShow $ 
-            RawClass id [Public [Ctor id Nothing, 
-                                 Dtor id [] Nothing, 
-                                 CopyCtor id Nothing, 
-                                 OpAssign id Nothing]] (Free [OpEq id, OpNotEq id, OpInsrt id, OpExtrc, OpLt id, OpLtEq id, OpGt id, OpGtEq id])
+    prettyShow (ValueClass2 i) = prettyShow $ 
+            RawClass i [Public [Ctor i Nothing, 
+                                 Dtor i [] Nothing, 
+                                 CopyCtor i Nothing, 
+                                 OpAssign i Nothing]] (Free [OpEq i, OpNotEq i, OpInsrt i, OpExtrc i, OpLt i, OpLtEq i, OpGt i, OpGtEq i])
     -- Singleton
-    prettyShow (Singleton id) = prettyShow $ 
-            RawClass id [Private [Ctor id Nothing, 
-                                  Dtor id [] Nothing],
-                         Public  [CopyCtor id (Just Delete), 
-                                  OpAssign id (Just Delete),
-                                  Function (FuncDecl [Static] (id ++ "&") "instance" [] ) 
-                                           (MembFuncBody  [ "static " ++ id ++ " one;", "return one;" ] Nothing)
+    prettyShow (Singleton i) = prettyShow $ 
+            RawClass i [Private [Ctor i Nothing, 
+                                  Dtor i [] Nothing],
+                         Public  [CopyCtor i (Just Delete), 
+                                  OpAssign i (Just Delete),
+                                  Function (FuncDecl [Static] (i ++ "&") "instance" [] ) 
+                                           (MembFuncBody  [ "static " ++ i ++ " one;", "return one;" ] Nothing)
                                   ]] (Free [])
 
 main :: IO ()

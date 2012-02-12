@@ -114,7 +114,9 @@ data Function = Function FuncDecl FuncBody  |
                 OpLt Identifier |
                 OpLtEq Identifier |
                 OpGt Identifier |
-                OpGtEq Identifier 
+                OpGtEq Identifier |
+                OpInsrt Identifier|    
+                OpExtrc Identifier    
                         deriving (Show, Read)
  
 instance CppShow Function where
@@ -137,6 +139,14 @@ instance CppShow Function where
                                                                      (FuncBody ["return rhs < lhs;"]    )
                                (OpGtEq xs)  -> prettyShow $ Function (FuncDecl [Inline] "bool" "operator>=" [lhs xs, rhs xs]) 
                                                                      (FuncBody ["return !(lsh < rhs);"] )
+                               (OpInsrt xs)  -> prettyShow $ Function 
+                                                (FuncDecl [] "template <typename CharT, typename Traits>\ntypename std::basic_ostream<CharT, Traits> &" 
+                                                                     "operator<<" [Named "std::basic_ostream<CharT,Traits>&" "out", Named ("const " ++ xs ++ "&") "that"])
+                                                (FuncBody ["return out;"])
+                               (OpExtrc xs)  -> prettyShow $ Function 
+                                                (FuncDecl [] "template <typename CharT, typename Traits>\ntypename std::basic_istream<CharT, Traits> &" 
+                                                                     "operator>>" [Named "std::basic_istream<CharT,Traits>&" "in", Named (xs ++ "&") "that"])
+                                                (FuncBody ["return in;"])
                                (Ctor id q)  -> prettyShow $ Function (FuncDecl [] "" id []) 
                                                                      (MembFuncBody [] q)
                                (Dtor id xs q) -> prettyShow $ Function (FuncDecl xs "" ("~" ++ id) []) 
@@ -172,9 +182,10 @@ intercalateFunctions xs =  if (null xs) then "" else (intercalate "\n" $ map pre
     
 data Class = RawClass Identifier [Functions] Functions |
              Class Identifier |
+             Class2 Identifier |
              MoveableClass Identifier |
              ValueClass Identifier |   
-             ValueClass' Identifier |
+             ValueClass2 Identifier |
              Singleton Identifier    
                 deriving (Show, Read)
 
@@ -189,6 +200,12 @@ instance CppShow Class where
                                  Dtor id [] Nothing, 
                                  CopyCtor id (Just Delete), 
                                  OpAssign id (Just Delete)]] (Free [])
+    -- Class2
+    prettyShow (Class2 id)  = prettyShow $ 
+            RawClass id [Public [Ctor id Nothing, 
+                                 Dtor id [] Nothing, 
+                                 CopyCtor id (Just Delete), 
+                                 OpAssign id (Just Delete)]] (Free [OpInsrt id, OpExtrc id])
     -- MoveableClass
     prettyShow (MoveableClass id) = prettyShow $ 
             RawClass id [Public [Ctor id Nothing, 
@@ -202,13 +219,13 @@ instance CppShow Class where
             RawClass id [Public [Ctor id Nothing, 
                                  Dtor id [] Nothing, 
                                  CopyCtor id Nothing, 
-                                 OpAssign id Nothing]] (Free [OpEq id, OpNotEq id])
-    -- ValueClass'
-    prettyShow (ValueClass' id) = prettyShow $ 
+                                 OpAssign id Nothing]] (Free [OpEq id, OpNotEq id, OpInsrt id, OpExtrc id])
+    -- ValueClass2
+    prettyShow (ValueClass2 id) = prettyShow $ 
             RawClass id [Public [Ctor id Nothing, 
                                  Dtor id [] Nothing, 
                                  CopyCtor id Nothing, 
-                                 OpAssign id Nothing]] (Free [OpEq id, OpNotEq id, OpLt id, OpLtEq id, OpGt id, OpGtEq id])
+                                 OpAssign id Nothing]] (Free [OpEq id, OpNotEq id, OpInsrt id, OpExtrc, OpLt id, OpLtEq id, OpGt id, OpGtEq id])
     -- Singleton
     prettyShow (Singleton id) = prettyShow $ 
             RawClass id [Private [Ctor id Nothing, 

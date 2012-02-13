@@ -29,13 +29,19 @@ class CppShow a where
 -- List of CppShow instance data
 --
 instance (CppShow a) => CppShow [a] where
-    prettyShow xs = intercalate " " (map prettyShow xs)
+    prettyShow xs = intercalate ", " (map prettyShow xs)
+
+instance (CppShow a) => CppShow (Maybe a) where
+    prettyShow (Just x) = prettyShow x
+    prettyShow (Nothing) = ""
+
 
 -- Alias types
 --
 
 type Identifier = String
 type Type       = String
+type Value      = String
 
 -- A very approximate specifier and qualifiers for (member) functions... 
 --
@@ -69,6 +75,35 @@ instance CppShow Argument where
     prettyShow (Unnamed xs)   = xs
     prettyShow (Named xs ns)  = xs ++ " " ++ ns
 
+
+-- Template
+--
+
+data TemplateParam = Typename String |
+                     NonType String String |
+                     TempTempParam String String
+                        deriving (Show, Read)
+
+instance CppShow TemplateParam where
+    prettyShow (Typename name) = "typename " ++ name
+    prettyShow (NonType name value) = name ++ " " ++ value
+    prettyShow (TempTempParam name value) = name ++ " " ++ value 
+
+
+data Template = Template [TemplateParam]
+                    deriving (Show, Read)
+
+instance CppShow Template where
+    prettyShow (Template xs) = "template <" ++ (intercalate ", " $ map prettyShow xs) ++ ">"
+
+
+newtype SpecializedTemplate = SpecializedTemplate [Value]
+                                deriving (Show, Read)
+
+instance CppShow SpecializedTemplate where
+    prettyShow (SpecializedTemplate xs) = "<" ++ (intercalate ", " xs) ++ ">"
+
+
 -- Fuctions Declaration
 --
 
@@ -78,7 +113,7 @@ data FuncDecl = FuncDecl [Specifier] Type Identifier [Argument]
 instance CppShow FuncDecl where
     prettyShow (FuncDecl sp ty i as) = "\n" ++ spec ++ ( if(null spec) then "" else " ") ++ ty ++ 
                                         ( if (null spec && null ty) then "" else "\n" ) ++
-                                        i ++ "("  ++ (intercalate ", " $ map prettyShow as) ++ ")" 
+                                            i ++ "("  ++ prettyShow(as) ++ ")" 
                                             where spec = prettyShow sp
 
 -- Fuctions Body
@@ -91,12 +126,12 @@ instance CppShow FuncBody where
     prettyShow (FuncBody xs) =  "\n{" ++ bodyToString xs ++ "}"
                                         where bodyToString [] = []
                                               bodyToString ys = intercalate "\n    " ( "" :ys) ++ "\n"
-    prettyShow (MembFuncBody xs Nothing) = prettyShow $ FuncBody xs
+    prettyShow (MembFuncBody xs Nothing)        = prettyShow $ FuncBody xs
     prettyShow (MembFuncBody xs (Just Const))   = " const" ++ (prettyShow $ FuncBody xs)
     prettyShow (MembFuncBody xs (Just Volatile))= " volatile" ++ (prettyShow $ FuncBody xs)
-    prettyShow (MembFuncBody _ (Just Delete))  = " = delete;"
-    prettyShow (MembFuncBody _ (Just Default)) = " = default;" 
-    prettyShow (MembFuncBody _ (Just Pure))    = " = 0;"
+    prettyShow (MembFuncBody _ (Just Delete))   = " = delete;"
+    prettyShow (MembFuncBody _ (Just Default))  = " = default;" 
+    prettyShow (MembFuncBody _ (Just Pure))     = " = 0;"
 
 
 -- Some predefined Fuctions
@@ -125,40 +160,50 @@ instance CppShow Function where
                         lvalRef xs = xs ++ "&"
                         constLvalRef xs = "const " ++ xs ++ "&"
                         rvalRef xs = xs ++ "&&"
-                       in case x of
-                               (Function decl body) -> (prettyShow decl) ++ (prettyShow body) 
-                               (OpEq xs)    -> prettyShow $ Function (FuncDecl [Inline] "bool" "operator==" [lhs xs, rhs xs]) 
-                                                                     (FuncBody ["/* implementation */" ])
-                               (OpNotEq xs) -> prettyShow $ Function (FuncDecl [Inline] "bool" "operator!=" [lhs xs, rhs xs]) 
-                                                                     (FuncBody ["return !(lhs == rhs);"])
-                               (OpLt xs)    -> prettyShow $ Function (FuncDecl [Inline] "bool" "operator<"  [lhs xs, rhs xs]) 
-                                                                     (FuncBody ["/* implementation */"] )
-                               (OpLtEq xs)  -> prettyShow $ Function (FuncDecl [Inline] "bool" "operator<=" [lhs xs, rhs xs]) 
-                                                                     (FuncBody ["return !(rhs < lhs);"] )
-                               (OpGt xs)    -> prettyShow $ Function (FuncDecl [Inline] "bool" "operator>"  [lhs xs, rhs xs]) 
-                                                                     (FuncBody ["return rhs < lhs;"]    )
-                               (OpGtEq xs)  -> prettyShow $ Function (FuncDecl [Inline] "bool" "operator>=" [lhs xs, rhs xs]) 
-                                                                     (FuncBody ["return !(lsh < rhs);"] )
-                               (OpInsrt xs)  -> prettyShow $ Function 
-                                                (FuncDecl [] "template <typename CharT, typename Traits>\ntypename std::basic_ostream<CharT, Traits> &" 
-                                                                     "operator<<" [Named "std::basic_ostream<CharT,Traits>&" "out", Named ("const " ++ xs ++ "&") "that"])
-                                                (FuncBody ["return out;"])
-                               (OpExtrc xs)  -> prettyShow $ Function 
-                                                (FuncDecl [] "template <typename CharT, typename Traits>\ntypename std::basic_istream<CharT, Traits> &" 
-                                                                     "operator>>" [Named "std::basic_istream<CharT,Traits>&" "in", Named (xs ++ "&") "that"])
-                                                (FuncBody ["return in;"])
-                               (Ctor i q)  -> prettyShow $ Function (FuncDecl [] "" i []) 
-                                                                     (MembFuncBody [] q)
-                               (Dtor i xs q) -> prettyShow $ Function (FuncDecl xs "" ("~" ++ i) []) 
-                                                                       (MembFuncBody [] q)
-                               (CopyCtor i q)-> prettyShow $ Function (FuncDecl [] "" i [Named (constLvalRef i) "other"]) 
-                                                                       (MembFuncBody [] q)
-                               (OpAssign i q)-> prettyShow $ Function (FuncDecl [] (lvalRef i) "operator=" [Named (constLvalRef i) "other"]) 
-                                                                       (MembFuncBody ["return *this;"] q)
-                               (MoveCtor i q)-> prettyShow $ Function (FuncDecl [] "" i [Named (rvalRef i) "other"]) 
-                                                                       (MembFuncBody [] q)
-                               (OpMoveAssign i q) -> prettyShow $ Function (FuncDecl [] (lvalRef i) "operator=" [Named (rvalRef i) "other"]) 
-                                                                            (MembFuncBody ["return *this;"] q)
+                   in case x of
+                        (Function decl body) -> (prettyShow decl) ++ (prettyShow body) 
+                        (OpEq xs)    -> prettyShow $ Function (FuncDecl [Inline] "bool" "operator==" [lhs xs, rhs xs]) 
+                                                              (FuncBody ["/* implementation */" ])
+                        (OpNotEq xs) -> prettyShow $ Function (FuncDecl [Inline] "bool" "operator!=" [lhs xs, rhs xs]) 
+                                                              (FuncBody ["return !(lhs == rhs);"])
+                        (OpLt xs)    -> prettyShow $ Function (FuncDecl [Inline] "bool" "operator<"  [lhs xs, rhs xs]) 
+                                                              (FuncBody ["/* implementation */"] )
+                        (OpLtEq xs)  -> prettyShow $ Function (FuncDecl [Inline] "bool" "operator<=" [lhs xs, rhs xs]) 
+                                                              (FuncBody ["return !(rhs < lhs);"] )
+                        (OpGt xs)    -> prettyShow $ Function (FuncDecl [Inline] "bool" "operator>"  [lhs xs, rhs xs]) 
+                                                              (FuncBody ["return rhs < lhs;"]    )
+                        (OpGtEq xs)  -> prettyShow $ Function (FuncDecl [Inline] "bool" "operator>=" [lhs xs, rhs xs]) 
+                                                              (FuncBody ["return !(lsh < rhs);"] )
+                        (OpInsrt xs)  -> prettyShow $ 
+                                         Function (FuncDecl [] "template <typename CharT, typename Traits>\ntypename std::basic_ostream<CharT, Traits> &" 
+                                                  "operator<<" [Named "std::basic_ostream<CharT,Traits>&" "out", Named ("const " ++ xs ++ "&") "that"])
+                                                  (FuncBody ["return out;"])
+                        (OpExtrc xs)  -> prettyShow $ 
+                                         Function (FuncDecl [] "template <typename CharT, typename Traits>\ntypename std::basic_istream<CharT, Traits> &" 
+                                                   "operator>>" [Named "std::basic_istream<CharT,Traits>&" "in", Named (xs ++ "&") "that"])
+                                                   (FuncBody ["return in;"])
+                        (Ctor i q)  -> prettyShow $ 
+                                         Function (FuncDecl [] "" i [])
+                                                  (MembFuncBody [] q)
+                        (Dtor i xs q) -> prettyShow $ 
+                                         Function (FuncDecl xs "" ("~" ++ i) []) 
+                                                  (MembFuncBody [] q)
+                        (CopyCtor i q)-> prettyShow $ 
+                                         Function (FuncDecl [] "" i 
+                                                  [Named (constLvalRef i) "other"]) 
+                                                  (MembFuncBody [] q)
+                        (OpAssign i q)-> prettyShow $ 
+                                         Function (FuncDecl [] (lvalRef i) 
+                                                  "operator=" [Named (constLvalRef i) "other"]) 
+                                                  (MembFuncBody ["return *this;"] q)
+                        (MoveCtor i q)-> prettyShow $ 
+                                         Function (FuncDecl [] "" i 
+                                                  [Named (rvalRef i) "other"]) 
+                                                  (MembFuncBody [] q)
+                        (OpMoveAssign i q) -> prettyShow $ 
+                                         Function (FuncDecl [] (lvalRef i) "operator=" 
+                                                  [Named (rvalRef i) "other"]) 
+                                                  (MembFuncBody ["return *this;"] q)
 
 -- List of Functions...
 --
@@ -181,9 +226,10 @@ intercalateFunctions xs =  if (null xs) then "" else (intercalate "\n" $ map pre
 -- Cpp class, including free functions operating on it
 --
     
-data Class = RawClass Identifier [Functions] Functions |
+data Class = RawClass (Maybe Template) Identifier [Functions] Functions |
              Class Identifier |
              Class2 Identifier |
+             TemplateClass Template Identifier |     
              MoveableClass Identifier |
              ValueClass Identifier |   
              ValueClass2 Identifier |
@@ -191,25 +237,31 @@ data Class = RawClass Identifier [Functions] Functions |
                 deriving (Show, Read)
 
 instance CppShow Class where
-    prettyShow (RawClass i fs xs) = "class " ++ i ++ " {\n" ++
+    prettyShow (RawClass tp i fs xs) =  template ++ (if (null template) then "" else "\n")  ++ "class " ++ i ++ " {\n" ++
                                         (intercalate "\n" $ map prettyShow fs) ++
-                                         "\n\n};\n" ++
-                                            prettyShow xs
+                                         "\n\n};\n" ++ prettyShow xs
+                                         where template = prettyShow tp
     -- Class
     prettyShow (Class i)  = prettyShow $ 
-            RawClass i [Public [Ctor i Nothing, 
+            RawClass Nothing i [Public [Ctor i Nothing, 
                                  Dtor i [] Nothing, 
                                  CopyCtor i (Just Delete), 
                                  OpAssign i (Just Delete)]] (Free [])
     -- Class2
     prettyShow (Class2 i)  = prettyShow $ 
-            RawClass i [Public [Ctor i Nothing, 
+            RawClass Nothing i [Public [Ctor i Nothing, 
+                                 Dtor i [] Nothing, 
+                                 CopyCtor i (Just Delete), 
+                                 OpAssign i (Just Delete)]] (Free [OpInsrt i, OpExtrc i])
+    -- ClassTemplate
+    prettyShow (TemplateClass tmpl i)  = prettyShow $ 
+            RawClass (Just tmpl) i [Public [Ctor i Nothing, 
                                  Dtor i [] Nothing, 
                                  CopyCtor i (Just Delete), 
                                  OpAssign i (Just Delete)]] (Free [OpInsrt i, OpExtrc i])
     -- MoveableClass
     prettyShow (MoveableClass i) = prettyShow $ 
-            RawClass i [Public [Ctor i Nothing, 
+            RawClass Nothing i [Public [Ctor i Nothing, 
                                  Dtor i [] Nothing, 
                                  CopyCtor i (Just Delete), 
                                  OpAssign i (Just Delete), 
@@ -217,23 +269,23 @@ instance CppShow Class where
                                  OpMoveAssign i Nothing]] (Free [])
     -- ValueClass
     prettyShow (ValueClass i) = prettyShow $ 
-            RawClass i [Public [Ctor i Nothing, 
+            RawClass Nothing i [Public [Ctor i Nothing, 
                                  Dtor i [] Nothing, 
                                  CopyCtor i Nothing, 
                                  OpAssign i Nothing]] (Free [OpEq i, OpNotEq i, OpInsrt i, OpExtrc i])
     -- ValueClass2
     prettyShow (ValueClass2 i) = prettyShow $ 
-            RawClass i [Public [Ctor i Nothing, 
+            RawClass Nothing i [Public [Ctor i Nothing, 
                                  Dtor i [] Nothing, 
                                  CopyCtor i Nothing, 
                                  OpAssign i Nothing]] (Free [OpEq i, OpNotEq i, OpInsrt i, OpExtrc i, OpLt i, OpLtEq i, OpGt i, OpGtEq i])
     -- Singleton
     prettyShow (Singleton i) = prettyShow $ 
-            RawClass i [Private [Ctor i Nothing, 
+            RawClass Nothing i [Private [Ctor i Nothing, 
                                   Dtor i [] Nothing],
                          Public  [CopyCtor i (Just Delete), 
                                   OpAssign i (Just Delete),
-                                  Function (FuncDecl [Static] (i ++ "&") "instance" [] ) 
+                                  Function (FuncDecl [Static] (i ++ "&") "instance" []) 
                                            (MembFuncBody  [ "static " ++ i ++ " one;", "return one;" ] Nothing)
                                   ]] (Free [])
 

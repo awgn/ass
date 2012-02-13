@@ -90,7 +90,7 @@ instance CppShow TemplateParam where
     prettyShow (TempTempParam name value) = name ++ " " ++ value 
 
 
-data Template = Template [TemplateParam]
+newtype Template = Template [TemplateParam]
                     deriving (Show, Read)
 
 instance CppShow Template where

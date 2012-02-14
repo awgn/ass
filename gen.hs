@@ -138,11 +138,11 @@ instance CppShow FuncBody where
 --
 
 data Function = Function FuncDecl FuncBody  |
-                Ctor Identifier (Maybe Qualifier) |
-                Dtor Identifier [Specifier] (Maybe Qualifier) | 
-                CopyCtor Identifier (Maybe Qualifier) |
-                MoveCtor Identifier (Maybe Qualifier) |
-                OpAssign  Identifier (Maybe Qualifier) |
+                Ctor [Specifier] Identifier (Maybe Qualifier) |
+                Dtor [Specifier] Identifier (Maybe Qualifier) | 
+                CopyCtor [Specifier] Identifier (Maybe Qualifier) |
+                MoveCtor [Specifier] Identifier (Maybe Qualifier) |
+                OpAssign Identifier (Maybe Qualifier) |
                 OpMoveAssign Identifier (Maybe Qualifier) |
                 OpEq Identifier |
                 OpNotEq Identifier |    
@@ -182,24 +182,24 @@ instance CppShow Function where
                                          Function (FuncDecl [] "template <typename CharT, typename Traits>\ntypename std::basic_istream<CharT, Traits> &" 
                                                    "operator>>" [Named "std::basic_istream<CharT,Traits>&" "in", Named (xs ++ "&") "that"])
                                                    (FuncBody ["return in;"])
-                        (Ctor name q)  -> prettyShow $ 
-                                         Function (FuncDecl [] "" name [])
+                        (Ctor spec name q)  -> prettyShow $ 
+                                         Function (FuncDecl spec "" name [])
                                                   (MembFuncBody [] q)
-                        (Dtor name xs q) -> prettyShow $ 
-                                         Function (FuncDecl xs "" ("~" ++ name) []) 
+                        (Dtor spec name q) -> prettyShow $ 
+                                         Function (FuncDecl spec "" ("~" ++ name) []) 
                                                   (MembFuncBody [] q)
-                        (CopyCtor name q)-> prettyShow $ 
-                                         Function (FuncDecl [] "" name 
+                        (CopyCtor spec name q)-> prettyShow $ 
+                                         Function (FuncDecl spec "" name 
                                                   [Named (constLvalRef name) "other"]) 
+                                                  (MembFuncBody [] q)
+                        (MoveCtor spec name q)-> prettyShow $ 
+                                         Function (FuncDecl spec "" name 
+                                                  [Named (rvalRef name) "other"]) 
                                                   (MembFuncBody [] q)
                         (OpAssign name q)-> prettyShow $ 
                                          Function (FuncDecl [] (lvalRef name) 
                                                   "operator=" [Named (constLvalRef name) "other"]) 
                                                   (MembFuncBody ["return *this;"] q)
-                        (MoveCtor name q)-> prettyShow $ 
-                                         Function (FuncDecl [] "" name 
-                                                  [Named (rvalRef name) "other"]) 
-                                                  (MembFuncBody [] q)
                         (OpMoveAssign name q) -> prettyShow $ 
                                          Function (FuncDecl [] (lvalRef name) "operator=" 
                                                   [Named (rvalRef name) "other"]) 
@@ -253,55 +253,55 @@ data Entity = C  Identifier |
 instance CppShow Entity where
     -- Class
     prettyShow (C name)  = prettyShow $ 
-                        Class Nothing name [
-                        Public [Ctor name Nothing, 
-                                Dtor name [] Nothing, 
-                                CopyCtor name (Just Delete), 
-                                OpAssign name (Just Delete)]] 
+                            Class Nothing name [
+                            Public [Ctor [] name Nothing, 
+                                    Dtor [] name Nothing, 
+                                    CopyCtor [] name (Just Delete), 
+                                    OpAssign name (Just Delete)]] 
     -- Streamable Class
     prettyShow (SC name)  = prettyShow( 
-                         Class Nothing name [
-                         Public [Ctor name Nothing, 
-                                 Dtor name [] Nothing, 
-                                 CopyCtor name (Just Delete), 
-                                 OpAssign name (Just Delete)]]) ++ 
-                         prettyShow (Free [OpInsrt name, OpExtrc name])
+                            Class Nothing name [
+                            Public [Ctor [] name Nothing, 
+                                    Dtor [] name Nothing, 
+                                    CopyCtor [] name (Just Delete), 
+                                    OpAssign name (Just Delete)]]) ++ 
+                            prettyShow (Free [OpInsrt name, OpExtrc name])
     -- Template Class
-    prettyShow (TC tmpl name)  = prettyShow ( 
-                              Class (Just tmpl) name 
-                              [Public [Ctor name Nothing, 
-                                       Dtor name [] Nothing, 
-                                       CopyCtor name (Just Delete), 
-                                       OpAssign name (Just Delete)]]) ++ 
-                               prettyShow (Free [OpInsrt name, OpExtrc name])
+    prettyShow (TC tmpl name) = prettyShow ( 
+                                Class (Just tmpl) name [
+                                Public [Ctor [] name Nothing, 
+                                        Dtor [] name Nothing, 
+                                        CopyCtor [] name (Just Delete), 
+                                        OpAssign name (Just Delete)]]) ++ 
+                                prettyShow (Free [OpInsrt name, OpExtrc name])
     -- MoveableClass
     prettyShow (MC name) = prettyShow $ 
-                        Class Nothing name [
-                        Public [Ctor name Nothing, 
-                                Dtor name [] Nothing, 
-                                CopyCtor name (Just Delete), 
-                                OpAssign name (Just Delete), 
-                                MoveCtor name Nothing, 
-                                OpMoveAssign name Nothing]]  
+                            Class Nothing name [
+                            Public [Ctor [] name Nothing, 
+                                    Dtor [] name Nothing, 
+                                    CopyCtor [] name (Just Delete), 
+                                    MoveCtor [] name Nothing, 
+                                    OpAssign name (Just Delete), 
+                                    OpMoveAssign name Nothing]]  
     -- ValueClass
     prettyShow (VC name) = prettyShow( 
-                        Class Nothing name [
-                        Public [Ctor name Nothing, 
-                                Dtor name [] Nothing, 
-                                CopyCtor name Nothing, 
-                                OpAssign name Nothing]]) ++ 
-                        prettyShow (Free [OpEq name, OpNotEq name, OpInsrt name, OpExtrc name, 
-                                          OpLt name, OpLtEq name, OpGt name, OpGtEq name])
-    -- Singleton
+                            Class Nothing name [
+                            Public [Ctor [] name Nothing, 
+                                    Dtor [] name Nothing, 
+                                    CopyCtor [] name Nothing, 
+                                    OpAssign name Nothing]]) ++ 
+                            prettyShow (Free [OpEq name, OpNotEq name, OpInsrt name, OpExtrc name, 
+                                              OpLt name, OpLtEq name, OpGt name, OpGtEq name])
+    -- Meyers' Singleton
     prettyShow (S name) = prettyShow $ 
-                       Class Nothing name [
-                        Private [Ctor name Nothing, 
-                                 Dtor name [] Nothing],
-                        Public  [CopyCtor name (Just Delete), 
-                                 OpAssign name (Just Delete),
-                                 Function (FuncDecl [Static] (name ++ "&") "instance" []) 
-                                          (MembFuncBody  [ "static " ++ name ++ " one;", "return one;" ] Nothing)
-                                 ]]
+                          Class Nothing name [
+                            Private [Ctor [] name Nothing, 
+                                     Dtor [] name Nothing],
+                            Public [CopyCtor [] name (Just Delete), 
+                                    OpAssign name (Just Delete),
+                                    Function (FuncDecl [Static] (name ++ "&") "instance" []) 
+                                             (MembFuncBody  [ "static " ++ name ++ " one;", "return one;" ] Nothing)
+                                  ]]
 main :: IO ()
 main = do
       args <- getArgs

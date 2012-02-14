@@ -111,9 +111,9 @@ data FuncDecl = FuncDecl [Specifier] Type Identifier [Argument]
                     deriving (Show, Read)
 
 instance CppShow FuncDecl where
-    prettyShow (FuncDecl sp ty i as) = "\n" ++ spec ++ ( if(null spec) then "" else " ") ++ ty ++ 
+    prettyShow (FuncDecl sp ty name as) = "\n" ++ spec ++ ( if(null spec) then "" else " ") ++ ty ++ 
                                         ( if (null spec && null ty) then "" else "\n" ) ++
-                                            i ++ "("  ++ prettyShow(as) ++ ")" 
+                                            name ++ "("  ++ prettyShow(as) ++ ")" 
                                             where spec = prettyShow sp
 
 -- Fuctions Body
@@ -182,43 +182,48 @@ instance CppShow Function where
                                          Function (FuncDecl [] "template <typename CharT, typename Traits>\ntypename std::basic_istream<CharT, Traits> &" 
                                                    "operator>>" [Named "std::basic_istream<CharT,Traits>&" "in", Named (xs ++ "&") "that"])
                                                    (FuncBody ["return in;"])
-                        (Ctor i q)  -> prettyShow $ 
-                                         Function (FuncDecl [] "" i [])
+                        (Ctor name q)  -> prettyShow $ 
+                                         Function (FuncDecl [] "" name [])
                                                   (MembFuncBody [] q)
-                        (Dtor i xs q) -> prettyShow $ 
-                                         Function (FuncDecl xs "" ("~" ++ i) []) 
+                        (Dtor name xs q) -> prettyShow $ 
+                                         Function (FuncDecl xs "" ("~" ++ name) []) 
                                                   (MembFuncBody [] q)
-                        (CopyCtor i q)-> prettyShow $ 
-                                         Function (FuncDecl [] "" i 
-                                                  [Named (constLvalRef i) "other"]) 
+                        (CopyCtor name q)-> prettyShow $ 
+                                         Function (FuncDecl [] "" name 
+                                                  [Named (constLvalRef name) "other"]) 
                                                   (MembFuncBody [] q)
-                        (OpAssign i q)-> prettyShow $ 
-                                         Function (FuncDecl [] (lvalRef i) 
-                                                  "operator=" [Named (constLvalRef i) "other"]) 
+                        (OpAssign name q)-> prettyShow $ 
+                                         Function (FuncDecl [] (lvalRef name) 
+                                                  "operator=" [Named (constLvalRef name) "other"]) 
                                                   (MembFuncBody ["return *this;"] q)
-                        (MoveCtor i q)-> prettyShow $ 
-                                         Function (FuncDecl [] "" i 
-                                                  [Named (rvalRef i) "other"]) 
+                        (MoveCtor name q)-> prettyShow $ 
+                                         Function (FuncDecl [] "" name 
+                                                  [Named (rvalRef name) "other"]) 
                                                   (MembFuncBody [] q)
-                        (OpMoveAssign i q) -> prettyShow $ 
-                                         Function (FuncDecl [] (lvalRef i) "operator=" 
-                                                  [Named (rvalRef i) "other"]) 
+                        (OpMoveAssign name q) -> prettyShow $ 
+                                         Function (FuncDecl [] (lvalRef name) "operator=" 
+                                                  [Named (rvalRef name) "other"]) 
                                                   (MembFuncBody ["return *this;"] q)
 
 -- List of Functions...
 --
 
-data Functions = Public [Function]      |
-                 Protected [Function]   |
-                 Private [Function]     |
-                 Free [Function]
-                    deriving (Show, Read)
+data MemberFunctions = Public [Function]      |
+                       Protected [Function]   |
+                       Private [Function]     
+                            deriving (Show, Read)
 
-instance CppShow Functions where
-    prettyShow (Free   xs)    =  intercalateFunctions xs                      
+instance CppShow MemberFunctions where
     prettyShow (Public xs)    = "\npublic:\n" ++ intercalateFunctions xs
     prettyShow (Protected xs) = "\nprotected:\n" ++ intercalateFunctions xs
     prettyShow (Private xs)   = "\nprivate:\n" ++ intercalateFunctions xs
+
+
+data Functions = Free [Function]
+                        deriving (Show, Read)
+
+instance CppShow Functions where
+    prettyShow (Free xs) =  intercalateFunctions xs                      
     
 intercalateFunctions :: [Function] -> String  
 intercalateFunctions xs =  if (null xs) then "" else (intercalate "\n" $ map prettyShow xs)  
@@ -226,70 +231,78 @@ intercalateFunctions xs =  if (null xs) then "" else (intercalate "\n" $ map pre
 -- Cpp class, including free functions operating on it
 --
     
-data Class = RawClass (Maybe Template) Identifier [Functions] Functions |
-             Class Identifier |
-             Class2 Identifier |
-             TemplateClass Template Identifier |     
-             MoveableClass Identifier |
-             ValueClass Identifier |   
-             ValueClass2 Identifier |
-             Singleton Identifier    
+data Class = Class (Maybe Template) Identifier [MemberFunctions] 
                 deriving (Show, Read)
 
 instance CppShow Class where
-    prettyShow (RawClass tp i fs xs) =  template ++ (if (null template) then "" else "\n")  ++ "class " ++ i ++ " {\n" ++
-                                        (intercalate "\n" $ map prettyShow fs) ++
-                                         "\n\n};\n" ++ prettyShow xs
-                                         where template = prettyShow tp
-    -- Class
-    prettyShow (Class i)  = prettyShow $ 
-            RawClass Nothing i [Public [Ctor i Nothing, 
-                                 Dtor i [] Nothing, 
-                                 CopyCtor i (Just Delete), 
-                                 OpAssign i (Just Delete)]] (Free [])
-    -- Class2
-    prettyShow (Class2 i)  = prettyShow $ 
-            RawClass Nothing i [Public [Ctor i Nothing, 
-                                 Dtor i [] Nothing, 
-                                 CopyCtor i (Just Delete), 
-                                 OpAssign i (Just Delete)]] (Free [OpInsrt i, OpExtrc i])
-    -- ClassTemplate
-    prettyShow (TemplateClass tmpl i)  = prettyShow $ 
-            RawClass (Just tmpl) i [Public [Ctor i Nothing, 
-                                 Dtor i [] Nothing, 
-                                 CopyCtor i (Just Delete), 
-                                 OpAssign i (Just Delete)]] (Free [OpInsrt i, OpExtrc i])
-    -- MoveableClass
-    prettyShow (MoveableClass i) = prettyShow $ 
-            RawClass Nothing i [Public [Ctor i Nothing, 
-                                 Dtor i [] Nothing, 
-                                 CopyCtor i (Just Delete), 
-                                 OpAssign i (Just Delete), 
-                                 MoveCtor i Nothing, 
-                                 OpMoveAssign i Nothing]] (Free [])
-    -- ValueClass
-    prettyShow (ValueClass i) = prettyShow $ 
-            RawClass Nothing i [Public [Ctor i Nothing, 
-                                 Dtor i [] Nothing, 
-                                 CopyCtor i Nothing, 
-                                 OpAssign i Nothing]] (Free [OpEq i, OpNotEq i, OpInsrt i, OpExtrc i])
-    -- ValueClass2
-    prettyShow (ValueClass2 i) = prettyShow $ 
-            RawClass Nothing i [Public [Ctor i Nothing, 
-                                 Dtor i [] Nothing, 
-                                 CopyCtor i Nothing, 
-                                 OpAssign i Nothing]] (Free [OpEq i, OpNotEq i, OpInsrt i, OpExtrc i, OpLt i, OpLtEq i, OpGt i, OpGtEq i])
-    -- Singleton
-    prettyShow (Singleton i) = prettyShow $ 
-            RawClass Nothing i [Private [Ctor i Nothing, 
-                                  Dtor i [] Nothing],
-                         Public  [CopyCtor i (Just Delete), 
-                                  OpAssign i (Just Delete),
-                                  Function (FuncDecl [Static] (i ++ "&") "instance" []) 
-                                           (MembFuncBody  [ "static " ++ i ++ " one;", "return one;" ] Nothing)
-                                  ]] (Free [])
+    prettyShow (Class tp name fs) =  template ++ (if (null template) then "" else "\n")  ++ "class " ++ name ++ " {\n" ++
+                                  (intercalate "\n" $ map prettyShow fs) ++ "\n\n};\n" 
+                                    where template = prettyShow tp
 
+-- Generator entities
+--
+
+data Entity = C  Identifier |
+              SC Identifier |
+              TC Template Identifier |     
+              MC Identifier |
+              VC Identifier |   
+              S  Identifier    
+                deriving (Show, Read)
+
+instance CppShow Entity where
+    -- Class
+    prettyShow (C name)  = prettyShow $ 
+                        Class Nothing name [
+                        Public [Ctor name Nothing, 
+                                Dtor name [] Nothing, 
+                                CopyCtor name (Just Delete), 
+                                OpAssign name (Just Delete)]] 
+    -- Streamable Class
+    prettyShow (SC name)  = prettyShow( 
+                         Class Nothing name [
+                         Public [Ctor name Nothing, 
+                                 Dtor name [] Nothing, 
+                                 CopyCtor name (Just Delete), 
+                                 OpAssign name (Just Delete)]]) ++ 
+                         prettyShow (Free [OpInsrt name, OpExtrc name])
+    -- Template Class
+    prettyShow (TC tmpl name)  = prettyShow ( 
+                              Class (Just tmpl) name 
+                              [Public [Ctor name Nothing, 
+                                       Dtor name [] Nothing, 
+                                       CopyCtor name (Just Delete), 
+                                       OpAssign name (Just Delete)]]) ++ 
+                               prettyShow (Free [OpInsrt name, OpExtrc name])
+    -- MoveableClass
+    prettyShow (MC name) = prettyShow $ 
+                        Class Nothing name [
+                        Public [Ctor name Nothing, 
+                                Dtor name [] Nothing, 
+                                CopyCtor name (Just Delete), 
+                                OpAssign name (Just Delete), 
+                                MoveCtor name Nothing, 
+                                OpMoveAssign name Nothing]]  
+    -- ValueClass
+    prettyShow (VC name) = prettyShow( 
+                        Class Nothing name [
+                        Public [Ctor name Nothing, 
+                                Dtor name [] Nothing, 
+                                CopyCtor name Nothing, 
+                                OpAssign name Nothing]]) ++ 
+                        prettyShow (Free [OpEq name, OpNotEq name, OpInsrt name, OpExtrc name, 
+                                          OpLt name, OpLtEq name, OpGt name, OpGtEq name])
+    -- Singleton
+    prettyShow (S name) = prettyShow $ 
+                       Class Nothing name [
+                        Private [Ctor name Nothing, 
+                                 Dtor name [] Nothing],
+                        Public  [CopyCtor name (Just Delete), 
+                                 OpAssign name (Just Delete),
+                                 Function (FuncDecl [Static] (name ++ "&") "instance" []) 
+                                          (MembFuncBody  [ "static " ++ name ++ " one;", "return one;" ] Nothing)
+                                 ]]
 main :: IO ()
 main = do
       args <- getArgs
-      putStrLn $ prettyShow ((read $ unwords args ) :: Class)
+      putStrLn $ prettyShow ((read $ unwords args ) :: Entity)

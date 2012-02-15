@@ -50,7 +50,6 @@ instance (CppShow a) => CppShow (CommaSep a) where
 
 type Identifier = String
 type Type       = String
-type Value      = String
 
 -- A very approximate specifier and qualifiers for (member) functions... 
 --
@@ -82,7 +81,7 @@ data Argument = Unnamed Type | Named Type String
 
 instance CppShow Argument where
     render (Unnamed xs)   = xs
-    render (Named xs name)  = xs ++ " " ++ name
+    render (Named xs ns)  = xs ++ " " ++ ns
 
 -- Template
 --
@@ -92,11 +91,10 @@ data TemplateParam = Typename { name :: String } |
                      TempTempParam { type' :: String, name :: String }
                         deriving (Show, Read)
 
-
 instance CppShow TemplateParam where
-    render (Typename name) = "typename " ++ name
-    render (NonType name value) = name ++ " " ++ value
-    render (TempTempParam name value) = name ++ " " ++ value 
+    render (Typename ns) = "typename " ++ ns
+    render (NonType ns value) = ns ++ " " ++ value
+    render (TempTempParam ns value) = ns ++ " " ++ value 
 
 
 newtype Template = Template [TemplateParam]
@@ -124,9 +122,9 @@ data FuncDecl = FuncDecl [Specifier] Type Identifier (CommaSep Argument)
                     deriving (Show, Read)
 
 instance CppShow FuncDecl where
-    render (FuncDecl sp ty name args) = "\n" ++ spec ++ ( if(null spec ) then "" else " ") ++ ty ++ 
+    render (FuncDecl sp ty ns args) = "\n" ++ spec ++ ( if(null spec ) then "" else " ") ++ ty ++ 
                                         ( if (null spec && null ty) then "" else "\n" ) ++
-                                        name ++ "("  ++ render(args) ++ ")" 
+                                        ns ++ "("  ++ render(args) ++ ")" 
                                             where spec = render sp
 -- Fuctions Body
 --
@@ -175,27 +173,27 @@ add_const_lvalue_ref (Named xs ys) = Named ("const " ++ xs ++ "&") ys
 --
 
 ctor :: [Specifier] -> Identifier -> Maybe Qualifier -> Function
-ctor spec name qual = Function Nothing (FuncDecl spec "" name (CommaSep [])) (MembFuncBody [] qual)
+ctor spec ns qual = Function Nothing (FuncDecl spec "" ns (CommaSep [])) (MembFuncBody [] qual)
 
 
 dtor :: [Specifier] -> Identifier -> Maybe Qualifier -> Function
-dtor spec name qual = Function Nothing (FuncDecl spec "" ("~" ++ name) (CommaSep [])) (MembFuncBody [] qual)
+dtor spec ns qual = Function Nothing (FuncDecl spec "" ("~" ++ ns) (CommaSep [])) (MembFuncBody [] qual)
 
 
 copyCtor :: [Specifier] -> Identifier -> Maybe Qualifier -> Function
-copyCtor spec name qual = Function Nothing (FuncDecl spec "" name (CommaSep [add_const_lvalue_ref(Named name "other")])) (MembFuncBody [] qual)
+copyCtor spec ns qual = Function Nothing (FuncDecl spec "" ns (CommaSep [add_const_lvalue_ref(Named ns "other")])) (MembFuncBody [] qual)
 
 
 moveCtor :: [Specifier] -> Identifier -> Maybe Qualifier -> Function
-moveCtor spec name qual = Function Nothing (FuncDecl spec "" name (CommaSep [add_rvalue_ref $ Named name "other"])) (MembFuncBody [] qual)
+moveCtor spec ns qual = Function Nothing (FuncDecl spec "" ns (CommaSep [add_rvalue_ref $ Named ns "other"])) (MembFuncBody [] qual)
 
 
 operAssign:: [Specifier] -> Identifier -> Maybe Qualifier -> Function
-operAssign spec name qual = Function Nothing (FuncDecl spec (name ++ "&") "operator=" (CommaSep [add_const_lvalue_ref $ Named name "other"])) 
+operAssign spec ns qual = Function Nothing (FuncDecl spec (ns ++ "&") "operator=" (CommaSep [add_const_lvalue_ref $ Named ns "other"])) 
                                     (MembFuncBody ["return *this;" ] qual)
 
 operMoveAssign:: [Specifier] -> Identifier -> Maybe Qualifier -> Function
-operMoveAssign spec name qual = Function Nothing (FuncDecl spec (name ++ "&") "operator=" (CommaSep [add_rvalue_ref $ Named name "other"])) 
+operMoveAssign spec ns qual = Function Nothing (FuncDecl spec (ns ++ "&") "operator=" (CommaSep [add_rvalue_ref $ Named ns "other"])) 
                                         (MembFuncBody ["return *this;" ] qual)
 
 -- Generic free-functions
@@ -278,7 +276,7 @@ data Class = Class (Maybe Template) Identifier [MemberFunctions]
 
 
 instance CppShow Class where
-    render (Class tp name fs) =  template ++ (if (null template) then "" else "\n")  ++ "class " ++ name ++ " {\n" ++
+    render (Class tp ns fs) =  template ++ (if (null template) then "" else "\n")  ++ "class " ++ ns ++ " {\n" ++
                                   (intercalate "\n" $ map render fs) ++ "\n\n};\n" 
                                     where template = render tp
 
@@ -296,56 +294,56 @@ data Entity = C  Identifier |
 
 instance CppShow Entity where
     -- Class
-    render (C name)  = render $ 
-                            Class Nothing name [
-                            Public [ctor [] name Nothing, 
-                                    dtor [] name Nothing, 
-                                    copyCtor [] name (Just Delete), 
-                                    operAssign [] name (Just Delete)]] 
+    render (C ns)  = render $ 
+                            Class Nothing ns [
+                            Public [ctor [] ns Nothing, 
+                                    dtor [] ns Nothing, 
+                                    copyCtor [] ns (Just Delete), 
+                                    operAssign [] ns (Just Delete)]] 
     -- Streamable Class
-    render (SC name)  = render( 
-                            Class Nothing name [
-                            Public [ctor [] name Nothing, 
-                                    dtor [] name Nothing, 
-                                    copyCtor [] name (Just Delete), 
-                                    operAssign [] name (Just Delete)]]) ++ 
-                            render (Free [operInsrt Nothing name, operExtrc Nothing name])
+    render (SC ns)  = render( 
+                            Class Nothing ns [
+                            Public [ctor [] ns Nothing, 
+                                    dtor [] ns Nothing, 
+                                    copyCtor [] ns (Just Delete), 
+                                    operAssign [] ns (Just Delete)]]) ++ 
+                            render (Free [operInsrt Nothing ns, operExtrc Nothing ns])
     -- Template Class
-    render (TC tp name) = render ( 
-                                Class (Just tp) name [
-                                Public [ctor [] name Nothing, 
-                                        dtor [] name Nothing, 
-                                        copyCtor [] name (Just Delete), 
-                                        operAssign [] name (Just Delete)]]) ++ 
-                                render (Free [operInsrt (Just tp) name, 
-                                              operExtrc (Just tp) name])
+    render (TC tp ns) = render ( 
+                                Class (Just tp) ns [
+                                Public [ctor [] ns Nothing, 
+                                        dtor [] ns Nothing, 
+                                        copyCtor [] ns (Just Delete), 
+                                        operAssign [] ns (Just Delete)]]) ++ 
+                                render (Free [operInsrt (Just tp) ns, 
+                                              operExtrc (Just tp) ns])
     -- MoveableClass
-    render (MC name) = render $ 
-                            Class Nothing name [
-                            Public [ctor [] name Nothing, 
-                                    dtor [] name Nothing, 
-                                    copyCtor [] name (Just Delete), 
-                                    operAssign [] name (Just Delete), 
-                                    moveCtor [] name Nothing, 
-                                    operMoveAssign [] name Nothing]]  
+    render (MC ns) = render $ 
+                            Class Nothing ns [
+                            Public [ctor [] ns Nothing, 
+                                    dtor [] ns Nothing, 
+                                    copyCtor [] ns (Just Delete), 
+                                    operAssign [] ns (Just Delete), 
+                                    moveCtor [] ns Nothing, 
+                                    operMoveAssign [] ns Nothing]]  
     -- ValueClass
-    render (VC name) = render( 
-                            Class Nothing name [
-                            Public [ctor [] name Nothing, 
-                                    dtor [] name Nothing, 
-                                    copyCtor [] name Nothing, 
-                                    operAssign [] name Nothing]]) ++ 
-                            render (Free [operEq Nothing name, operNotEq Nothing name, operInsrt Nothing name, operExtrc Nothing name, 
-                                              operLt Nothing name, operLtEq Nothing name, operGt Nothing name, operGtEq Nothing name])
+    render (VC ns) = render( 
+                            Class Nothing ns [
+                            Public [ctor [] ns Nothing, 
+                                    dtor [] ns Nothing, 
+                                    copyCtor [] ns Nothing, 
+                                    operAssign [] ns Nothing]]) ++ 
+                            render (Free [operEq Nothing ns, operNotEq Nothing ns, operInsrt Nothing ns, operExtrc Nothing ns, 
+                                              operLt Nothing ns, operLtEq Nothing ns, operGt Nothing ns, operGtEq Nothing ns])
     -- Meyers' Singleton
-    render (S name) = render $ 
-                          Class Nothing name [
-                            Private [ctor [] name Nothing, 
-                                     dtor [] name Nothing],
-                            Public [copyCtor [] name (Just Delete), 
-                                    operAssign [] name (Just Delete),
-                                    Function Nothing (FuncDecl [Static] (name ++ "&") "instance" (CommaSep[])) 
-                                             (MembFuncBody  [ "static " ++ name ++ " one;", "return one;" ] Nothing)
+    render (S ns) = render $ 
+                          Class Nothing ns [
+                            Private [ctor [] ns Nothing, 
+                                     dtor [] ns Nothing],
+                            Public [copyCtor [] ns (Just Delete), 
+                                    operAssign [] ns (Just Delete),
+                                    Function Nothing (FuncDecl [Static] (ns ++ "&") "instance" (CommaSep[])) 
+                                             (MembFuncBody  [ "static " ++ ns ++ " one;", "return one;" ] Nothing)
                                   ]]
 main :: IO ()
 main = do

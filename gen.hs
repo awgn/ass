@@ -18,6 +18,7 @@
 
 
 import Data.List
+import Data.Maybe
 import Data.Monoid
 import System(getArgs)
 import Control.Applicative
@@ -49,7 +50,6 @@ instance (CppShow a) => CppShow (CommaSep a) where
 --
 
 type Identifier = String
-type Type       = String
 
 -- A very approximate specifier and qualifiers for (member) functions... 
 --
@@ -73,15 +73,17 @@ instance CppShow Qualifier where
     render Default   = "default"
     render Pure      = "0"
  
--- Fuctions Argument
+-- Type and Function Arguments
 --
 
-data Argument = Unnamed Type | Named Type String
+data Type = ReturnType String | UnnamedArg String | NamedArg String Identifier 
                 deriving (Show, Read)
 
-instance CppShow Argument where
-    render (Unnamed xs)   = xs
-    render (Named xs ns)  = xs ++ " " ++ ns
+
+instance CppShow Type where
+    render (ReturnType xs) = xs
+    render (UnnamedArg xs) = xs
+    render (NamedArg xs ns) = xs ++ " " ++ ns
 
 -- Template
 --
@@ -118,12 +120,12 @@ specializeName (Just (Template xs)) ns = ns ++ "<" ++ (intercalate ", " (map nam
 -- Fuctions Declaration
 --
 
-data FuncDecl = FuncDecl [Specifier] Type Identifier (CommaSep Argument)
+data FuncDecl = FuncDecl [Specifier] (Maybe Type) Identifier (CommaSep Type)
                     deriving (Show, Read)
 
 instance CppShow FuncDecl where
-    render (FuncDecl sp ty ns args) = "\n" ++ spec ++ ( if(null spec ) then "" else " ") ++ ty ++ 
-                                        ( if (null spec && null ty) then "" else "\n" ) ++
+    render (FuncDecl sp ret ns args) = "\n" ++ spec ++ ( if (null spec) then "" else " ") ++ render ret ++ 
+                                        ( if (null spec && isNothing ret) then "" else "\n" ) ++
                                         ns ++ "("  ++ render(args) ++ ")" 
                                             where spec = render sp
 -- Fuctions Body
@@ -156,91 +158,106 @@ instance CppShow Function where
 -- Helper functions
 --
 
-add_lvalue_ref :: Argument -> Argument
-add_lvalue_ref (Unnamed xs)  = Unnamed (xs ++ "&")
-add_lvalue_ref (Named xs ys) = Named (xs ++ "&") ys
+add_lvalue_ref :: Type -> Type
+add_lvalue_ref (UnnamedArg xs)  = UnnamedArg (xs ++ "&")
+add_lvalue_ref (NamedArg xs ys) = NamedArg (xs ++ "&") ys
+add_lvalue_ref (ReturnType xs)  = ReturnType (xs ++ "&")
 
-add_rvalue_ref :: Argument -> Argument
-add_rvalue_ref (Unnamed xs) = Unnamed (xs ++ "&&")
-add_rvalue_ref (Named xs ys) = Named (xs ++ "&&") ys
+add_rvalue_ref :: Type -> Type
+add_rvalue_ref (UnnamedArg xs) = UnnamedArg (xs ++ "&&")
+add_rvalue_ref (NamedArg xs ys) = NamedArg (xs ++ "&&") ys
+add_rvalue_ref (ReturnType xs) = ReturnType (xs ++ "&&")
 
-add_const_lvalue_ref :: Argument -> Argument
-add_const_lvalue_ref (Unnamed xs) = Unnamed( "const " ++ xs ++ "&")
-add_const_lvalue_ref (Named xs ys) = Named ("const " ++ xs ++ "&") ys
+add_const_lvalue_ref :: Type -> Type
+add_const_lvalue_ref (UnnamedArg xs) = UnnamedArg( "const " ++ xs ++ "&")
+add_const_lvalue_ref (NamedArg xs ys) = NamedArg ("const " ++ xs ++ "&") ys
+add_const_lvalue_ref (ReturnType xs) = ReturnType ( "const " ++ xs ++ "&")
 
 
 -- Predefined Functions
 --
 
 ctor :: [Specifier] -> Identifier -> Maybe Qualifier -> Function
-ctor spec ns qual = Function Nothing (FuncDecl spec "" ns (CommaSep [])) (MembFuncBody [] qual)
+ctor spec ns qual = Function Nothing (FuncDecl spec Nothing ns (CommaSep [])) (MembFuncBody [] qual)
 
 
 dtor :: [Specifier] -> Identifier -> Maybe Qualifier -> Function
-dtor spec ns qual = Function Nothing (FuncDecl spec "" ("~" ++ ns) (CommaSep [])) (MembFuncBody [] qual)
+dtor spec ns qual = Function Nothing (FuncDecl spec Nothing ("~" ++ ns) (CommaSep [])) (MembFuncBody [] qual)
 
 
 copyCtor :: [Specifier] -> Identifier -> Maybe Qualifier -> Function
-copyCtor spec ns qual = Function Nothing (FuncDecl spec "" ns (CommaSep [add_const_lvalue_ref(Named ns "other")])) (MembFuncBody [] qual)
+copyCtor spec ns qual = Function Nothing (FuncDecl spec Nothing ns 
+                                            (CommaSep [add_const_lvalue_ref(NamedArg ns "other")])) (MembFuncBody [] qual)
 
 
 moveCtor :: [Specifier] -> Identifier -> Maybe Qualifier -> Function
-moveCtor spec ns qual = Function Nothing (FuncDecl spec "" ns (CommaSep [add_rvalue_ref $ Named ns "other"])) (MembFuncBody [] qual)
+moveCtor spec ns qual = Function Nothing (FuncDecl spec Nothing ns 
+                                            (CommaSep [add_rvalue_ref $ NamedArg ns "other"])) (MembFuncBody [] qual)
 
 
 operAssign:: [Specifier] -> Identifier -> Maybe Qualifier -> Function
-operAssign spec ns qual = Function Nothing (FuncDecl spec (ns ++ "&") "operator=" (CommaSep [add_const_lvalue_ref $ Named ns "other"])) 
+operAssign spec ns qual = Function Nothing (FuncDecl spec (Just $ add_lvalue_ref(ReturnType ns)) "operator=" 
+                                            (CommaSep [add_const_lvalue_ref $ NamedArg ns "other"])) 
                                     (MembFuncBody ["return *this;" ] qual)
 
 operMoveAssign:: [Specifier] -> Identifier -> Maybe Qualifier -> Function
-operMoveAssign spec ns qual = Function Nothing (FuncDecl spec (ns ++ "&") "operator=" (CommaSep [add_rvalue_ref $ Named ns "other"])) 
+operMoveAssign spec ns qual = Function Nothing (FuncDecl spec (Just $ add_lvalue_ref (ReturnType ns)) "operator=" 
+                                                 (CommaSep [add_rvalue_ref $ NamedArg ns "other"])) 
                                         (MembFuncBody ["return *this;" ] qual)
 
 -- Generic free-functions
 --
 
 operEq :: (Maybe Template) -> Identifier -> Function
-operEq tp xs  = Function tp (FuncDecl [Inline] "bool" "operator==" 
-                            (CommaSep [add_const_lvalue_ref(Named xs "lhs"), add_const_lvalue_ref(Named xs "rhs")])) 
+operEq tp xs  = Function tp (FuncDecl [Inline] (Just (ReturnType "bool")) "operator==" 
+                            (CommaSep [add_const_lvalue_ref(NamedArg xs "lhs"), 
+                                       add_const_lvalue_ref(NamedArg xs "rhs")])) 
                             (FuncBody ["/* implementation */" ])
 
 operNotEq :: (Maybe Template) -> Identifier -> Function
-operNotEq tp xs = Function tp (FuncDecl [Inline] "bool" "operator!=" 
-                              (CommaSep [add_const_lvalue_ref(Named xs "lhs"), add_const_lvalue_ref(Named xs "rhs")])) 
+operNotEq tp xs = Function tp (FuncDecl [Inline] (Just (ReturnType "bool")) "operator!=" 
+                              (CommaSep [add_const_lvalue_ref(NamedArg xs "lhs"), 
+                                         add_const_lvalue_ref(NamedArg xs "rhs")])) 
                               (FuncBody ["return !(lhs == rhs);"])
 
 operLt :: (Maybe Template) -> Identifier -> Function
-operLt tp xs = Function tp (FuncDecl [Inline] "bool" "operator<"  
-                           (CommaSep [add_const_lvalue_ref(Named xs "lhs"), add_const_lvalue_ref(Named xs "rhs")])) 
+operLt tp xs = Function tp (FuncDecl [Inline] (Just (ReturnType "bool")) "operator<"  
+                           (CommaSep [add_const_lvalue_ref(NamedArg xs "lhs"), 
+                                      add_const_lvalue_ref(NamedArg xs "rhs")])) 
                            (FuncBody ["/* implementation */"])
 
 operLtEq :: (Maybe Template) -> Identifier -> Function
-operLtEq tp xs = Function tp (FuncDecl [Inline] "bool" "operator<=" 
-                             (CommaSep [add_const_lvalue_ref(Named xs "lhs"), add_const_lvalue_ref(Named xs "rhs")])) 
+operLtEq tp xs = Function tp (FuncDecl [Inline] (Just (ReturnType "bool")) "operator<=" 
+                             (CommaSep [add_const_lvalue_ref(NamedArg xs "lhs"), 
+                                        add_const_lvalue_ref(NamedArg xs "rhs")])) 
                              (FuncBody ["return !(rhs < lhs);"])
 
 operGt :: (Maybe Template) -> Identifier -> Function
-operGt tp xs = Function tp (FuncDecl [Inline] "bool" "operator>"  
-                           (CommaSep [add_const_lvalue_ref(Named xs "lhs"), add_const_lvalue_ref(Named xs "rhs")])) 
+operGt tp xs = Function tp (FuncDecl [Inline] (Just (ReturnType "bool")) "operator>"  
+                           (CommaSep [add_const_lvalue_ref(NamedArg xs "lhs"), 
+                                      add_const_lvalue_ref(NamedArg xs "rhs")])) 
                            (FuncBody ["return rhs < lhs;"])
 
 operGtEq :: (Maybe Template) -> Identifier -> Function
-operGtEq tp xs = Function tp (FuncDecl [Inline] "bool" "operator>=" 
-                             (CommaSep [add_const_lvalue_ref(Named xs "lhs"), add_const_lvalue_ref(Named xs "rhs")])) 
+operGtEq tp xs = Function tp (FuncDecl [Inline] (Just (ReturnType "bool")) "operator>=" 
+                             (CommaSep [add_const_lvalue_ref(NamedArg xs "lhs"), 
+                                        add_const_lvalue_ref(NamedArg xs "rhs")])) 
                              (FuncBody ["return !(lsh < rhs);"])
 
 operInsrt :: (Maybe Template) -> Identifier -> Function
 operInsrt tp xs = Function (tapp) (FuncDecl []  
-                               "typename std::basic_ostream<CharT, Traits> &" 
+                               (Just (ReturnType "typename std::basic_ostream<CharT, Traits> &")) 
                                "operator<<" 
-                               (CommaSep [Named "std::basic_ostream<CharT,Traits>&" "out", add_const_lvalue_ref(Named (specializeName tp xs) "that")]))
+                               (CommaSep [NamedArg "std::basic_ostream<CharT,Traits>&" "out", 
+                                          add_const_lvalue_ref(NamedArg (specializeName tp xs) "that")]))
                                (FuncBody ["return out;"])
                                     where tapp =  mappend (Just (Template[Typename "CharT", Typename "Traits"])) tp 
 
 operExtrc :: (Maybe Template) -> Identifier -> Function
 operExtrc tp xs = Function (tapp) (FuncDecl []  
-                            "typename std::basic_istream<CharT, Traits> &" 
-                            "operator>>" (CommaSep [Named "std::basic_istream<CharT,Traits>&" "in", add_lvalue_ref $ Named (specializeName tp xs) "that"]))
+                            (Just (ReturnType "typename std::basic_istream<CharT, Traits> &")) 
+                            "operator>>" (CommaSep [NamedArg "std::basic_istream<CharT,Traits>&" "in", 
+                                                    add_lvalue_ref $ NamedArg (specializeName tp xs) "that"]))
                             (FuncBody ["return in;"])
                                     where tapp =  mappend (Just (Template[Typename "CharT", Typename "Traits"])) tp 
 
@@ -288,7 +305,8 @@ data Entity = C  Identifier |
               TC Template Identifier |     
               MC Identifier |
               VC Identifier |   
-              S  Identifier    
+              S  Identifier |
+              RW String Identifier     
                 deriving (Show, Read)
 
 
@@ -342,9 +360,19 @@ instance CppShow Entity where
                                      dtor [] ns Nothing],
                             Public [copyCtor [] ns (Just Delete), 
                                     operAssign [] ns (Just Delete),
-                                    Function Nothing (FuncDecl [Static] (ns ++ "&") "instance" (CommaSep[])) 
+                                    Function Nothing (FuncDecl [Static] (Just (add_lvalue_ref $ ReturnType ns)) "instance" (CommaSep[])) 
                                              (MembFuncBody  [ "static " ++ ns ++ " one;", "return one;" ] Nothing)
                                   ]]
+    -- Added Reader/Writer accessor
+    render (RW t ns) = render $ 
+                        Public [ Function Nothing 
+                                    (FuncDecl [] (Just (add_const_lvalue_ref $ ReturnType t)) ns (CommaSep[]))
+                                    (MembFuncBody ["return " ++ ns ++ "_;" ] (Just Constant)), 
+                                 Function Nothing   
+                                    (FuncDecl [] (Just $ ReturnType "void") ns (CommaSep[ NamedArg t "value" ]))
+                                    (MembFuncBody [ ns ++ "_=std::move(value);" ] Nothing) 
+                               ]
+
 main :: IO ()
 main = do
       args <- getArgs

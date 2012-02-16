@@ -369,8 +369,8 @@ instance CppShow Entity where
                                     (FuncDecl [] (Just (add_const_lvalue_ref $ ReturnType t)) ns (CommaSep[]))
                                     (MembFuncBody ["return " ++ ns ++ "_;" ] (Just Constant)), 
                                  Function Nothing   
-                                    (FuncDecl [] (Just $ ReturnType "void") ns (CommaSep[ NamedArg t "value" ]))
-                                    (MembFuncBody [ ns ++ "_=std::move(value);" ] Nothing) 
+                                    (FuncDecl [] (Just $ ReturnType "void") ns (CommaSep[ add_const_lvalue_ref $ NamedArg t "value" ]))
+                                    (MembFuncBody [ ns ++ "_=value;" ] Nothing) 
                                ]
 
 main :: IO ()

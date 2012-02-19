@@ -24,7 +24,6 @@ import System.Process
 import System.IO
 import System.Exit
 import System.Directory
-import Control.Monad
 
 data CodeLine = CodeLine Int String 
 
@@ -51,15 +50,16 @@ main = do
 
     -- build the source code...
 
-    buildSource "/tmp/snippet.cpp" $ getSourceCode src
+    writeSource "/tmp/snippet.cpp" $ getSourceCode src
     
     -- compile and run it.
 
     ec <- compileWith "/usr/bin/g++" "/tmp/snippet.cpp" "/tmp/snippet" $ ("-I " ++ cwd'):(getCompilerArgs args)  
     if (ec == ExitSuccess)  
-    then do 
+    then 
         system testCmd >>= exitWith
-    else exitWith $ ExitFailure 1
+    else 
+        exitWith $ ExitFailure 1
 
 
 getSourceCode :: String -> [ SourceCode ]
@@ -75,12 +75,9 @@ isSnippet :: String -> Bool
 isSnippet xs = ["int", "main"] `isInfixOf` (words $ map (\x -> if isAlphaNum(x) then x else ' ') xs)
 
 
-buildSource :: String -> [ SourceCode ] -> IO ()
-buildSource name xs = do
-                      h <- openFile name WriteMode 
-                      _ <- forM xs $ (\ys -> mapM (hPrint h) ys)
-                      hClose h
-            
+writeSource :: String -> [ SourceCode ] -> IO ()
+writeSource name xs = writeFile name (intercalate "\n" $ map show (concat xs))
+
 
 getCompilerArgs :: [String] -> [String]
 getCompilerArgs = takeWhile ( /= "--" )  

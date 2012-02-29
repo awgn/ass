@@ -28,9 +28,8 @@ import Control.Applicative
 
 class CppShow a where
     render :: a -> String 
-    
 
--- List of CppShow instance data
+-- CppShow instance data
 --
 
 instance (CppShow a) => CppShow (Maybe a) where
@@ -40,16 +39,12 @@ instance (CppShow a) => CppShow (Maybe a) where
 instance (CppShow a) => CppShow [a] where
     render xs =  unwords $ render <$> xs
 
-newtype CommaSep a = CommaSep [a]    
+newtype CommaSep a = CommaSep { getCoommaSep :: [a] }   
                     deriving (Show, Read)
 
 instance (CppShow a) => CppShow (CommaSep a) where
     render (CommaSep xs) = intercalate ", " $ render <$> xs  
 
--- Alias types
---
-
-type Identifier = String
 
 -- A very approximate specifier and qualifiers for (member) functions... 
 --
@@ -73,25 +68,29 @@ instance CppShow Qualifier where
     render Default   = "default"
     render Pure      = "0"
  
--- Type and Function Arguments
+-- Type of Function Arguments
 --
 
-data Type = ReturnType String | UnnamedArg String | NamedArg String Identifier 
+type Type = String
+type Identifier = String
+
+
+data ArgType = UnnamedArg Type | NamedArg Type Identifier 
                 deriving (Show, Read)
 
 
-instance CppShow Type where
-    render (ReturnType xs) = xs
-    render (UnnamedArg xs) = xs
+instance CppShow ArgType where
+    render (UnnamedArg xs)  = xs
     render (NamedArg xs ns) = xs ++ " " ++ ns
 
 -- Template
 --
 
-data TemplateParam = Typename { name :: String } |
-                     NonType  { type' :: String,  name :: String } |
-                     TempTempParam { type' :: String, name :: String }
+data TemplateParam = Typename       { name  :: String } |
+                     NonType        { type' :: String, name :: String } |
+                     TempTempParam  { type' :: String, name :: String }
                         deriving (Show, Read)
+
 
 instance CppShow TemplateParam where
     render (Typename ns) = "typename " ++ ns
@@ -99,14 +98,15 @@ instance CppShow TemplateParam where
     render (TempTempParam ns value) = ns ++ " " ++ value 
 
 
-newtype Template = Template [TemplateParam]
+newtype Template = Template { getTemplate :: [TemplateParam] }
                     deriving (Show, Read)
 
 instance CppShow Template where
     render (Template xs) = "template <" ++ render (CommaSep xs) ++ ">"
 
--- Template is an instance of Monoid!
+-- Template is a Monoid
 --
+    
 instance Monoid Template where
     mempty = Template []
     mappend (Template xs) (Template ys) = Template (mappend xs ys)
@@ -120,7 +120,7 @@ specializeName (Just (Template xs)) ns = ns ++ "<" ++ (intercalate ", " (map nam
 -- Fuctions Declaration
 --
 
-data FuncDecl = FuncDecl [Specifier] (Maybe Type) Identifier (CommaSep Type)
+data FuncDecl = FuncDecl [Specifier] (Maybe ArgType) Identifier (CommaSep ArgType)
                     deriving (Show, Read)
 
 instance CppShow FuncDecl where
@@ -153,25 +153,22 @@ data Function = Function (Maybe Template) FuncDecl FuncBody
                     deriving (Show, Read)
 
 instance CppShow Function where
-    render (Function tp decl body) = render tp ++ render decl ++ render body 
+    render (Function templ decl body) = render templ ++ render decl ++ render body 
 
 -- Helper functions
 --
 
-add_lvalue_ref :: Type -> Type
+add_lvalue_ref :: ArgType -> ArgType
 add_lvalue_ref (UnnamedArg xs)  = UnnamedArg (xs ++ "&")
 add_lvalue_ref (NamedArg xs ys) = NamedArg (xs ++ "&") ys
-add_lvalue_ref (ReturnType xs)  = ReturnType (xs ++ "&")
 
-add_rvalue_ref :: Type -> Type
+add_rvalue_ref :: ArgType -> ArgType
 add_rvalue_ref (UnnamedArg xs) = UnnamedArg (xs ++ "&&")
 add_rvalue_ref (NamedArg xs ys) = NamedArg (xs ++ "&&") ys
-add_rvalue_ref (ReturnType xs) = ReturnType (xs ++ "&&")
 
-add_const_lvalue_ref :: Type -> Type
+add_const_lvalue_ref :: ArgType -> ArgType
 add_const_lvalue_ref (UnnamedArg xs) = UnnamedArg( "const " ++ xs ++ "&")
 add_const_lvalue_ref (NamedArg xs ys) = NamedArg ("const " ++ xs ++ "&") ys
-add_const_lvalue_ref (ReturnType xs) = ReturnType ( "const " ++ xs ++ "&")
 
 
 -- Predefined Functions
@@ -196,12 +193,12 @@ moveCtor spec ns qual = Function Nothing (FuncDecl spec Nothing ns
 
 
 operAssign:: [Specifier] -> Identifier -> Maybe Qualifier -> Function
-operAssign spec ns qual = Function Nothing (FuncDecl spec (Just $ add_lvalue_ref(ReturnType ns)) "operator=" 
+operAssign spec ns qual = Function Nothing (FuncDecl spec (Just $ add_lvalue_ref(UnnamedArg ns)) "operator=" 
                                             (CommaSep [add_const_lvalue_ref $ NamedArg ns "other"])) 
                                     (MembFuncBody ["return *this;" ] qual)
 
 operMoveAssign:: [Specifier] -> Identifier -> Maybe Qualifier -> Function
-operMoveAssign spec ns qual = Function Nothing (FuncDecl spec (Just $ add_lvalue_ref (ReturnType ns)) "operator=" 
+operMoveAssign spec ns qual = Function Nothing (FuncDecl spec (Just $ add_lvalue_ref (UnnamedArg ns)) "operator=" 
                                                  (CommaSep [add_rvalue_ref $ NamedArg ns "other"])) 
                                         (MembFuncBody ["return *this;" ] qual)
 
@@ -209,44 +206,44 @@ operMoveAssign spec ns qual = Function Nothing (FuncDecl spec (Just $ add_lvalue
 --
 
 operEq :: (Maybe Template) -> Identifier -> Function
-operEq tp xs  = Function tp (FuncDecl [Inline] (Just (ReturnType "bool")) "operator==" 
+operEq tp xs  = Function tp (FuncDecl [Inline] (Just (UnnamedArg "bool")) "operator==" 
                             (CommaSep [add_const_lvalue_ref(NamedArg xs "lhs"), 
                                        add_const_lvalue_ref(NamedArg xs "rhs")])) 
                             (FuncBody ["/* implementation */" ])
 
 operNotEq :: (Maybe Template) -> Identifier -> Function
-operNotEq tp xs = Function tp (FuncDecl [Inline] (Just (ReturnType "bool")) "operator!=" 
+operNotEq tp xs = Function tp (FuncDecl [Inline] (Just (UnnamedArg "bool")) "operator!=" 
                               (CommaSep [add_const_lvalue_ref(NamedArg xs "lhs"), 
                                          add_const_lvalue_ref(NamedArg xs "rhs")])) 
                               (FuncBody ["return !(lhs == rhs);"])
 
 operLt :: (Maybe Template) -> Identifier -> Function
-operLt tp xs = Function tp (FuncDecl [Inline] (Just (ReturnType "bool")) "operator<"  
+operLt tp xs = Function tp (FuncDecl [Inline] (Just (UnnamedArg "bool")) "operator<"  
                            (CommaSep [add_const_lvalue_ref(NamedArg xs "lhs"), 
                                       add_const_lvalue_ref(NamedArg xs "rhs")])) 
                            (FuncBody ["/* implementation */"])
 
 operLtEq :: (Maybe Template) -> Identifier -> Function
-operLtEq tp xs = Function tp (FuncDecl [Inline] (Just (ReturnType "bool")) "operator<=" 
+operLtEq tp xs = Function tp (FuncDecl [Inline] (Just (UnnamedArg "bool")) "operator<=" 
                              (CommaSep [add_const_lvalue_ref(NamedArg xs "lhs"), 
                                         add_const_lvalue_ref(NamedArg xs "rhs")])) 
                              (FuncBody ["return !(rhs < lhs);"])
 
 operGt :: (Maybe Template) -> Identifier -> Function
-operGt tp xs = Function tp (FuncDecl [Inline] (Just (ReturnType "bool")) "operator>"  
+operGt tp xs = Function tp (FuncDecl [Inline] (Just (UnnamedArg "bool")) "operator>"  
                            (CommaSep [add_const_lvalue_ref(NamedArg xs "lhs"), 
                                       add_const_lvalue_ref(NamedArg xs "rhs")])) 
                            (FuncBody ["return rhs < lhs;"])
 
 operGtEq :: (Maybe Template) -> Identifier -> Function
-operGtEq tp xs = Function tp (FuncDecl [Inline] (Just (ReturnType "bool")) "operator>=" 
+operGtEq tp xs = Function tp (FuncDecl [Inline] (Just (UnnamedArg "bool")) "operator>=" 
                              (CommaSep [add_const_lvalue_ref(NamedArg xs "lhs"), 
                                         add_const_lvalue_ref(NamedArg xs "rhs")])) 
                              (FuncBody ["return !(lsh < rhs);"])
 
 operInsrt :: (Maybe Template) -> Identifier -> Function
 operInsrt tp xs = Function (tapp) (FuncDecl []  
-                               (Just (ReturnType "typename std::basic_ostream<CharT, Traits> &")) 
+                               (Just (UnnamedArg "typename std::basic_ostream<CharT, Traits> &")) 
                                "operator<<" 
                                (CommaSep [NamedArg "std::basic_ostream<CharT,Traits>&" "out", 
                                           add_const_lvalue_ref(NamedArg (specializeName tp xs) "that")]))
@@ -255,7 +252,7 @@ operInsrt tp xs = Function (tapp) (FuncDecl []
 
 operExtrc :: (Maybe Template) -> Identifier -> Function
 operExtrc tp xs = Function (tapp) (FuncDecl []  
-                            (Just (ReturnType "typename std::basic_istream<CharT, Traits> &")) 
+                            (Just (UnnamedArg "typename std::basic_istream<CharT, Traits> &")) 
                             "operator>>" (CommaSep [NamedArg "std::basic_istream<CharT,Traits>&" "in", 
                                                     add_lvalue_ref $ NamedArg (specializeName tp xs) "that"]))
                             (FuncBody ["return in;"])
@@ -285,7 +282,7 @@ instance CppShow Functions where
 intercalateFunctions :: [Function] -> String  
 intercalateFunctions xs =  if (null xs) then "" else (intercalate "\n" $ map render xs)  
 
--- Cpp class, including free functions operating on it
+-- Cpp class and free functions operating on it
 --
     
 data Class = Class (Maybe Template) Identifier [MemberFunctions] 
@@ -360,16 +357,16 @@ instance CppShow Entity where
                                      dtor [] ns Nothing],
                             Public [copyCtor [] ns (Just Delete), 
                                     operAssign [] ns (Just Delete),
-                                    Function Nothing (FuncDecl [Static] (Just (add_lvalue_ref $ ReturnType ns)) "instance" (CommaSep[])) 
+                                    Function Nothing (FuncDecl [Static] (Just (add_lvalue_ref $ UnnamedArg ns)) "instance" (CommaSep[])) 
                                              (MembFuncBody  [ "static " ++ ns ++ " one;", "return one;" ] Nothing)
                                   ]]
     -- Added Reader/Writer accessor
     render (RW t ns) = render $ 
                         Public [ Function Nothing 
-                                    (FuncDecl [] (Just (add_const_lvalue_ref $ ReturnType t)) ns (CommaSep[]))
+                                    (FuncDecl [] (Just (add_const_lvalue_ref $ UnnamedArg t)) ns (CommaSep[]))
                                     (MembFuncBody ["return " ++ ns ++ "_;" ] (Just Constant)), 
                                  Function Nothing   
-                                    (FuncDecl [] (Just $ ReturnType "void") ns (CommaSep[ add_const_lvalue_ref $ NamedArg t "value" ]))
+                                    (FuncDecl [] (Just $ UnnamedArg "void") ns (CommaSep[ add_const_lvalue_ref $ NamedArg t "value" ]))
                                     (MembFuncBody [ ns ++ "_=value;" ] Nothing) 
                                ]
 

@@ -571,6 +571,7 @@ void T(Tp &&x)
 
 
 using namespace std;
+using namespace std::chrono;
 using namespace std::placeholders;
 
 #endif /* __ASS_HPP__ */

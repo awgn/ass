@@ -328,6 +328,46 @@ namespace std {
 } // namespace std
 
 
+////////////////////////////////////////////////////////////// type utils 
+
+namespace ass {
+
+    static std::string
+    cxa_demangle(const char *name)
+    {
+#ifdef _REENTRANT 
+        static std::mutex _S_mutex;
+        std::lock_guard<std::mutex> _L_(_S_mutex);
+#endif
+        int status;
+        std::unique_ptr<char, void(*)(void *)> ret(abi::__cxa_demangle(name,0,0, &status), ::free);
+        if (status < 0) {
+            return std::string("?");
+        }
+        return std::string(ret.get());
+    }
+
+    template <typename Tp>
+    std::string type_name(Tp &&x)
+    {
+        typedef decltype(std::forward<Tp>(x)) decl_type;
+        
+        auto name = cxa_demangle(typeid(Tp).name());
+        if ( std::is_const<
+             typename std::remove_reference<decl_type>::type>::value)
+            name.append(" const");
+        if ( std::is_volatile<
+             typename std::remove_reference<decl_type>::type>::value)
+            name.append(" volatile");
+        if (std::is_lvalue_reference<decl_type>::value)
+            name.append("&");
+        else if (std::is_rvalue_reference<decl_type>::value)
+            name.append("&&");
+        return name;
+    }
+    
+} // namespace ass
+
 ////////////////////////////////////////////////////////////// simple Oracle class
 
 struct O
@@ -352,31 +392,16 @@ struct O
          }
     }
 
-    static std::string
-    cxa_demangle(const char *name)
-    {
-#ifdef _REENTRANT 
-        static std::mutex _S_mutex;
-        std::lock_guard<std::mutex> _L_(_S_mutex);
-#endif
-        int status;
-        std::unique_ptr<char, void(*)(void *)> ret(abi::__cxa_demangle(name,0,0, &status), ::free);
-        if (status < 0) {
-            return std::string("?");
-        }
-        return std::string(ret.get());
-    }
-
     template <typename T>
-    static void print_type(std::ostringstream &out, T&&)
+    static void print_type(std::ostringstream &out, T&& arg)
     {
-        out << cxa_demangle(typeid(T).name());
+        out << ass::type_name(std::forward<T>(arg));
     }
     template <typename T, typename ...Ti>
-    static void print_type(std::ostringstream &out, T&&, Ti&&...arg)
+    static void print_type(std::ostringstream &out, T&& arg, Ti&&...args)
     {
-        out << cxa_demangle(typeid(T).name()) << ',';
-        print_type(out, std::forward<Ti>(arg)...);
+        out << ass::type_name(std::forward<T>(arg)) << ',';
+        print_type(out, std::forward<Ti>(args)...);
     }
 
     std::intptr_t value;
@@ -566,7 +591,7 @@ std::tuple<T...> _(T&& ...arg)
 template <typename Tp>
 void T(Tp &&x)
 {
-    std::cout << O::cxa_demangle(typeid(std::forward<Tp>(x)).name());
+    std::cout << ass::type_name(std::forward<Tp>(x));
 }
 
 

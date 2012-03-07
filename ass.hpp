@@ -256,15 +256,16 @@ namespace std {
     //
 
     template <typename CharT, typename Traits, typename T>
-    inline typename std::enable_if<ass::traits::is_container<T>::value && 
-    !is_same<typename std::string,T>::value, 
+    inline typename std::enable_if<(ass::traits::is_container<T>::value && 
+    !is_same<typename std::string,T>::value) || (rank<T>::value > 0), 
         std::basic_ostream<CharT,Traits>>::type &
-    operator<<(std::basic_ostream<CharT,Traits> &out, const T &v)
+    operator<<(std::basic_ostream<CharT,Traits> &out, const T &xs)
     {
-        out << '{';  
-        std::copy(v.begin(), v.end(), 
-                  std::ostream_iterator<typename T::value_type>(
-                      out, " "));
+        out << '{'; 
+        for(auto & x : xs)
+        {
+            cout << x << " ";
+        }
         return out << '}';
     };
 
@@ -278,8 +279,8 @@ namespace std {
         return out << '(' << r.first << ',' << r.second << ')';
     }
 
-    ///////////////////////////
-    // operator<< for array...
+    ///////////////////////////////
+    // operator<< for std::array...
 
     template <typename CharT, typename Traits, typename T, std::size_t N>
     std::basic_ostream<CharT,Traits> &

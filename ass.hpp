@@ -348,19 +348,20 @@ namespace ass {
         return std::string(ret.get());
     }
 
-    template <typename Tp>
+    template <bool is_ref, typename Tp>
     std::string type_name(Tp &&x)
     {
         typedef decltype(std::forward<Tp>(x)) decl_type;
         
         auto name = cxa_demangle(typeid(Tp).name());
-        if ( std::is_const<
+        if (std::is_const<
              typename std::remove_reference<decl_type>::type>::value)
             name.append(" const");
-        if ( std::is_volatile<
+        if (std::is_volatile<
              typename std::remove_reference<decl_type>::type>::value)
             name.append(" volatile");
-        if (std::is_lvalue_reference<decl_type>::value)
+        if (is_ref &&
+            std::is_lvalue_reference<decl_type>::value)
             name.append("&");
         else if (std::is_rvalue_reference<decl_type>::value)
             name.append("&&");
@@ -396,12 +397,12 @@ struct O
     template <typename T>
     static void print_type(std::ostringstream &out, T&& arg)
     {
-        out << ass::type_name(std::forward<T>(arg));
+        out << ass::type_name<std::is_reference<T>::value>(std::forward<T>(arg));
     }
     template <typename T, typename ...Ti>
     static void print_type(std::ostringstream &out, T&& arg, Ti&&...args)
     {
-        out << ass::type_name(std::forward<T>(arg)) << ',';
+        out << ass::type_name<std::is_reference<T>::value>(std::forward<T>(arg)) << ',';
         print_type(out, std::forward<Ti>(args)...);
     }
 
@@ -589,10 +590,8 @@ std::tuple<T...> _(T&& ...arg)
 ////////////////////////////////////////////////////////////// T(): print the type of an expression
 //
 
-template <typename Tp>
-void T(Tp &&x)
-{
-    std::cout << ass::type_name(std::forward<Tp>(x));
+#define T(x) { \
+    std::cout << ass::type_name<is_reference<decltype(x)>::value>(x); \
 }
 
 

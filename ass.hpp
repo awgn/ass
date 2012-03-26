@@ -568,11 +568,6 @@ void P(T &&arg, Ti&&... args)
     P(std::forward<Ti>(args)...);
 }
 
-////////////////////////////////////////////////////////////// A() and S(): assert and static_assert 
-
-#define A(x) assert(x)
-#define S(x) static_assert(x, #x)
-
 ////////////////////////////////////////////////////////////// _(): build pairs and tuples 
 
 template <typename T1, typename T2>
@@ -590,7 +585,7 @@ std::tuple<T...> _(T&& ...arg)
 ////////////////////////////////////////////////////////////// T(): print the type of an expression
 //
 
-#define T(x) { \
+#define TYPE(x) { \
     std::cout << ass::type_name<is_reference<decltype(x)>::value>(x); \
 }
 

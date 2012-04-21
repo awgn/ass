@@ -115,6 +115,6 @@ toSourceCode xs = zipWith CodeLine [1..] (lines xs)
 compileWith :: String -> String -> String -> [String] -> IO ExitCode
 compileWith comp source out extra = system (
                             unwords $ [ comp, source, "-o", out ] 
-                            ++ [ "-std=c++0x", "-O0", "-D_GLIBXX_DEBUG", "-Wall", "-Wextra", "-Wno-unused-parameter" ]  
+                            ++ [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", "-Wextra", "-Wno-unused-parameter" ]  
                             ++ extra ) 
 

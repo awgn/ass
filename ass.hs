@@ -15,7 +15,8 @@
 -- along with this program; if not, write to the Free Software
 -- Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 --
--- ass: C++ code ass'istant for vim
+-- ass: C++11 code ass'istant for vim
+
 
 import Data.Char
 import Data.List
@@ -25,54 +26,55 @@ import System.IO
 import System.Exit
 import System.Directory
 
+
 data CodeLine = CodeLine Int String 
+
 
 instance Show CodeLine where
     show (CodeLine n xs) = "#line " ++ show n ++ "\n" ++ xs  
 
+
 type SourceCode      = [CodeLine]
 type TranslationUnit = SourceCode
 type MainFunction    = SourceCode
+type ParserState     = (TranslationUnit, MainFunction)
 
-type ParserState = (TranslationUnit, MainFunction)
 
 main :: IO Int
 main = do
     
     args <- getArgs
     cwd' <- getCurrentDirectory
+    src  <- hGetContents stdin
 
-    let testCmd = "/tmp/snippet " ++ (unwords $ getTestArgs args)  
-
-    -- get the snippet.
-
-    src <- hGetContents stdin
-
-    -- build the source code...
-
-    writeSource "/tmp/snippet.cpp" $ getSourceCode src
+    writeSource "/tmp/snippet.cpp" $ makeSourceCode src
     
-    -- compile and run it.
-
-    ec <- compileWith "/usr/bin/g++" "/tmp/snippet.cpp" "/tmp/snippet" $ ("-I " ++ cwd'):(getCompilerArgs args)  
+    ec <- compileWith "/usr/bin/g++" "/tmp/snippet.cpp" "/tmp/snippet" $ ("-I " ++ cwd'):("-I " ++ cwd' ++ "/.."):(getCompilerArgs args)  
     if (ec == ExitSuccess)  
     then 
-        system testCmd >>= exitWith
+        system ("/tmp/snippet " ++ (unwords $ getTestArgs args)) >>= exitWith
     else 
         exitWith $ ExitFailure 1
 
 
-getSourceCode :: String -> [ SourceCode ]
-getSourceCode xs | isSnippet xs = [ mainHeader, toSourceCode xs ]
-                 | otherwise    = composeSrc $ foldl parseCodeLine (mainHeader, []) $ toSourceCode xs
-                 where mainHeader = [ CodeLine 0 "#include <ass.hpp>" ]
-                       mainBegin  = [ CodeLine 0 "int main(int argc, char *argv[]) { cout << boolalpha;" ]
-                       mainEnd    = [ CodeLine 0 "}" ]
-                       composeSrc (global,body) = [global, mainBegin, body, mainEnd]
+makeSourceCode :: String -> [ SourceCode ]
+makeSourceCode xs 
+    | isSnippet xs = [ mainHeader, toSourceCode xs ]
+    | otherwise    = composeSrc $ foldl parseCodeLine (mainHeader, []) $ toSourceCode xs
+        where mainHeader = [ CodeLine 0 "#include <ass.hpp>" ]
+              mainBegin  = [ CodeLine 0 "int main(int argc, char *argv[]) { cout << boolalpha;" ]
+              mainEnd    = [ CodeLine 0 "}" ]
+              composeSrc (global,body) = [global, mainBegin, body, mainEnd]
 
 
 isSnippet :: String -> Bool
-isSnippet xs = ["int", "main"] `isInfixOf` (words $ map (\x -> if isAlphaNum(x) then x else ' ') xs)
+isSnippet xs 
+    | ["int", "main"] `isInfixOf` (words $ sourceFilter xs) = True
+    | otherwise = False
+
+
+sourceFilter :: String -> String
+sourceFilter = map (\c -> if isAlphaNum(c) then c else ' ')  
 
 
 writeSource :: String -> [ SourceCode ] -> IO ()
@@ -93,12 +95,11 @@ isPreprocessor :: String -> Bool
 isPreprocessor = isPrefixOf "#" . dropWhile isSpace 
 
 
-
 getGlobalLine :: String -> Maybe String
 getGlobalLine xs 
     | "..." `isPrefixOf` xs' = Just $ tail $ tail $ tail xs'
     | otherwise = Nothing
-    where xs' = dropWhile isSpace xs
+        where xs' = dropWhile isSpace xs
 
 
 parseCodeLine :: ParserState -> CodeLine -> ParserState
@@ -113,8 +114,9 @@ toSourceCode xs = zipWith CodeLine [1..] (lines xs)
 
 
 compileWith :: String -> String -> String -> [String] -> IO ExitCode
-compileWith comp source out extra = system (
-                            unwords $ [ comp, source, "-o", out ] 
-                            ++ [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", "-Wextra", "-Wno-unused-parameter" ]  
-                            ++ extra ) 
+compileWith comp source outfile opts = system (
+                 unwords $ [ comp, source, "-o", outfile ] 
+                 ++ [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", "-Wextra", "-Wno-unused-parameter" ]  
+                 ++ opts ) 
+
 

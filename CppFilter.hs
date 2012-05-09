@@ -18,7 +18,7 @@
 -- ass: C++11 code ass'istant 
 
 
-module CppPar(CppRegion, CppRegionFilter, runSourceFilter)  where
+module CppFilter (CppRegion, CppRegionFilter, runSourceFilter)  where
 
 
 data CppRegion = Code | Comment | Literal
@@ -32,45 +32,45 @@ runSourceFilter :: String -> CppRegionFilter -> String
 runSourceFilter xs filt = sourceCodeFilter xs filt CodeState 
 
 
-sourceCodeFilter :: String -> CppRegionFilter -> ParserState  -> String
+sourceCodeFilter :: String -> CppRegionFilter -> FilterState  -> String
 sourceCodeFilter [] _ _ = []
 sourceCodeFilter (x:xs) filt state
     | cppRegionFilter region filt = x   : (sourceCodeFilter xs filt nextState)
     | otherwise                   = ' ' : (sourceCodeFilter xs filt nextState)
-        where (region, nextState) = cppParse x state
+        where (region, nextState) = cppFilter x state
             
 
-data ParserState = CodeState | SlashState | AsteriskState | CommentCState | CommentCppState | LiteralState
+data FilterState = CodeState | SlashState | AsteriskState | CommentCState | CommentCppState | LiteralState
                     deriving (Show, Read)
 
 
-cppParse :: Char -> ParserState -> (CppRegion, ParserState)
+cppFilter :: Char -> FilterState -> (CppRegion, FilterState)
 
 
-cppParse x CodeState 
+cppFilter x CodeState 
     | x == '/'  = (Code, SlashState)
     | x == '"'  = (Code, LiteralState)
     | otherwise = (Code, CodeState)
 
-cppParse x SlashState 
+cppFilter x SlashState 
     | x == '/'  = (Code, CommentCppState)
     | x == '*'  = (Code, CommentCState) 
-    | otherwise = cppParse x CodeState
+    | otherwise = cppFilter x CodeState
 
-cppParse x CommentCppState
+cppFilter x CommentCppState
     | x == '\n' = (Comment, CodeState)
     | otherwise = (Comment, CommentCppState)
 
-cppParse x CommentCState
+cppFilter x CommentCState
     | x == '*'  = (Comment, AsteriskState)
     | otherwise = (Comment, CommentCState)
 
-cppParse x AsteriskState
+cppFilter x AsteriskState
     | x == '/'  = (Code,    CodeState)
     | x == '*'  = (Comment, AsteriskState)
     | otherwise = (Comment, CommentCState)
 
-cppParse x LiteralState
+cppFilter x LiteralState
     | x == '"'  = (Code,    CodeState)
     | otherwise = (Literal, LiteralState)
 

@@ -26,6 +26,8 @@ import System.IO
 import System.Exit
 import System.Directory
 
+import qualified CppFilter
+
 
 data CodeLine = CodeLine Int String 
 
@@ -74,7 +76,7 @@ isSnippet xs
 
 
 sourceFilter :: String -> String
-sourceFilter = map (\c -> if isAlphaNum(c) then c else ' ')  
+sourceFilter xs = map (\c -> if isAlphaNum(c) then c else ' ') $ CppFilter.runSourceFilter xs (True, False, False)   
 
 
 writeSource :: String -> [ SourceCode ] -> IO ()

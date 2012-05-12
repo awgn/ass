@@ -26,7 +26,8 @@ import System.IO
 import System.Exit
 import System.Directory
 
-import qualified CppFilter
+import qualified CppFilter as CF
+import qualified CppToken  as CT
 
 
 data CodeLine = CodeLine Int String 
@@ -71,12 +72,12 @@ makeSourceCode xs
 
 isSnippet :: String -> Bool
 isSnippet xs 
-    | ["int", "main"] `isInfixOf` (words $ sourceFilter xs) = True
+    | ["int", "main", "("] `isInfixOf` (map CT.toString $ CT.tokens $ sourceFilter xs) = True
     | otherwise = False
 
 
 sourceFilter :: String -> String
-sourceFilter xs = map (\c -> if isAlphaNum(c) then c else ' ') $ CppFilter.runSourceFilter xs (True, False, False)   
+sourceFilter xs = map (\c -> if isAlphaNum(c) then c else ' ') $ CF.runSourceFilter xs (True, False, False)   
 
 
 writeSource :: String -> [ SourceCode ] -> IO ()

@@ -21,7 +21,6 @@ module CppToken(Token(..), tokens)  where
       
 import Data.Char
 
-
 -- Tokenize the source code in a list of Token
 --
 
@@ -35,6 +34,7 @@ data Token = NullToken  |
              OperOrPunct { toString :: String }
                 deriving (Show, Read)
 
+
 tokens :: String -> [Token]
 tokens xs = getTokens xs Null  
 
@@ -44,16 +44,19 @@ tokens xs = getTokens xs Null
 data PreprocState = Null | Hash | Include
                     deriving (Show, Eq)
 
+
 nextState :: String -> PreprocState -> PreprocState
 nextState "#" Null       = Hash
 nextState "include" Hash = Include
 nextState _   _          = Null
+
 
 getTokens :: String -> PreprocState -> [Token]
 getTokens [] _ = []
 getTokens xs state = token : getTokens ls (nextState (toString token) next) 
                         where (token, next) = runGetToken xs state
                               ls = dropWhile (\c -> c `elem` whitespace) $ drop (length $ toString token) xs                        
+
 
 runGetToken :: String -> PreprocState -> (Token, PreprocState)
 runGetToken []  s = (NullToken, s)
@@ -76,6 +79,7 @@ getTokenIdOrKeyword xs
     | name `elem` keywords = Keyword name
     | otherwise            = Identifier name
                 where name = takeWhile isIdentifier xs
+
 
 getTokenNumber      xs = Number     (takeWhile isLiteralNum xs)
 getTokenHeaderName  xs = HeaderName (getLiteralDelim '<'  '>'  False xs)
@@ -101,26 +105,26 @@ getTokenOpOrPunct (a:b:_)
 getTokenOpOrPunct (a:_) 
     | a         `elem` (oper_or_punct !! 0 !! 0) = OperOrPunct [a]
     | otherwise  = error "getTokenOpOrPunct"
-getTokenOpOrPunct []  = error "getTokenOpOrPunct" 
+getTokenOpOrPunct []  
+                 = error "getTokenOpOrPunct" 
+
 
 getLiteralDelim :: Char -> Char -> Bool -> String -> String
 getLiteralDelim _  _  _ []  = []
-
 getLiteralDelim b e False (x : xs)
     | x == b     =  b : getLiteralDelim b e True xs
     | otherwise  = error "getLiteral"
-
 getLiteralDelim  b  e True (x : xs) 
     | x == e     = [e]
     | x == '\\'  = x' : getLiteralDelim b e True xs'
     | otherwise  = x  : getLiteralDelim b e True xs
                     where
                         (x':xs') = xs
-                                     
-isIdentifier, isLiteralNum :: Char -> Bool
 
-isIdentifier = \c -> isAlphaNum c || c == '_'
-isLiteralNum = \c -> c `elem` "0123456789abcdefABCDEF.xXeEuUlL"
+
+isIdentifier, isLiteralNum :: Char -> Bool
+isIdentifier c = isAlphaNum c || c == '_'
+isLiteralNum c = c `elem` "0123456789abcdefABCDEF.xXeEuUlL"
 
 whitespace :: [Char]
 whitespace = " \t\r\n" 
@@ -144,6 +148,4 @@ keywords = ["alignas", "continue", "friend", "alignof", "decltype", "goto",
             "sizeof", "union", "static", "unsigned", "static_assert", "using", "static_cast", "virtual", 
             "struct", "void", "switch", "volatile", "template", "wchar_t", "this", "while", "thread_local", "throw",
             "and", "and_eq", "bitand", "bitor", "compl", "not", "not_eq", "or", "or_eq", "xor", "xor_eq"]
-
-
 

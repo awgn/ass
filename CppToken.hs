@@ -101,15 +101,15 @@ getTokens xs state = token : getTokens ls (nextState (toString token) next)
 
 
 runGetToken :: String -> PreprocState -> (Token, PreprocState)
-runGetToken []  s = (NullToken, s)
+runGetToken []  s = error "runGetToken"
 runGetToken xs  s = case xs' of 
-                        (y:_) | y == '0'       -> (getTokenNumber xs', s)
-                        (y:_) | y == '"'       -> (getTokenString xs', s)
-                        (y:_) | y == '\''      -> (getTokenChar   xs', s)
-                        (y:_) | (y == '<') && 
-                                (s == Include) -> (getTokenHeaderName  xs', s)
-                        (y:_) | isIdentifier y -> (getTokenIdOrKeyword xs', s)
-                        _                      -> (getTokenOpOrPunct   xs', s)
+                        (y:_) | s == Hash                       -> (getTokenDirective xs', s)
+                        (y:_) | s == Include                    -> (getTokenHeaderName  xs', s)
+                        (y:_) | isDigit(y)                      -> (getTokenNumber xs', s)
+                        (y:_) | isAlpha(y) || y == '_'          -> (getTokenIdOrKeyword xs', s)
+                        (y:_) | y == '"'                        -> (getTokenString xs', s)
+                        (y:_) | y == '\''                       -> (getTokenChar   xs', s)
+                        _                                       -> (getTokenOpOrPunct   xs', s)
                         where
                            xs' = dropWhile (\c -> c `elem` whitespace) xs
 

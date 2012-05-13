@@ -25,6 +25,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <future>
+#include <atomic>
 
 #include <ass.hpp>
 

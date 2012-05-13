@@ -1,12 +1,22 @@
-/* $Id$ */
-/*
- * ----------------------------------------------------------------------------
- * "THE BEER-WARE LICENSE" (Revision 42):
- * <bonelli@antifork.org> wrote this file. As long as you retain this notice you
- * can do whatever you want with this stuff. If we meet some day, and you think
- * this stuff is worth it, you can buy me a beer in return. Nicola Bonelli
- * ----------------------------------------------------------------------------
- */
+// 
+//  Copyright (c) 2011 Bonelli Nicola <bonelli@antifork.org>
+// 
+//  This program is free software; you can redistribute it and/or modify
+//  it under the terms of the GNU General Public License as published by
+//  the Free Software Foundation; either version 2 of the License, or
+//  (at your option) any later version.
+// 
+//  This program is distributed in the hope that it will be useful,
+//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//  GNU General Public License for more details.
+// 
+//  You should have received a copy of the GNU General Public License
+//  along with this program; if not, write to the Free Software
+//  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+// 
+//  ass: C++11 code ass'istant
+//
 
 #ifndef __ASS_HPP__
 #define __ASS_HPP__ 
@@ -71,17 +81,6 @@
 
 #include <chrono>
 #include <ratio>
-#include <thread>
-#include <mutex>
-#include <condition_variable>
-#include <forward_list>
-
-#if __GNUC__ == 4 &&  __GNUC_MINOR__ == 4  
-#include <cstdatomic>
-#elif __GNUC__ == 4 &&  __GNUC_MINOR__ > 4
-#include <atomic>
-#include <future>
-#endif
 
 #include <complex>
 #include <array>
@@ -336,10 +335,6 @@ namespace ass {
     static std::string
     cxa_demangle(const char *name)
     {
-#ifdef _REENTRANT 
-        static std::mutex _S_mutex;
-        std::lock_guard<std::mutex> _L_(_S_mutex);
-#endif
         int status;
         std::unique_ptr<char, void(*)(void *)> ret(abi::__cxa_demangle(name,0,0, &status), ::free);
         if (status < 0) {
@@ -379,10 +374,6 @@ struct O
     {
          static std::string last_token;
  
- #ifdef _REENTRANT 
-         static std::mutex _S_mutex;
-         std::lock_guard<std::mutex> _L_(_S_mutex);
- #endif
          std::ostringstream ss; ss << elem;
          std::string token = ss.str();
  
@@ -588,7 +579,6 @@ std::tuple<T...> _(T&& ...arg)
 #define TYPE(x) { \
     std::cout << ass::type_name<is_reference<decltype(x)>::value>(x); \
 }
-
 
 using namespace std;
 using namespace std::chrono;

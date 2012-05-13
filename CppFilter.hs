@@ -18,24 +18,24 @@
 -- ass: C++11 code ass'istant 
 
 
-module CppFilter (CppRegion, CppRegionFilter, runSourceFilter)  where
+module CppFilter (CppZone, CppZoneFilter, runSourceFilter)  where
 
 
-data CppRegion = Code | Comment | Literal
+data CppZone = Code | Comment | Literal
                 deriving (Show, Read)
 
 
-type CppRegionFilter = (Bool, Bool, Bool)
+type CppZoneFilter = (Bool, Bool, Bool)
 
 
-runSourceFilter :: String -> CppRegionFilter -> String
+runSourceFilter :: String -> CppZoneFilter -> String
 runSourceFilter xs filt = sourceCodeFilter xs filt CodeState 
 
 
-sourceCodeFilter :: String -> CppRegionFilter -> FilterState  -> String
+sourceCodeFilter :: String -> CppZoneFilter -> FilterState  -> String
 sourceCodeFilter [] _ _ = []
 sourceCodeFilter (x:xs) filt state
-    | cppRegionFilter region filt = x   : (sourceCodeFilter xs filt nextState)
+    | cppZoneFilter region filt = x   : (sourceCodeFilter xs filt nextState)
     | otherwise                   = ' ' : (sourceCodeFilter xs filt nextState)
         where (region, nextState) = cppFilter x state
             
@@ -44,7 +44,7 @@ data FilterState = CodeState | SlashState | AsteriskState | CommentCState | Comm
                     deriving (Show, Read)
 
 
-cppFilter :: Char -> FilterState -> (CppRegion, FilterState)
+cppFilter :: Char -> FilterState -> (CppZone, FilterState)
 
 
 cppFilter x CodeState 
@@ -75,9 +75,9 @@ cppFilter x LiteralState
     | otherwise = (Literal, LiteralState)
 
 
-cppRegionFilter :: CppRegion -> CppRegionFilter -> Bool
-cppRegionFilter Code    (x, _, _) = (x == True)
-cppRegionFilter Comment (_, x, _) = (x == True)
-cppRegionFilter Literal (_, _, x) = (x == True)
+cppZoneFilter :: CppZone -> CppZoneFilter -> Bool
+cppZoneFilter Code    (x, _, _) = (x == True)
+cppZoneFilter Comment (_, x, _) = (x == True)
+cppZoneFilter Literal (_, _, x) = (x == True)
 
 

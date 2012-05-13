@@ -147,13 +147,12 @@ getLiteral _  _  _ []  = []
 getLiteral b e False (x : xs)
     | x == b     =  b : getLiteral b e True xs
     | otherwise  = error "getLiteral"
-getLiteral  b  e True (x : xs) 
+getLiteral b e True (x : xs) 
     | x == e     = [e]
-    | x == '\\'  = x' : getLiteral b e True xs'
+    | x == '\\'  = '\\' : x' : getLiteral b e True xs' 
     | otherwise  = x  : getLiteral b e True xs
                     where
                         (x':xs') = xs
-
 
 getTokenOpOrPunct (a:b:c:d:_) 
     | a:b:c:[d] `elem` (oper_or_punct !! 3) = TOperOrPunct (a:b:c:[d])

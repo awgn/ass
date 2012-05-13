@@ -50,7 +50,7 @@ main = do
     cwd' <- getCurrentDirectory
     src  <- hGetContents stdin
 
-    writeSource "/tmp/snippet.cpp" $ makeSourceCode src
+    writeSource "/tmp/snippet.cpp" $ makeSourceCode src (isMultiThread $ getCompilerArgs args)
     
     ec <- compileWith "/usr/bin/g++" "/tmp/snippet.cpp" "/tmp/snippet" $ ("-I " ++ cwd'):("-I " ++ cwd' ++ "/.."):(getCompilerArgs args)  
     if (ec == ExitSuccess)  
@@ -60,11 +60,16 @@ main = do
         exitWith $ ExitFailure 1
 
 
-makeSourceCode :: String -> [ SourceCode ]
-makeSourceCode xs 
+isMultiThread :: [String] -> Bool
+isMultiThread xs = "-pthread" `elem` xs
+
+
+makeSourceCode :: String -> Bool -> [ SourceCode ]
+makeSourceCode xs mt
     | isSnippet xs = [ mainHeader, toSourceCode xs ]
     | otherwise    = composeSrc $ foldl parseCodeLine (mainHeader, []) $ toSourceCode xs
-        where mainHeader = [ CodeLine 0 "#include <ass.hpp>" ]
+        where mainHeader = if (mt) then [ CodeLine 0 "#include <ass-mt.hpp>" ]
+                                   else [ CodeLine 0 "#include <ass.hpp>" ]
               mainBegin  = [ CodeLine 0 "int main(int argc, char *argv[]) { cout << boolalpha;" ]
               mainEnd    = [ CodeLine 0 "}" ]
               composeSrc (global,body) = [global, mainBegin, body, mainEnd]

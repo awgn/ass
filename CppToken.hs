@@ -88,6 +88,10 @@ getTokenNumber      xs = Number     (takeWhile (\c -> c `elem` "0123456789abcdef
 getTokenString      xs = TString    (getLiteralDelim '"'  '"'  False xs)
 getTokenChar        xs = TChar      (getLiteralDelim '\'' '\'' False xs)
 
+getTokenHeaderName  xs@(y:ys)
+    | y == '<'  = HeaderName (getLiteralDelim '<'  '>'  False xs)
+    | y == '"'  = HeaderName (getLiteralDelim '"'  '"'  False xs)
+    | otherwise = error "getTokenHeaderName"
 
 getTokenOpOrPunct (a:b:c:d:_) 
     | a:b:c:[d] `elem` (oper_or_punct !! 3) = OperOrPunct (a:b:c:[d])

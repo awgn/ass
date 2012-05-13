@@ -76,6 +76,7 @@
 #include <queue>
 #include <stack>
 #include <bitset>
+#include <forward_list>
 
 #include <initializer_list>
 

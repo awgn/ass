@@ -79,13 +79,12 @@ getTokenIdOrKeyword, getTokenNumber, getTokenHeaderName, getTokenString, getToke
 getTokenIdOrKeyword xs 
     | name `elem` keywords = Keyword name
     | otherwise            = Identifier name
-                where name = takeWhile isIdentifier xs
+                where name = takeWhile (\c -> isAlphaNum c || c == '_') xs
 
 getTokenDirective xs  = Directive name
                         where name = takeWhile (\c -> isAlphaNum c)  xs
 
-getTokenNumber      xs = Number     (takeWhile isLiteralNum xs)
-getTokenHeaderName  xs = HeaderName (getLiteralDelim '<'  '>'  False xs)
+getTokenNumber      xs = Number     (takeWhile (\c -> c `elem` "0123456789abcdefABCDEF.xXeEuUlL" )  xs)
 getTokenString      xs = TString    (getLiteralDelim '"'  '"'  False xs)
 getTokenChar        xs = TChar      (getLiteralDelim '\'' '\'' False xs)
 
@@ -123,11 +122,6 @@ getLiteralDelim  b  e True (x : xs)
     | otherwise  = x  : getLiteralDelim b e True xs
                     where
                         (x':xs') = xs
-
-
-isIdentifier, isLiteralNum :: Char -> Bool
-isIdentifier c = isAlphaNum c || c == '_'
-isLiteralNum c = c `elem` "0123456789abcdefABCDEF.xXeEuUlL"
 
 whitespace :: [Char]
 whitespace = " \t\r\n" 

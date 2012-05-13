@@ -24,8 +24,7 @@ import Data.Char
 -- Tokenize the source code in a list of Token
 --
 
-data Token = NullToken  |
-             Identifier  { toString :: String } |
+data Token = Identifier  { toString :: String } |
              Directive   { toString :: String } |
              Keyword     { toString :: String } |
              Number      { toString :: String } |
@@ -34,6 +33,38 @@ data Token = NullToken  |
              TChar       { toString :: String } |
              OperOrPunct { toString :: String }
                 deriving (Show, Read)
+
+isIdentifier :: Token -> Bool
+isIdentifier (Identifier _)  = True
+isIdentifier _ = False
+
+isKeyword :: Token -> Bool
+isKeyword (Keyword _)  = True
+isKeyword _ = False
+
+isDirective :: Token -> Bool
+isDirective (Directive _)  = True
+isDirective _ = False
+
+isNumber :: Token -> Bool
+isNumber (Number _) = True
+isNumber _ = False
+
+isHeaderName :: Token -> Bool
+isHeaderName (HeaderName _)  = True
+isHeaderName _ = False
+
+isTString :: Token -> Bool
+isTString (TString _ ) = True
+isTString _ = False
+
+isTChar :: Token -> Bool
+isTChar (TChar _) = True
+isTChar _ = False
+
+isOperOrPunct :: Token -> Bool
+isOperOrPunct (OperOrPunct _)  = True
+isOperOrPunct _ = False
 
 
 tokens :: String -> [Token]

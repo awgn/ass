@@ -1,4 +1,4 @@
--- Copyright (c) 2012 Bonelli Nicola <bonelli@antifork.org>
+-- Copyright (c) 2011 Bonelli Nicola <bonelli@antifork.org>
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@ import Data.Char
 
 data Token = NullToken  |
              Identifier  { toString :: String } |
+             Directive   { toString :: String } |
              Keyword     { toString :: String } |
              Number      { toString :: String } |
              HeaderName  { toString :: String } |
@@ -80,6 +81,8 @@ getTokenIdOrKeyword xs
     | otherwise            = Identifier name
                 where name = takeWhile isIdentifier xs
 
+getTokenDirective xs  = Directive name
+                        where name = takeWhile (\c -> isAlphaNum c)  xs
 
 getTokenNumber      xs = Number     (takeWhile isLiteralNum xs)
 getTokenHeaderName  xs = HeaderName (getLiteralDelim '<'  '>'  False xs)

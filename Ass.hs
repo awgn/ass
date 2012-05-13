@@ -77,7 +77,7 @@ isSnippet xs
 
 
 sourceFilter :: String -> String
-sourceFilter xs = map (\c -> if isAlphaNum(c) then c else ' ') $ CF.runSourceFilter xs (True, False, False)   
+sourceFilter xs = CF.runSourceFilter xs (True, False, False)   
 
 
 writeSource :: String -> [ SourceCode ] -> IO ()

@@ -17,43 +17,44 @@
 -- ass: C++11 code ass'istant 
 
 
-module CppToken(Token(..), tokens)  where
+module CppToken(Token(..), isTIdentifier, isTKeyword, isTDirective, isTNumber, 
+                           isTHeaderName, isTString, isTChar, isTOperOrPunct, tokens)  where
       
-import Data.Char
+import Data.Char 
 
 -- Tokenize the source code in a list 
 -- Precondition: the c++ source code must not be not ill-formed
 --
 
-data Token = Identifier  { toString :: String } |
-             Directive   { toString :: String } |
-             Keyword     { toString :: String } |
-             Number      { toString :: String } |
-             HeaderName  { toString :: String } |
-             TString     { toString :: String } |
-             TChar       { toString :: String } |
-             OperOrPunct { toString :: String }
+data Token = TIdentifier  { toString :: String } |
+             TDirective   { toString :: String } |
+             TKeyword     { toString :: String } |
+             TNumber      { toString :: String } |
+             THeaderName  { toString :: String } |
+             TString      { toString :: String } |
+             TChar        { toString :: String } |
+             TOperOrPunct { toString :: String }
                 deriving (Show, Read)
 
-isIdentifier :: Token -> Bool
-isIdentifier (Identifier _)  = True
-isIdentifier _ = False
+isTIdentifier :: Token -> Bool
+isTIdentifier (TIdentifier _)  = True
+isTIdentifier _ = False
 
-isKeyword :: Token -> Bool
-isKeyword (Keyword _)  = True
-isKeyword _ = False
+isTKeyword :: Token -> Bool
+isTKeyword (TKeyword _)  = True
+isTKeyword _ = False
 
-isDirective :: Token -> Bool
-isDirective (Directive _)  = True
-isDirective _ = False
+isTDirective :: Token -> Bool
+isTDirective (TDirective _)  = True
+isTDirective _ = False
 
-isNumber :: Token -> Bool
-isNumber (Number _) = True
-isNumber _ = False
+isTNumber :: Token -> Bool
+isTNumber (TNumber _) = True
+isTNumber _ = False
 
-isHeaderName :: Token -> Bool
-isHeaderName (HeaderName _)  = True
-isHeaderName _ = False
+isTHeaderName :: Token -> Bool
+isTHeaderName (THeaderName _)  = True
+isTHeaderName _ = False
 
 isTString :: Token -> Bool
 isTString (TString _ ) = True
@@ -63,9 +64,9 @@ isTChar :: Token -> Bool
 isTChar (TChar _) = True
 isTChar _ = False
 
-isOperOrPunct :: Token -> Bool
-isOperOrPunct (OperOrPunct _)  = True
-isOperOrPunct _ = False
+isTOperOrPunct :: Token -> Bool
+isTOperOrPunct (TOperOrPunct _)  = True
+isTOperOrPunct _ = False
 
 
 tokens :: String -> [Token]
@@ -103,72 +104,78 @@ getTokens xs state = token : getTokens ls (nextState (toString token) next)
 
 
 runGetToken :: String -> PreprocState -> (Token, PreprocState)
-runGetToken []  s = error "runGetToken"
+runGetToken []  _ = error "runGetToken"
 runGetToken xs  s = case xs' of 
-                        (y:_) | s == Hash                       -> (getTokenDirective xs', s)
-                        (y:_) | s == Include                    -> (getTokenHeaderName  xs', s)
-                        (y:_) | isDigit(y)                      -> (getTokenNumber xs', s)
-                        (y:_) | isAlpha(y) || y == '_'          -> (getTokenIdOrKeyword xs', s)
-                        (y:_) | y == '"'                        -> (getTokenString xs', s)
-                        (y:_) | y == '\''                       -> (getTokenChar   xs', s)
-                        _                                       -> (getTokenOpOrPunct   xs', s)
+                        _ | s == Hash                  -> (getTokenDirective xs', s)
+                        _ | s == Include               -> (getTokenHeaderName  xs', s)
+                        (y:_) | isDigit(y)             -> (getTokenNumber xs', s)
+                        (y:_) | isAlpha(y) || y == '_' -> (getTokenIdOrKeyword xs', s)
+                        (y:_) | y == '"'               -> (getTokenString xs', s)
+                        (y:_) | y == '\''              -> (getTokenChar   xs', s)
+                        _                              -> (getTokenOpOrPunct   xs', s)
                         where
                            xs' = dropWhile (\c -> c `elem` whitespace) xs
 
 
-getTokenIdOrKeyword, getTokenNumber, getTokenHeaderName, getTokenString, getTokenChar, getTokenOpOrPunct :: String -> Token
+getTokenIdOrKeyword, getTokenNumber, getTokenHeaderName, 
+    getTokenString, getTokenChar, getTokenOpOrPunct, getTokenDirective :: String -> Token
 
 
 getTokenIdOrKeyword xs 
-    | name `elem` keywords = Keyword name
-    | otherwise            = Identifier name
+    | name `elem` keywords = TKeyword name
+    | otherwise            = TIdentifier name
                 where name = takeWhile (\c -> isAlphaNum c || c == '_') xs
 
-getTokenDirective xs  = Directive name
+
+getTokenDirective xs  = TDirective name
                         where name = takeWhile (\c -> isAlphaNum c)  xs
 
-getTokenNumber      xs = Number     (takeWhile (\c -> c `elem` "0123456789abcdefABCDEF.xXeEuUlL" )  xs)
-getTokenString      xs = TString    (getLiteralDelim '"'  '"'  False xs)
-getTokenChar        xs = TChar      (getLiteralDelim '\'' '\'' False xs)
+getTokenNumber      xs = TNumber  (takeWhile (\c -> c `elem` "0123456789abcdefABCDEF.xXeEuUlL" )  xs)
+getTokenString      xs = TString  (getLiteral '"'  '"'  False xs)
+getTokenChar        xs = TChar    (getLiteral '\'' '\'' False xs)
 
-getTokenHeaderName  xs@(y:ys)
-    | y == '<'  = HeaderName (getLiteralDelim '<'  '>'  False xs)
-    | y == '"'  = HeaderName (getLiteralDelim '"'  '"'  False xs)
+
+getTokenHeaderName  xs@(y:_)
+    | y == '<'  = THeaderName (getLiteral '<'  '>'  False xs)
+    | y == '"'  = THeaderName (getLiteral '"'  '"'  False xs)
     | otherwise = error "getTokenHeaderName"
+getTokenHeaderName [] =  error "getTokenHeaderName"
+
+
+getLiteral :: Char -> Char -> Bool -> String -> String
+getLiteral _  _  _ []  = []
+getLiteral b e False (x : xs)
+    | x == b     =  b : getLiteral b e True xs
+    | otherwise  = error "getLiteral"
+getLiteral  b  e True (x : xs) 
+    | x == e     = [e]
+    | x == '\\'  = x' : getLiteral b e True xs'
+    | otherwise  = x  : getLiteral b e True xs
+                    where
+                        (x':xs') = xs
+
 
 getTokenOpOrPunct (a:b:c:d:_) 
-    | a:b:c:[d] `elem` (oper_or_punct !! 3) = OperOrPunct (a:b:c:[d])
-    | a:b:[c]   `elem` (oper_or_punct !! 2) = OperOrPunct (a:b:[c])
-    | a:[b]     `elem` (oper_or_punct !! 1) = OperOrPunct (a:[b])
-    | a         `elem` (oper_or_punct !! 0 !! 0) = OperOrPunct [a]
+    | a:b:c:[d] `elem` (oper_or_punct !! 3) = TOperOrPunct (a:b:c:[d])
+    | a:b:[c]   `elem` (oper_or_punct !! 2) = TOperOrPunct (a:b:[c])
+    | a:[b]     `elem` (oper_or_punct !! 1) = TOperOrPunct (a:[b])
+    | a         `elem` (oper_or_punct !! 0 !! 0) = TOperOrPunct [a]
     | otherwise  = error "getTokenOpOrPunct"
 getTokenOpOrPunct (a:b:c:_) 
-    | a:b:[c]   `elem` (oper_or_punct !! 2) = OperOrPunct (a:b:[c])
-    | a:[b]     `elem` (oper_or_punct !! 1) = OperOrPunct (a:[b])
-    | a         `elem` (oper_or_punct !! 0 !! 0) = OperOrPunct [a]
+    | a:b:[c]   `elem` (oper_or_punct !! 2) = TOperOrPunct (a:b:[c])
+    | a:[b]     `elem` (oper_or_punct !! 1) = TOperOrPunct (a:[b])
+    | a         `elem` (oper_or_punct !! 0 !! 0) = TOperOrPunct [a]
     | otherwise  = error "getTokenOpOrPunct"
 getTokenOpOrPunct (a:b:_) 
-    | a:[b]     `elem` (oper_or_punct !! 1) = OperOrPunct (a:[b])
-    | a         `elem` (oper_or_punct !! 0 !! 0) = OperOrPunct [a]
+    | a:[b]     `elem` (oper_or_punct !! 1) = TOperOrPunct (a:[b])
+    | a         `elem` (oper_or_punct !! 0 !! 0) = TOperOrPunct [a]
     | otherwise  = error "getTokenOpOrPunct"
 getTokenOpOrPunct (a:_) 
-    | a         `elem` (oper_or_punct !! 0 !! 0) = OperOrPunct [a]
+    | a         `elem` (oper_or_punct !! 0 !! 0) = TOperOrPunct [a]
     | otherwise  = error "getTokenOpOrPunct"
 getTokenOpOrPunct []  
                  = error "getTokenOpOrPunct" 
 
-
-getLiteralDelim :: Char -> Char -> Bool -> String -> String
-getLiteralDelim _  _  _ []  = []
-getLiteralDelim b e False (x : xs)
-    | x == b     =  b : getLiteralDelim b e True xs
-    | otherwise  = error "getLiteral"
-getLiteralDelim  b  e True (x : xs) 
-    | x == e     = [e]
-    | x == '\\'  = x' : getLiteralDelim b e True xs'
-    | otherwise  = x  : getLiteralDelim b e True xs
-                    where
-                        (x':xs') = xs
 
 whitespace :: [Char]
 whitespace = " \t\r\n" 

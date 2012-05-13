@@ -70,7 +70,7 @@ isTOperOrPunct _ = False
 
 
 tokens :: String -> [Token]
-tokens xs = getTokens xs Null  
+tokens xs = getTokens (dropWhile (\c -> c `elem` whitespace) xs) Null  
 
 -- 
 

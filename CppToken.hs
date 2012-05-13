@@ -1,4 +1,4 @@
--- Copyright (c) 2011 Bonelli Nicola <bonelli@antifork.org>
+-- Copyright (c) 2012 Bonelli Nicola <bonelli@antifork.org>
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -21,7 +21,8 @@ module CppToken(Token(..), tokens)  where
       
 import Data.Char
 
--- Tokenize the source code in a list of Token
+-- Tokenize the source code in a list 
+-- Precondition: the c++ source code must not be not ill-formed
 --
 
 data Token = Identifier  { toString :: String } |
@@ -70,6 +71,7 @@ isOperOrPunct _ = False
 tokens :: String -> [Token]
 tokens xs = getTokens xs Null  
 
+-- 
 
 data PreprocState = Null | Hash | Include | Define | Undef | If | Ifdef | Ifndef | Elif | Else | Endif |
                     Line | Error | Pragma

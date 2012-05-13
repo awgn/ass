@@ -100,7 +100,7 @@ isPreprocessor = isPrefixOf "#" . dropWhile isSpace
 
 getGlobalLine :: String -> Maybe String
 getGlobalLine xs 
-    | "..." `isPrefixOf` xs' = Just $ tail $ tail $ tail xs'
+    | "..." `isPrefixOf` xs' = Just $ snd $ splitAt 3 xs'
     | otherwise = Nothing
         where xs' = dropWhile isSpace xs
 

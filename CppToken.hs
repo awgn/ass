@@ -71,15 +71,25 @@ tokens :: String -> [Token]
 tokens xs = getTokens xs Null  
 
 
--- Requred for Header Name Token
---
-data PreprocState = Null | Hash | Include
+data PreprocState = Null | Hash | Include | Define | Undef | If | Ifdef | Ifndef | Elif | Else | Endif |
+                    Line | Error | Pragma
                     deriving (Show, Eq)
 
 
 nextState :: String -> PreprocState -> PreprocState
 nextState "#" Null       = Hash
 nextState "include" Hash = Include
+nextState "define"  Hash = Define
+nextState "undef"   Hash = Undef
+nextState "if"      Hash = If 
+nextState "ifdef"   Hash = Ifdef 
+nextState "ifndef"  Hash = Ifndef 
+nextState "elif"    Hash = Elif 
+nextState "else"    Hash = Else 
+nextState "endif"   Hash = Endif 
+nextState "line"    Hash = Line  
+nextState "error"   Hash = Error  
+nextState "pragma"  Hash = Pragma
 nextState _   _          = Null
 
 

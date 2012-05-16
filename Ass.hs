@@ -32,11 +32,10 @@ import qualified CppToken  as CT
 
 data CodeLine = CodeLine Int String 
 
-
 instance Show CodeLine where
     show (CodeLine n xs) = "#line " ++ show n ++ "\n" ++ xs  
 
-
+type Source          = String
 type SourceCode      = [CodeLine]
 type TranslationUnit = SourceCode
 type MainFunction    = SourceCode
@@ -50,9 +49,16 @@ main = do
     cwd' <- getCurrentDirectory
     src  <- hGetContents stdin
 
-    writeSource "/tmp/snippet.cpp" $ makeSourceCode src (isMultiThread $ getCompilerArgs args)
+    let mt = isMultiThread src (getCompilerArgs args)
+
+    let cargs = if (mt) then 
+                        "-pthread" : getCompilerArgs args
+                        else 
+                        getCompilerArgs args 
+
+    writeSource "/tmp/snippet.cpp" $ makeSourceCode src mt
     
-    ec <- compileWith "/usr/bin/g++" "/tmp/snippet.cpp" "/tmp/snippet" $ ("-I " ++ cwd'):("-I " ++ cwd' ++ "/.."):(getCompilerArgs args)  
+    ec <- compileWith "/usr/bin/g++" "/tmp/snippet.cpp" "/tmp/snippet" $ ("-I " ++ cwd'):("-I " ++ cwd' ++ "/.."):cargs 
     if (ec == ExitSuccess)  
     then 
         system ("/tmp/snippet " ++ (unwords $ getTestArgs args)) >>= exitWith
@@ -60,8 +66,13 @@ main = do
         exitWith $ ExitFailure 1
 
 
-isMultiThread :: [String] -> Bool
-isMultiThread xs = "-pthread" `elem` xs
+isMultiThread :: Source -> [String] -> Bool
+isMultiThread xs os = "-pthread" `elem` os  || hasThreadOrAsync xs 
+
+
+hasThreadOrAsync :: Source -> Bool
+hasThreadOrAsync src =  "thread" `elem` ids || "async" `elem` ids     
+                        where ids = map CT.toString $ filter CT.isTIdentifier  $ CT.tokens  $ sourceFilter src
 
 
 makeSourceCode :: String -> Bool -> [ SourceCode ]

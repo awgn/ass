@@ -97,25 +97,26 @@ nextState "pragma"  Hash = Pragma
 nextState _   _          = Null
 
 
+
 getTokens :: String -> PreprocState -> [Token]
 getTokens [] _ = []
-getTokens xs state = token : getTokens ls (nextState (toString token) next) 
-                        where (token, next) = runGetToken xs state
-                              ls = dropWhile (\c -> c `S.member` whitespace) $ drop (length $ toString token) xs                        
+getTokens xs state = token : getTokens lefts (nextState (toString token) state) 
+                        where token = getToken xs state
+                              lefts = dropWhile (\c -> c `S.member` whitespace) $ drop (length $ toString token) xs                        
 
 
-runGetToken :: String -> PreprocState -> (Token, PreprocState)
-runGetToken []  _ = error "runGetToken"
-runGetToken xs  s = case xs' of 
-                        _ | s == Hash                  -> (getTokenDirective xs', s)
-                        _ | s == Include               -> (getTokenHeaderName  xs', s)
-                        (y:_) | isDigit(y)             -> (getTokenNumber xs', s)
-                        (y:_) | isAlpha(y) || y == '_' -> (getTokenIdOrKeyword xs', s)
-                        (y:_) | y == '"'               -> (getTokenString xs', s)
-                        (y:_) | y == '\''              -> (getTokenChar   xs', s)
-                        _                              -> (getTokenOpOrPunct   xs', s)
-                        where
-                           xs' = dropWhile (\c -> c `S.member` whitespace) xs
+getToken :: String -> PreprocState -> Token
+getToken []  _ = error "getToken"
+getToken xs  s = case xs' of                                                    
+                    _ | s == Hash                  -> getTokenDirective xs'   
+                    _ | s == Include               -> getTokenHeaderName xs'
+                    (y:_) | isDigit(y)             -> getTokenNumber xs'    
+                    (y:_) | isAlpha(y) || y == '_' -> getTokenIdOrKeyword xs'
+                    (y:_) | y == '"'               -> getTokenString xs'    
+                    (y:_) | y == '\''              -> getTokenChar   xs'    
+                    _                              -> getTokenOpOrPunct xs' 
+                    where
+                       xs' = dropWhile (\c -> c `S.member` whitespace) xs
 
 
 getTokenIdOrKeyword, getTokenNumber, getTokenHeaderName, 

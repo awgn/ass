@@ -21,6 +21,7 @@ module CppToken(Token(..), isTIdentifier, isTKeyword, isTDirective, isTNumber,
                            isTHeaderName, isTString, isTChar, isTOperOrPunct, tokens)  where
       
 import Data.Char 
+import Data.Set as S
 
 -- Tokenize the source code in a list 
 -- Precondition: the c++ source code must not be not ill-formed
@@ -70,7 +71,7 @@ isTOperOrPunct _ = False
 
 
 tokens :: String -> [Token]
-tokens xs = getTokens (dropWhile (\c -> c `elem` whitespace) xs) Null  
+tokens xs = getTokens (dropWhile (\c -> c `S.member` whitespace) xs) Null  
 
 -- 
 
@@ -100,7 +101,7 @@ getTokens :: String -> PreprocState -> [Token]
 getTokens [] _ = []
 getTokens xs state = token : getTokens ls (nextState (toString token) next) 
                         where (token, next) = runGetToken xs state
-                              ls = dropWhile (\c -> c `elem` whitespace) $ drop (length $ toString token) xs                        
+                              ls = dropWhile (\c -> c `S.member` whitespace) $ drop (length $ toString token) xs                        
 
 
 runGetToken :: String -> PreprocState -> (Token, PreprocState)
@@ -114,7 +115,7 @@ runGetToken xs  s = case xs' of
                         (y:_) | y == '\''              -> (getTokenChar   xs', s)
                         _                              -> (getTokenOpOrPunct   xs', s)
                         where
-                           xs' = dropWhile (\c -> c `elem` whitespace) xs
+                           xs' = dropWhile (\c -> c `S.member` whitespace) xs
 
 
 getTokenIdOrKeyword, getTokenNumber, getTokenHeaderName, 
@@ -122,7 +123,7 @@ getTokenIdOrKeyword, getTokenNumber, getTokenHeaderName,
 
 
 getTokenIdOrKeyword xs 
-    | name `elem` keywords = TKeyword name
+    | name `S.member` keywords = TKeyword name
     | otherwise            = TIdentifier name
                 where name = takeWhile (\c -> isAlphaNum c || c == '_') xs
 
@@ -130,7 +131,7 @@ getTokenIdOrKeyword xs
 getTokenDirective xs  = TDirective name
                         where name = takeWhile (\c -> isAlphaNum c)  xs
 
-getTokenNumber      xs = TNumber  (takeWhile (\c -> c `elem` "0123456789abcdefABCDEF.xXeEuUlL" )  xs)
+getTokenNumber      xs = TNumber  (takeWhile (\c -> c `S.member` S.fromList "0123456789abcdefABCDEF.xXeEuUlL" )  xs)
 getTokenString      xs = TString  (getLiteral '"'  '"'  False xs)
 getTokenChar        xs = TChar    (getLiteral '\'' '\'' False xs)
 
@@ -155,49 +156,50 @@ getLiteral b e True (x : xs)
                         (x':xs') = xs
 
 getTokenOpOrPunct (a:b:c:d:_) 
-    | a:b:c:[d] `elem` (oper_or_punct !! 3) = TOperOrPunct (a:b:c:[d])
-    | a:b:[c]   `elem` (oper_or_punct !! 2) = TOperOrPunct (a:b:[c])
-    | a:[b]     `elem` (oper_or_punct !! 1) = TOperOrPunct (a:[b])
-    | a         `elem` (oper_or_punct !! 0 !! 0) = TOperOrPunct [a]
+    | (a:b:c:[d]) `S.member` (oper_or_punct !! 3) = TOperOrPunct (a:b:c:[d])
+    | (a:b:[c])   `S.member` (oper_or_punct !! 2) = TOperOrPunct (a:b:[c])
+    | (a:[b])     `S.member` (oper_or_punct !! 1) = TOperOrPunct (a:[b])
+    | ([a])       `S.member` (oper_or_punct !! 0) = TOperOrPunct [a]
     | otherwise  = error "getTokenOpOrPunct"
 getTokenOpOrPunct (a:b:c:_) 
-    | a:b:[c]   `elem` (oper_or_punct !! 2) = TOperOrPunct (a:b:[c])
-    | a:[b]     `elem` (oper_or_punct !! 1) = TOperOrPunct (a:[b])
-    | a         `elem` (oper_or_punct !! 0 !! 0) = TOperOrPunct [a]
+    | (a:b:[c])   `S.member` (oper_or_punct !! 2) = TOperOrPunct (a:b:[c])
+    | (a:[b])     `S.member` (oper_or_punct !! 1) = TOperOrPunct (a:[b])
+    | ([a])       `S.member` (oper_or_punct !! 0) = TOperOrPunct [a]
     | otherwise  = error "getTokenOpOrPunct"
 getTokenOpOrPunct (a:b:_) 
-    | a:[b]     `elem` (oper_or_punct !! 1) = TOperOrPunct (a:[b])
-    | a         `elem` (oper_or_punct !! 0 !! 0) = TOperOrPunct [a]
+    | (a:[b])     `S.member` (oper_or_punct !! 1) = TOperOrPunct (a:[b])
+    | ([a])       `S.member` (oper_or_punct !! 0) = TOperOrPunct [a]
     | otherwise  = error "getTokenOpOrPunct"
 getTokenOpOrPunct (a:_) 
-    | a         `elem` (oper_or_punct !! 0 !! 0) = TOperOrPunct [a]
+    | ([a])       `S.member` (oper_or_punct !! 0) = TOperOrPunct [a]
     | otherwise  = error "getTokenOpOrPunct"
 getTokenOpOrPunct []  
                  = error "getTokenOpOrPunct" 
 
 
-whitespace :: [Char]
-whitespace = " \t\r\n" 
+whitespace = S.fromList " \t\r\n" 
 
-oper_or_punct :: [[[Char]]]
-oper_or_punct = [   [ "{}[]#();:?.+-*/%^&|~!=<>," ],
-                    ["##", "<:", ":>", "<%", "%>", "%:", "::", ".*", "+=",   
-                     "-=", "*=", "/=", "%=", "^=", "&=", "|=", "<<", ">>",   
-                     ">=", "<=", "&&", "||", "==", "!=", "++", "--", "->",
-                     "//", "/*", "*/"],      
-                    ["...", "<<=", ">>=", "->*"],   
-                    [ "%:%:" ]       
+
+oper_or_punct = [   S.fromList  [ "{","}","[","]","#","(",")",";",":","?",".","+","-","*",
+                                  "/","%","^","&","|","~","!","=","<",">","," ],
+                    S.fromList  [ "##", "<:", ":>", "<%", "%>", "%:", "::", ".*", "+=", "-=", 
+                                  "*=", "/=", "%=", "^=", "&=", "|=", "<<", ">>", ">=", "<=", 
+                                  "&&", "||", "==", "!=", "++", "--", "->", "//", "/*", "*/"],      
+                    S.fromList  [ "...", "<<=", ">>=", "->*"],   
+                    S.fromList  [ "%:%:" ]       
                 ]
 
-keywords :: [[Char]]
-keywords = ["alignas", "continue", "friend", "alignof", "decltype", "goto",
-            "asm", "default", "if", "auto", "delete", "inline", "bool", "do", "int",
-            "break", "double", "long", "case", "dynamic_cast", "mutable", "catch", "else", 
-            "namespace", "char", "enum", "new", "char16_t", "explicit", "noexcept", "char32_t", 
-            "export", "nullptr", "class", "extern", "operator", "const", "false", "private", 
-            "constexpr", "float", "protected", "const_cast", "for", "public", "register", "true", 
-            "reinterpret_cast", "try", "return", "typedef", "short", "typeid", "signed", "typename", 
-            "sizeof", "union", "static", "unsigned", "static_assert", "using", "static_cast", "virtual", 
-            "struct", "void", "switch", "volatile", "template", "wchar_t", "this", "while", "thread_local", "throw",
-            "and", "and_eq", "bitand", "bitor", "compl", "not", "not_eq", "or", "or_eq", "xor", "xor_eq"]
+keywords = S.fromList ["alignas", "continue", "friend", "alignof", "decltype", "goto", "asm", 
+                       "default", "if", "auto", "delete", "inline", "bool", "do", "int", "break", 
+                       "double", "long", "case", "dynamic_cast", "mutable", "catch", "else", 
+                       "namespace", "char", "enum", "new", "char16_t", "explicit", "noexcept", 
+                       "char32_t", "export", "nullptr", "class", "extern", "operator", "const", 
+                       "false", "private", "constexpr", "float", "protected", "const_cast", "for", 
+                       "public", "register", "true", "reinterpret_cast", "try", "return", "typedef", 
+                       "short", "typeid", "signed", "typename", "sizeof", "union", "static", "unsigned", 
+                       "static_assert", "using", "static_cast", "virtual", "struct", "void", "switch", 
+                       "volatile", "template", "wchar_t", "this", "while", "thread_local", "throw", 
+                       "and", "and_eq", "bitand", "bitor", "compl", "not", "not_eq", "or", "or_eq", 
+                       "xor", "xor_eq"]
+                        
 

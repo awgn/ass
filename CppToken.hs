@@ -18,7 +18,8 @@
 
 
 module CppToken(Token(..), isTIdentifier, isTKeyword, isTDirective, isTNumber, 
-                           isTHeaderName, isTString, isTChar, isTOperOrPunct, tokens)  where
+                           isTHeaderName, isTString, isTChar, isTOperOrPunct, 
+                           tokens)  where
       
 import Data.Char 
 import Data.Set as S
@@ -27,52 +28,72 @@ import Data.Set as S
 -- Precondition: the c++ source code must not be not ill-formed
 --
 
-data Token = TIdentifier  { toString :: String } |
-             TDirective   { toString :: String } |
-             TKeyword     { toString :: String } |
-             TNumber      { toString :: String } |
-             THeaderName  { toString :: String } |
-             TString      { toString :: String } |
-             TChar        { toString :: String } |
-             TOperOrPunct { toString :: String }
-                deriving (Show, Read)
+tokens :: String -> [Token]
+tokens xs = runGetToken (ys, n, Null)  
+                where
+                    (ys,n) = dropWhite xs
+
+data Token = TIdentifier  { toString :: String, offset :: Int } |
+             TDirective   { toString :: String, offset :: Int } |
+             TKeyword     { toString :: String, offset :: Int } |
+             TNumber      { toString :: String, offset :: Int } |
+             THeaderName  { toString :: String, offset :: Int } |
+             TString      { toString :: String, offset :: Int } |
+             TChar        { toString :: String, offset :: Int } |
+             TOperOrPunct { toString :: String, offset :: Int }
+                deriving (Show, Eq)  
+
 
 isTIdentifier :: Token -> Bool
-isTIdentifier (TIdentifier _)  = True
+isTIdentifier (TIdentifier _ _)  = True
 isTIdentifier _ = False
 
+
 isTKeyword :: Token -> Bool
-isTKeyword (TKeyword _)  = True
+isTKeyword (TKeyword _ _)  = True
 isTKeyword _ = False
 
+
 isTDirective :: Token -> Bool
-isTDirective (TDirective _)  = True
+isTDirective (TDirective _ _)  = True
 isTDirective _ = False
 
+
 isTNumber :: Token -> Bool
-isTNumber (TNumber _) = True
+isTNumber (TNumber _ _) = True
 isTNumber _ = False
 
+
 isTHeaderName :: Token -> Bool
-isTHeaderName (THeaderName _)  = True
+isTHeaderName (THeaderName _ _)  = True
 isTHeaderName _ = False
 
+
 isTString :: Token -> Bool
-isTString (TString _ ) = True
+isTString (TString _ _) = True
 isTString _ = False
 
+
 isTChar :: Token -> Bool
-isTChar (TChar _) = True
+isTChar (TChar _ _) = True
 isTChar _ = False
 
+
 isTOperOrPunct :: Token -> Bool
-isTOperOrPunct (TOperOrPunct _)  = True
+isTOperOrPunct (TOperOrPunct _ _)  = True
 isTOperOrPunct _ = False
 
 
-tokens :: String -> [Token]
-tokens xs = getTokens (dropWhile (\c -> c `S.member` whitespace) xs) Null  
+-- Drop leading whitespace and count them
+--
 
+dropWhite :: String -> (String,Int)
+
+dropWhite xs = dropWhite' (xs, 0)
+               where dropWhite' (y:ys, n) 
+                        | y `elem` " \t\n" =  dropWhite' (ys, n+1)
+                        | otherwise = (y:ys, n)
+                     dropWhite' ("",n) = ("", n)
 -- 
 
 data PreprocState = Null | Hash | Include | Define | Undef | If | Ifdef | Ifndef | Elif | Else | Endif |
@@ -96,50 +117,58 @@ nextState "error"   Hash = Error
 nextState "pragma"  Hash = Pragma
 nextState _   _          = Null
 
+---
+
+type TokenizerState = (Source, Offset, PreprocState)
+type Source = String
+type Offset = Int
 
 
-getTokens :: String -> PreprocState -> [Token]
-getTokens [] _ = []
-getTokens xs state = token : getTokens lefts (nextState (toString token) state) 
-                        where token = getToken xs state
-                              lefts = dropWhile (\c -> c `S.member` whitespace) $ drop (length $ toString token) xs                        
+runGetToken :: TokenizerState -> [Token]
+
+runGetToken ([], _, _)     = []
+runGetToken ts = token : runGetToken ns
+                    where (token, ns) = getToken ts
 
 
-getToken :: String -> PreprocState -> Token
-getToken []  _ = error "getToken"
-getToken xs  s = case xs' of                                                    
-                    _ | s == Hash                  -> getTokenDirective xs'   
-                    _ | s == Include               -> getTokenHeaderName xs'
-                    (y:_) | isDigit(y)             -> getTokenNumber xs'    
-                    (y:_) | isAlpha(y) || y == '_' -> getTokenIdOrKeyword xs'
-                    (y:_) | y == '"'               -> getTokenString xs'    
-                    (y:_) | y == '\''              -> getTokenChar   xs'    
-                    _                              -> getTokenOpOrPunct xs' 
-                    where
-                       xs' = dropWhile (\c -> c `S.member` whitespace) xs
+getToken :: TokenizerState -> (Token, TokenizerState)
 
+getToken ([], _, _ ) = error "getToken"
+getToken (xs, n, ps) =  let token = case xs of
+                                _ | ps == Hash                 -> (getTokenDirective   xs) { offset = n }
+                                _ | ps == Include              -> (getTokenHeaderName  xs) { offset = n }
+                                (y:_) | isDigit(y)             -> (getTokenNumber      xs) { offset = n }
+                                (y:_) | isAlpha(y) || y == '_' -> (getTokenIdOrKeyword xs) { offset = n }
+                                (y:_) | y == '"'               -> (getTokenString      xs) { offset = n }
+                                (y:_) | y == '\''              -> (getTokenChar        xs) { offset = n }
+                                _                              -> (getTokenOpOrPunct   xs) { offset = n }
+                            l = length $ toString token
+                            (xs', w) = dropWhite $ drop l xs  
+                        in
+                            (token, (xs', n+l+w, nextState (toString token) ps))
+--
 
 getTokenIdOrKeyword, getTokenNumber, getTokenHeaderName, 
-    getTokenString, getTokenChar, getTokenOpOrPunct, getTokenDirective :: String -> Token
+    getTokenString, getTokenChar, getTokenOpOrPunct, getTokenDirective :: Source -> Token
 
 
 getTokenIdOrKeyword xs 
-    | name `S.member` keywords = TKeyword name
-    | otherwise            = TIdentifier name
+    | name `S.member` keywords = TKeyword name 0
+    | otherwise            = TIdentifier name 0
                 where name = takeWhile (\c -> isAlphaNum c || c == '_') xs
 
 
-getTokenDirective xs  = TDirective name
+getTokenDirective xs  = TDirective name 0
                         where name = takeWhile (\c -> isAlphaNum c)  xs
 
-getTokenNumber      xs = TNumber  (takeWhile (\c -> c `S.member` S.fromList "0123456789abcdefABCDEF.xXeEuUlL" )  xs)
-getTokenString      xs = TString  (getLiteral '"'  '"'  False xs)
-getTokenChar        xs = TChar    (getLiteral '\'' '\'' False xs)
+getTokenNumber      xs = TNumber  (takeWhile (\c -> c `S.member` S.fromList "0123456789abcdefABCDEF.xXeEuUlL" )  xs) 0
+getTokenString      xs = TString  (getLiteral '"'  '"'  False xs) 0
+getTokenChar        xs = TChar    (getLiteral '\'' '\'' False xs) 0
 
 
 getTokenHeaderName  xs@(y:_)
-    | y == '<'  = THeaderName (getLiteral '<'  '>'  False xs)
-    | y == '"'  = THeaderName (getLiteral '"'  '"'  False xs)
+    | y == '<'  = THeaderName (getLiteral '<'  '>'  False xs) 0
+    | y == '"'  = THeaderName (getLiteral '"'  '"'  False xs) 0
     | otherwise = error "getTokenHeaderName"
 getTokenHeaderName [] =  error "getTokenHeaderName"
 
@@ -157,39 +186,38 @@ getLiteral b e True (x : xs)
                         (x':xs') = xs
 
 getTokenOpOrPunct (a:b:c:d:_) 
-    | (a:b:c:[d]) `S.member` (oper_or_punct !! 3) = TOperOrPunct (a:b:c:[d])
-    | (a:b:[c])   `S.member` (oper_or_punct !! 2) = TOperOrPunct (a:b:[c])
-    | (a:[b])     `S.member` (oper_or_punct !! 1) = TOperOrPunct (a:[b])
-    | ([a])       `S.member` (oper_or_punct !! 0) = TOperOrPunct [a]
+    | (a:b:c:[d]) `S.member` (operOrPunct !! 3) = TOperOrPunct (a:b:c:[d]) 0
+    | (a:b:[c])   `S.member` (operOrPunct !! 2) = TOperOrPunct (a:b:[c]) 0
+    | (a:[b])     `S.member` (operOrPunct !! 1) = TOperOrPunct (a:[b]) 0
+    | ([a])       `S.member` (operOrPunct !! 0) = TOperOrPunct [a] 0
     | otherwise  = error "getTokenOpOrPunct"
 getTokenOpOrPunct (a:b:c:_) 
-    | (a:b:[c])   `S.member` (oper_or_punct !! 2) = TOperOrPunct (a:b:[c])
-    | (a:[b])     `S.member` (oper_or_punct !! 1) = TOperOrPunct (a:[b])
-    | ([a])       `S.member` (oper_or_punct !! 0) = TOperOrPunct [a]
+    | (a:b:[c])   `S.member` (operOrPunct !! 2) = TOperOrPunct (a:b:[c]) 0
+    | (a:[b])     `S.member` (operOrPunct !! 1) = TOperOrPunct (a:[b]) 0
+    | ([a])       `S.member` (operOrPunct !! 0) = TOperOrPunct [a] 0
     | otherwise  = error "getTokenOpOrPunct"
 getTokenOpOrPunct (a:b:_) 
-    | (a:[b])     `S.member` (oper_or_punct !! 1) = TOperOrPunct (a:[b])
-    | ([a])       `S.member` (oper_or_punct !! 0) = TOperOrPunct [a]
+    | (a:[b])     `S.member` (operOrPunct !! 1) = TOperOrPunct (a:[b]) 0
+    | ([a])       `S.member` (operOrPunct !! 0) = TOperOrPunct [a] 0
     | otherwise  = error "getTokenOpOrPunct"
 getTokenOpOrPunct (a:_) 
-    | ([a])       `S.member` (oper_or_punct !! 0) = TOperOrPunct [a]
+    | ([a])       `S.member` (operOrPunct !! 0) = TOperOrPunct [a] 0
     | otherwise  = error "getTokenOpOrPunct"
 getTokenOpOrPunct []  
                  = error "getTokenOpOrPunct" 
 
 
-whitespace = S.fromList " \t\r\n" 
+operOrPunct :: [ S.Set String ]
+operOrPunct = [   S.fromList  [ "{","}","[","]","#","(",")",";",":","?",".","+","-","*",
+                                "/","%","^","&","|","~","!","=","<",">","," ],
+                  S.fromList  [ "##", "<:", ":>", "<%", "%>", "%:", "::", ".*", "+=", "-=", 
+                                "*=", "/=", "%=", "^=", "&=", "|=", "<<", ">>", ">=", "<=", 
+                                "&&", "||", "==", "!=", "++", "--", "->", "//", "/*", "*/"],      
+                  S.fromList  [ "...", "<<=", ">>=", "->*"],   
+                  S.fromList  [ "%:%:" ]       
+               ]
 
-
-oper_or_punct = [   S.fromList  [ "{","}","[","]","#","(",")",";",":","?",".","+","-","*",
-                                  "/","%","^","&","|","~","!","=","<",">","," ],
-                    S.fromList  [ "##", "<:", ":>", "<%", "%>", "%:", "::", ".*", "+=", "-=", 
-                                  "*=", "/=", "%=", "^=", "&=", "|=", "<<", ">>", ">=", "<=", 
-                                  "&&", "||", "==", "!=", "++", "--", "->", "//", "/*", "*/"],      
-                    S.fromList  [ "...", "<<=", ">>=", "->*"],   
-                    S.fromList  [ "%:%:" ]       
-                ]
-
+keywords :: S.Set String
 keywords = S.fromList ["alignas", "continue", "friend", "alignof", "decltype", "goto", "asm", 
                        "default", "if", "auto", "delete", "inline", "bool", "do", "int", "break", 
                        "double", "long", "case", "dynamic_cast", "mutable", "catch", "else", 
@@ -203,4 +231,3 @@ keywords = S.fromList ["alignas", "continue", "friend", "alignof", "decltype", "
                        "and", "and_eq", "bitand", "bitor", "compl", "not", "not_eq", "or", "or_eq", 
                        "xor", "xor_eq"]
                         
-

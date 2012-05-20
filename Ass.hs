@@ -18,6 +18,8 @@
 -- ass: C++11 code ass'istant for vim
 
 
+module Main where
+
 import Data.Char
 import Data.List
 import System(getArgs)
@@ -26,8 +28,8 @@ import System.IO
 import System.Exit
 import System.Directory
 
-import qualified CppFilter as CF
-import qualified CppToken  as CT
+import qualified CppFilter as F
+import qualified CppToken  as T
 
 
 data CodeLine = CodeLine Int String 
@@ -72,7 +74,7 @@ isMultiThread xs os = "-pthread" `elem` os  || hasThreadOrAsync xs
 
 hasThreadOrAsync :: Source -> Bool
 hasThreadOrAsync src =  "thread" `elem` ids || "async" `elem` ids     
-                        where ids = map CT.toString $ filter CT.isTIdentifier  $ CT.tokens  $ sourceFilter src
+                        where ids = map T.toString $ filter T.isTIdentifier  $ T.tokens  $ sourceFilter src
 
 
 makeSourceCode :: String -> Bool -> [ SourceCode ]
@@ -88,12 +90,12 @@ makeSourceCode xs mt
 
 isSnippet :: String -> Bool
 isSnippet xs 
-    | ["int", "main", "("] `isInfixOf` (map CT.toString $ CT.tokens $ sourceFilter xs) = True
+    | ["int", "main", "("] `isInfixOf` (map T.toString $ T.tokens $ sourceFilter xs) = True
     | otherwise = False
 
 
 sourceFilter :: String -> String
-sourceFilter xs = CF.runSourceFilter xs (True, False, False)   
+sourceFilter = F.cppFilter (True, False, False)   
 
 
 writeSource :: String -> [ SourceCode ] -> IO ()

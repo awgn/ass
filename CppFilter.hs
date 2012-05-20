@@ -18,71 +18,79 @@
 -- ass: C++11 code ass'istant 
 
 
-module CppFilter (CppZone, CppZoneFilter, runSourceFilter)  where
+module CppFilter (CppZone, CppZoneFilter, cppFilter)  where
 
 
 data CppZone = Code | Comment | Literal
                 deriving (Show, Read)
 
 
+type Source = String
+
+
 type CppZoneFilter = (Bool, Bool, Bool)
 
 
-runSourceFilter :: String -> CppZoneFilter -> String
-runSourceFilter xs filt = sourceCodeFilter xs filt CodeState 
+cppFilter :: CppZoneFilter -> Source  -> Source
+cppFilter = runFilter CodeState 
 
 
-sourceCodeFilter :: String -> CppZoneFilter -> FilterState  -> String
-sourceCodeFilter [] _ _ = []
-sourceCodeFilter (x:n:xs) filt state
-    | cppZoneFilter region filt   = x   : (sourceCodeFilter (n:xs) filt nextState)
-    | otherwise                   = ' ' : (sourceCodeFilter (n:xs) filt nextState)
-        where (region, nextState) = cppFilter (x,n) state
-sourceCodeFilter (x:xs) filt state
-    | cppZoneFilter region filt   = x   : (sourceCodeFilter xs filt nextState)
-    | otherwise                   = ' ' : (sourceCodeFilter xs filt nextState)
-        where (region, nextState) = cppFilter (x, ' ') state
+runFilter :: FilterState -> CppZoneFilter -> Source -> Source
+runFilter _ _ [] = []
+runFilter state filt (x:n:xs) 
+    | zoneFilter region filt   = x   : (runFilter nextState filt (n:xs))
+    | otherwise                = ' ' : (runFilter nextState filt (n:xs))
+        where (region, nextState) = charFilter (x,n) state
+runFilter state filt (x:xs) 
+    | zoneFilter region filt   = x   : (runFilter nextState filt xs)
+    | otherwise                = ' ' : (runFilter nextState filt xs)
+        where (region, nextState) = charFilter (x, ' ') state
 
 
-data FilterState = CodeState | SlashState | AsteriskState | CommentCState | CommentCppState | LiteralState
+data FilterState =  CodeState       | 
+                    SlashState      | 
+                    AsteriskState   | 
+                    CommentCState   | 
+                    CommentCppState | 
+                    LiteralState
                     deriving (Show, Read)
 
 
-cppFilter :: (Char,Char) -> FilterState -> (CppZone, FilterState)
+charFilter :: (Char,Char) -> FilterState -> (CppZone, FilterState)
 
 
-cppFilter (x,n) CodeState 
+charFilter (x,n) CodeState 
     | x == '/' && n == '/' = (Comment, SlashState)
     | x == '/' && n == '*' = (Comment, SlashState)
     | x == '"'  = (Literal, LiteralState)
     | otherwise = (Code, CodeState)
 
-cppFilter (x,_) SlashState 
+charFilter (x,_) SlashState 
     | x == '/'  = (Comment, CommentCppState)
     | x == '*'  = (Comment, CommentCState) 
-    | otherwise = error "cppFilter"
+    | otherwise = error "charFilter"
 
-cppFilter (x,_) CommentCppState
+charFilter (x,_) CommentCppState
     | x == '\n' = (Comment, CodeState)
     | otherwise = (Comment, CommentCppState)
 
-cppFilter (x,_) CommentCState
+charFilter (x,_) CommentCState
     | x == '*'  = (Comment, AsteriskState)
     | otherwise = (Comment, CommentCState)
 
-cppFilter (x,_) AsteriskState
+charFilter (x,_) AsteriskState
     | x == '/'  = (Comment, CodeState)
     | x == '*'  = (Comment, AsteriskState)
     | otherwise = (Comment, CommentCState)
 
-cppFilter (x,_) LiteralState
+charFilter (x,_) LiteralState
     | x == '"'  = (Literal, CodeState)
     | otherwise = (Literal, LiteralState)
 
 
-cppZoneFilter :: CppZone -> CppZoneFilter -> Bool
-cppZoneFilter Code    (x, _, _) = (x == True)
-cppZoneFilter Comment (_, x, _) = (x == True)
-cppZoneFilter Literal (_, _, x) = (x == True)
+zoneFilter :: CppZone -> CppZoneFilter -> Bool
+zoneFilter Code    (x, _, _) = (x == True)
+zoneFilter Comment (_, x, _) = (x == True)
+zoneFilter Literal (_, _, x) = (x == True)
 
 

@@ -18,11 +18,11 @@
 -- ass: C++11 code ass'istant 
 
 
-module CppFilter (CppZone, CppZoneFilter, cppFilter)  where
+module CppFilter (CppZone(..), CppZoneFilter, cppFilter)  where
 
 
 data CppZone = Code | Comment | Literal
-                deriving (Show, Read)
+                deriving (Eq, Show)
 
 
 type Source = String
@@ -53,7 +53,7 @@ data FilterState =  CodeState       |
                     CommentCState   | 
                     CommentCppState | 
                     LiteralState
-                    deriving (Show, Read)
+                    deriving (Eq, Show)
 
 
 charFilter :: (Char,Char) -> FilterState -> (CppZone, FilterState)
@@ -89,8 +89,8 @@ charFilter (x,_) LiteralState
 
 
 zoneFilter :: CppZone -> CppZoneFilter -> Bool
-zoneFilter Code    (x, _, _) = (x == True)
-zoneFilter Comment (_, x, _) = (x == True)
-zoneFilter Literal (_, _, x) = (x == True)
+zoneFilter Code    (x, _, _) = x
+zoneFilter Comment (_, x, _) = x
+zoneFilter Literal (_, _, x) = x
 
 

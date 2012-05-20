@@ -22,6 +22,7 @@ module Main where
 
 import Data.Char
 import Data.List
+import Data.Functor
 import System(getArgs)
 import System.Process
 import System.IO
@@ -30,7 +31,6 @@ import System.Directory
 
 import qualified CppFilter as F
 import qualified CppToken  as T
-
 
 data CodeLine = CodeLine Int String 
 
@@ -50,17 +50,15 @@ main = do
     args <- getArgs
     cwd' <- getCurrentDirectory
     src  <- hGetContents stdin
-
-    let mt = isMultiThread src (getCompilerArgs args)
-
-    let cargs = if (mt) then 
-                        "-pthread" : getCompilerArgs args
-                        else 
-                        getCompilerArgs args 
+    
+    let cargs = getCompilerArgs args
+    let mt = isMultiThread src cargs
 
     writeSource "/tmp/snippet.cpp" $ makeSourceCode src mt
     
-    ec <- compileWith "/usr/bin/g++" "/tmp/snippet.cpp" "/tmp/snippet" $ ("-I " ++ cwd'):("-I " ++ cwd' ++ "/.."):cargs 
+    ec <- compileWith "/usr/bin/g++" "/tmp/snippet.cpp" "/tmp/snippet" 
+            $ ("-I " ++ cwd'):("-I " ++ cwd' ++ "/.."):(consIf mt "-pthread" cargs) 
+
     if (ec == ExitSuccess)  
     then 
         system ("/tmp/snippet " ++ (unwords $ getTestArgs args)) >>= exitWith
@@ -68,14 +66,19 @@ main = do
         exitWith $ ExitFailure 1
 
 
+consIf :: Bool -> String -> [String] -> [String]
+consIf mt x xs 
+    | mt = x : xs
+    | otherwise = xs
+
+
 isMultiThread :: Source -> [String] -> Bool
-isMultiThread xs os = "-pthread" `elem` os  || hasThreadOrAsync xs 
+isMultiThread xs os = "-pthread" `elem` os  || useThreadOrAsync xs 
 
-
-hasThreadOrAsync :: Source -> Bool
-hasThreadOrAsync src =  "thread" `elem` ids || "async" `elem` ids     
-                        where ids = map T.toString $ filter T.isTIdentifier  $ T.tokens  $ sourceFilter src
-
+useThreadOrAsync :: Source -> Bool
+useThreadOrAsync src =  "thread" `elem` is || "async" `elem` is   
+                            where ts = filter T.isTIdentifier $ T.tokens  $ sourceFilter src
+                                  is = T.toString <$> ts
 
 makeSourceCode :: String -> Bool -> [ SourceCode ]
 makeSourceCode xs mt
@@ -90,8 +93,9 @@ makeSourceCode xs mt
 
 isSnippet :: String -> Bool
 isSnippet xs 
-    | ["int", "main", "("] `isInfixOf` (map T.toString $ T.tokens $ sourceFilter xs) = True
+    | ["int", "main", "("] `isInfixOf` (T.toString <$> ts) = True
     | otherwise = False
+        where ts = T.tokens $ sourceFilter xs
 
 
 sourceFilter :: String -> String

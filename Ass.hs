@@ -135,8 +135,8 @@ toSourceCode xs = zipWith CodeLine [1..] (lines xs)
 
 compileWith :: String -> String -> String -> [String] -> IO ExitCode
 compileWith comp source outfile opts 
-            = do -- print $ cmd 
-                 system cmd
-                    where cmd = unwords $ [ comp, source, "-o", outfile ] 
-                                    ++ [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", "-Wextra", "-Wno-unused-parameter" ] 
-                                    ++ opts
+            = do -- print cmd 
+                 system $ unwords $ cmd
+                    where cmd = [ comp, source, "-o", outfile ] 
+                                ++ [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", "-Wextra", "-Wno-unused-parameter" ] 
+                                ++ opts

@@ -23,7 +23,7 @@ module Main where
 import Data.Char
 import Data.List
 import Data.Functor
-import System(getArgs)
+import System.Environment(getArgs)
 import System.Process
 import System.IO
 import System.Exit

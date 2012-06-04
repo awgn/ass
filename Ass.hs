@@ -57,7 +57,7 @@ main = do
     writeSource "/tmp/snippet.cpp" $ makeSourceCode src mt
     
     ec <- compileWith "/usr/bin/g++" "/tmp/snippet.cpp" "/tmp/snippet" 
-            $ ("-I " ++ cwd'):("-I " ++ cwd' ++ "/.."):(consIf mt "-pthread" cargs) 
+            $ ("-I " ++ cwd'):("-I " ++ cwd' ++ "/.."):(drop (if mt then 0 else 1) $ "-pthread" : cargs) 
 
     if (ec == ExitSuccess)  
     then 
@@ -66,14 +66,9 @@ main = do
         exitWith $ ExitFailure 1
 
 
-consIf :: Bool -> String -> [String] -> [String]
-consIf mt x xs 
-    | mt = x : xs
-    | otherwise = xs
-
-
 isMultiThread :: Source -> [String] -> Bool
 isMultiThread xs os = "-pthread" `elem` os  || useThreadOrAsync xs 
+
 
 useThreadOrAsync :: Source -> Bool
 useThreadOrAsync src =  "thread" `elem` is || "async" `elem` is   
@@ -139,9 +134,9 @@ toSourceCode xs = zipWith CodeLine [1..] (lines xs)
 
 
 compileWith :: String -> String -> String -> [String] -> IO ExitCode
-compileWith comp source outfile opts = system (
-                 unwords $ [ comp, source, "-o", outfile ] 
-                 ++ [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", "-Wextra", "-Wno-unused-parameter" ]  
-                 ++ opts ) 
-
-
+compileWith comp source outfile opts 
+            = do -- print $ cmd 
+                 system cmd
+                    where cmd = unwords $ [ comp, source, "-o", outfile ] 
+                                    ++ [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", "-Wextra", "-Wno-unused-parameter" ] 
+                                    ++ opts

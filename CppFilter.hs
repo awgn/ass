@@ -39,13 +39,16 @@ runFilter :: FilterState -> CppZoneFilter -> Source -> Source
 runFilter _ _ [] = []
 runFilter state filt (x:n:xs) 
     | zoneFilter region filt   = x   : (runFilter nextState filt (n:xs))
-    | otherwise                = ' ' : (runFilter nextState filt (n:xs))
+    | otherwise                = charReplace x : (runFilter nextState filt (n:xs))
         where (region, nextState) = charFilter (x,n) state
 runFilter state filt (x:xs) 
     | zoneFilter region filt   = x   : (runFilter nextState filt xs)
-    | otherwise                = ' ' : (runFilter nextState filt xs)
+    | otherwise                = charReplace x : (runFilter nextState filt xs)
         where (region, nextState) = charFilter (x, ' ') state
 
+charReplace :: Char -> Char
+charReplace '\n' = '\n'
+charReplace  _   = ' '
 
 data FilterState =  CodeState       | 
                     SlashState      | 

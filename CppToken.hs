@@ -91,7 +91,7 @@ dropWhite :: String -> (String,Int)
 
 dropWhite xs = dropWhite' (xs, 0)
                where dropWhite' (y:ys, n) 
-                        | y `elem` " \t\n" =  dropWhite' (ys, n+1)
+                        | y `elem` " \t\n\\" =  dropWhite' (ys, n+1)
                         | otherwise = (y:ys, n)
                      dropWhite' ("",n) = ("", n)
 -- 
@@ -190,19 +190,19 @@ getTokenOpOrPunct (a:b:c:d:_)
     | (a:b:[c])   `S.member` (operOrPunct !! 2) = TOperOrPunct (a:b:[c]) 0
     | (a:[b])     `S.member` (operOrPunct !! 1) = TOperOrPunct (a:[b]) 0
     | ([a])       `S.member` (operOrPunct !! 0) = TOperOrPunct [a] 0
-    | otherwise  = error "getTokenOpOrPunct"
+    | otherwise  = error $ "getTokenOpOrPunct -> " ++ (show $ a:b:c:[d]) 
 getTokenOpOrPunct (a:b:c:_) 
     | (a:b:[c])   `S.member` (operOrPunct !! 2) = TOperOrPunct (a:b:[c]) 0
     | (a:[b])     `S.member` (operOrPunct !! 1) = TOperOrPunct (a:[b]) 0
     | ([a])       `S.member` (operOrPunct !! 0) = TOperOrPunct [a] 0
-    | otherwise  = error "getTokenOpOrPunct"
+    | otherwise  = error $ "getTokenOpOrPunct -> " ++ (show $ a:b:[c])
 getTokenOpOrPunct (a:b:_) 
     | (a:[b])     `S.member` (operOrPunct !! 1) = TOperOrPunct (a:[b]) 0
     | ([a])       `S.member` (operOrPunct !! 0) = TOperOrPunct [a] 0
-    | otherwise  = error "getTokenOpOrPunct"
+    | otherwise  = error $ "getTokenOpOrPunct -> " ++ (show $ a:[b])
 getTokenOpOrPunct (a:_) 
     | ([a])       `S.member` (operOrPunct !! 0) = TOperOrPunct [a] 0
-    | otherwise  = error "getTokenOpOrPunct"
+    | otherwise  = error $ "getTokenOpOrPunct -> " ++ (show $ [a])
 getTokenOpOrPunct []  
                  = error "getTokenOpOrPunct" 
 

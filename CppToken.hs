@@ -169,15 +169,15 @@ getTokenChar        xs = TChar    (getLiteral '\'' '\'' False xs) 0
 getTokenHeaderName  xs@(y:_)
     | y == '<'  = THeaderName (getLiteral '<'  '>'  False xs) 0
     | y == '"'  = THeaderName (getLiteral '"'  '"'  False xs) 0
-    | otherwise = error "getTokenHeaderName"
+    | otherwise = error $ "getTokenHeaderName: error near " ++ xs
 getTokenHeaderName [] =  error "getTokenHeaderName"
 
 
 getLiteral :: Char -> Char -> Bool -> String -> String
 getLiteral _  _  _ []  = []
-getLiteral b e False (x : xs)
+getLiteral b e False ys@(x : xs)
     | x == b     =  b : getLiteral b e True xs
-    | otherwise  = error "getLiteral"
+    | otherwise  = error $ "getLiteral: error near " ++ ys  
 getLiteral b e True (x : xs) 
     | x == e     = [e]
     | x == '\\'  = '\\' : x' : getLiteral b e True xs' 
@@ -190,19 +190,19 @@ getTokenOpOrPunct (a:b:c:d:_)
     | (a:b:[c])   `S.member` (operOrPunct !! 2) = TOperOrPunct (a:b:[c]) 0
     | (a:[b])     `S.member` (operOrPunct !! 1) = TOperOrPunct (a:[b]) 0
     | ([a])       `S.member` (operOrPunct !! 0) = TOperOrPunct [a] 0
-    | otherwise  = error $ "getTokenOpOrPunct -> " ++ (show $ a:b:c:[d]) 
+    | otherwise  = error $ "getTokenOpOrPunct: error -> " ++ (show $ a:b:c:[d]) 
 getTokenOpOrPunct (a:b:c:_) 
     | (a:b:[c])   `S.member` (operOrPunct !! 2) = TOperOrPunct (a:b:[c]) 0
     | (a:[b])     `S.member` (operOrPunct !! 1) = TOperOrPunct (a:[b]) 0
     | ([a])       `S.member` (operOrPunct !! 0) = TOperOrPunct [a] 0
-    | otherwise  = error $ "getTokenOpOrPunct -> " ++ (show $ a:b:[c])
+    | otherwise  = error $ "getTokenOpOrPunct: error -> " ++ (show $ a:b:[c])
 getTokenOpOrPunct (a:b:_) 
     | (a:[b])     `S.member` (operOrPunct !! 1) = TOperOrPunct (a:[b]) 0
     | ([a])       `S.member` (operOrPunct !! 0) = TOperOrPunct [a] 0
-    | otherwise  = error $ "getTokenOpOrPunct -> " ++ (show $ a:[b])
+    | otherwise  = error $ "getTokenOpOrPunct: error -> " ++ (show $ a:[b])
 getTokenOpOrPunct (a:_) 
     | ([a])       `S.member` (operOrPunct !! 0) = TOperOrPunct [a] 0
-    | otherwise  = error $ "getTokenOpOrPunct -> " ++ (show $ [a])
+    | otherwise  = error $ "getTokenOpOrPunct: error -> " ++ (show $ [a])
 getTokenOpOrPunct []  
                  = error "getTokenOpOrPunct" 
 

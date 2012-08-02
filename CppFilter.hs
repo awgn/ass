@@ -65,7 +65,7 @@ charFilter :: (Char,Char) -> FilterState -> (CppZone, FilterState)
 charFilter (x,n) CodeState 
     | x == '/' && n == '/' = (Comment, SlashState)
     | x == '/' && n == '*' = (Comment, SlashState)
-    | x == '"'  = (Literal, LiteralState)
+    | x == '"'  = (Code, LiteralState)
     | otherwise = (Code, CodeState)
 
 charFilter (x,_) SlashState 
@@ -87,7 +87,7 @@ charFilter (x,_) AsteriskState
     | otherwise = (Comment, CommentCState)
 
 charFilter (x,_) LiteralState
-    | x == '"'  = (Literal, CodeState)
+    | x == '"'  = (Code, CodeState)
     | otherwise = (Literal, LiteralState)
 
 

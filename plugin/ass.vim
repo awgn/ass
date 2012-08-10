@@ -11,7 +11,7 @@ let g:loaded_ass = 1
 
 
 if !exists('g:ass_snippet_file')
-    let g:ass_snippet_file = '/tmp/snippet.cpp'
+    let g:ass_snippet_file = "\\/tmp\\/snippet.cpp"
 endif
 
 
@@ -27,7 +27,7 @@ function! s:ass_compile_and_run()
         endif
         %y+ | new | norm P
         exec "silent %! ass " . asscmd
-        exec "silent! %s/" g:ass_snippet_file "/" . fn . "/g"
+        exec "silent! %s/" . g:ass_snippet_file . "/" . fn . "/g"
         cgetbuffer | bdelete! | copen
 endfunction
 

@@ -17,16 +17,20 @@ endif
 
 " compile snippet and run:
 "
-function! s:ass_compile_and_run()
+function! s:ass_compile_and_run(comp)
         call inputsave() 
-        let cmd = inputdialog("[ass]: ")
+        let cmd = inputdialog("[" . a:comp . " ass]: ")
         let fn = expand("%")
         call inputrestore()  
         if strlen(fn) 
             write 
         endif
         %y+ | new | norm P
-        exec "silent %! ass " . cmd
+        if (a:comp == 'gcc')
+            exec "silent %! ass " . cmd
+        else
+            exec "silent %! ass-clang " . cmd
+        endif
         exec "silent! %s/" . g:ass_snippet_file . "/" . fn . "/g"
         cgetbuffer | bdelete! | copen
 endfunction
@@ -65,7 +69,8 @@ function! s:ass_include_this()
 endfunction
 
 
-command!  AssCompRun        call s:ass_compile_and_run()
-command!  AssGuard          call s:ass_insert_guard()
+command!  AssGccRun         call s:ass_compile_and_run('gcc')
+command!  AssClangRun       call s:ass_compile_and_run('clang')
 command!  AssGen            call s:ass_code_gen()
+command!  AssGuard          call s:ass_insert_guard()
 command!  AssIncludeThis    call s:ass_include_this()

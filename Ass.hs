@@ -20,14 +20,16 @@
 
 module Main where
 
+
 import Data.Char
 import Data.List
 import Data.Functor
-import System.Environment(getArgs)
+import System.Environment(getArgs, getProgName)
 import System.Process
 import System.IO
 import System.Exit
 import System.Directory
+import Control.Monad
 
 import qualified CppFilter as F
 import qualified CppToken  as T
@@ -38,11 +40,14 @@ instance Show CodeLine where
     show (CodeLine n xs) = "#line " ++ show n ++ "\n" ++ xs  
 
 type Source          = String
+type Binary          = String
 type SourceCode      = [CodeLine]
 type TranslationUnit = SourceCode
 type MainFunction    = SourceCode
 type ParserState     = (TranslationUnit, MainFunction)
-
+ 
+data Compiler = Gcc | Clang 
+                deriving (Show, Eq, Ord)
 
 main :: IO Int
 main = do
@@ -51,13 +56,14 @@ main = do
     cwd' <- getCurrentDirectory
     src  <- hGetContents stdin
     
+    comp <- getCompiler
+
     let cargs = getCompilerArgs args
     let mt = isMultiThread src cargs
 
     writeSource "/tmp/snippet.cpp" $ makeSourceCode src mt
     
-    ec <- compileWith "/usr/bin/g++" "/tmp/snippet.cpp" "/tmp/snippet" 
-            $ ("-I " ++ cwd'):("-I " ++ cwd' ++ "/.."):(drop (if mt then 0 else 1) $ "-pthread" : cargs) 
+    ec <- compileWith comp "/tmp/snippet.cpp" "/tmp/snippet" mt $ ("-I " ++ cwd'):("-I " ++ cwd' ++ "/..") : cargs 
 
     if (ec == ExitSuccess)  
     then 
@@ -79,10 +85,10 @@ makeSourceCode :: String -> Bool -> [ SourceCode ]
 makeSourceCode xs mt
     | isSnippet xs = [ mainHeader, toSourceCode xs ]
     | otherwise    = composeSrc $ foldl parseCodeLine (mainHeader, []) $ toSourceCode xs
-        where mainHeader = if (mt) then [ CodeLine 0 "#include <ass-mt.hpp>" ]
-                                   else [ CodeLine 0 "#include <ass.hpp>" ]
-              mainBegin  = [ CodeLine 0 "int main(int argc, char *argv[]) { cout << boolalpha;" ]
-              mainEnd    = [ CodeLine 0 "}" ]
+        where mainHeader = if (mt) then [ CodeLine 1 "#include <ass-mt.hpp>" ]
+                                   else [ CodeLine 1 "#include <ass.hpp>" ]
+              mainBegin  = [ CodeLine 1 "int main(int argc, char *argv[]) { cout << boolalpha;" ]
+              mainEnd    = [ CodeLine 1 "}" ]
               composeSrc (global,body) = [global, mainBegin, body, mainEnd]
 
 
@@ -133,10 +139,25 @@ toSourceCode :: String -> SourceCode
 toSourceCode xs = zipWith CodeLine [1..] (lines xs)
 
 
-compileWith :: String -> String -> String -> [String] -> IO ExitCode
-compileWith comp source outfile opts 
+getCompiler :: IO Compiler
+getCompiler = liftM (isSuffixOf "clang") getProgName >>= 
+                    (\b -> if b then (return Clang) else (return Gcc))
+
+getCompilerExe :: Compiler -> String
+getCompilerExe Gcc   = "/usr/bin/g++"
+getCompilerExe Clang = "/usr/bin/clang++"
+
+getCompilerOpt :: Compiler -> Bool -> [String]
+getCompilerOpt Gcc   _  =  [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", "-Wextra", "-Wno-unused-parameter" ]
+getCompilerOpt Clang mt =  [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", "-include-pch", precomp_header, "-Wextra", "-Wno-unused-parameter" , "-Wno-unneeded-internal-declaration"]
+                            where precomp_header | mt = "/usr/local/include/ass-mt.hpp.pch"
+                                                 |otherwise = "/usr/local/include/ass.hpp.pch" 
+
+
+compileWith :: Compiler -> Source -> Binary -> Bool -> [String] -> IO ExitCode
+compileWith comp source binary mt user_opt 
             = do -- print cmd 
                  system $ unwords $ cmd
-                    where cmd = [ comp, source, "-o", outfile ] 
-                                ++ [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", "-Wextra", "-Wno-unused-parameter" ] 
-                                ++ opts
+                    where cmd = [getCompilerExe comp, source, "-o", binary] 
+                                ++ (getCompilerOpt comp mt) 
+                                ++ user_opt ++ if (mt) then ["-pthread"] else []

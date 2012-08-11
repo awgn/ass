@@ -19,14 +19,14 @@ endif
 "
 function! s:ass_compile_and_run()
         call inputsave() 
-        let asscmd = inputdialog("[ass compile]: ")
+        let cmd = inputdialog("[ass]: ")
         let fn = expand("%")
         call inputrestore()  
         if strlen(fn) 
             write 
         endif
         %y+ | new | norm P
-        exec "silent %! ass " . asscmd
+        exec "silent %! ass " . cmd
         exec "silent! %s/" . g:ass_snippet_file . "/" . fn . "/g"
         cgetbuffer | bdelete! | copen
 endfunction
@@ -43,15 +43,13 @@ function! s:ass_insert_guard()
 endfunction
 
 
-" insert namespace c++: 
+" call code generator: 
 "
-function! s:ass_insert_namespace()
+function! s:ass_code_gen()
         call inputsave()
-        let ns =  inputdialog("[ass namespace]: ")
+        let cmd =  inputdialog("[gen]: ")
         call inputrestore()
-        exec "norm! Anamespace " . ns . " { "
-        exec "norm! o} // namespace " . ns
-        norm! k 
+        exec "r !gen " . cmd
 endfunction
                        
 
@@ -69,5 +67,5 @@ endfunction
 
 command!  AssCompRun        call s:ass_compile_and_run()
 command!  AssGuard          call s:ass_insert_guard()
-command!  AssNamespace      call s:ass_insert_namespace()
+command!  AssGen            call s:ass_code_gen()
 command!  AssIncludeThis    call s:ass_include_this()

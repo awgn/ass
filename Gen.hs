@@ -154,7 +154,7 @@ model (SingletonClass name) = cpp [ Class name [
                                   ]
                               ]
 -- Template Class
-model (TemplateClass name) = cpp [ Template [Typename "T"] .|. 
+model (TemplateClass name) = cpp [ Template [Typename "T"] +++ 
                                    Class name [
                                    public [
                                         ctor [] name Unqualified, 
@@ -285,6 +285,7 @@ addLvalueRef (UnnamedArg xs)  = UnnamedArg (Type $ (getType xs) ++ "&")
 addLvalueRef (NamedArg xs ys) = NamedArg (Type $ (getType xs) ++ "&") ys
 
 
+addConstLvalueRef :: ArgType -> ArgType
 addConstLvalueRef (UnnamedArg xs) = UnnamedArg(Type $ "const " ++ (getType xs) ++ "&")
 addConstLvalueRef (NamedArg xs ys) = NamedArg (Type $ "const " ++ (getType xs) ++ "&") ys
 
@@ -480,8 +481,9 @@ instance Monoid Template where
 -- ... utility function
 --
 
-(.|.) :: Template -> Class -> Class
-template .|. (Class name xs) = TClass template name xs
+(+++) :: Template -> Class -> Class
+template +++ (Class name xs) = TClass template name xs
+_ +++ (TClass _ _ _)  = error "Template Syntax error"
 
 getFullySpecializedName :: Maybe Template -> String -> String
 getFullySpecializedName Nothing ns = ns

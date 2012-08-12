@@ -19,7 +19,6 @@
  
 {-# LANGUAGE ExistentialQuantification #-}
 
-
 module Main where
 
 import Data.List
@@ -59,7 +58,8 @@ data Entity = ENamespace     Identifier |
               TemplateClass  Identifier |     
               MoveableClass  Identifier |
               ValueClass     Identifier |   
-              SingletonClass Identifier 
+              SingletonClass Identifier |
+              YatsTest String
                 deriving (Show)
                          
 
@@ -71,6 +71,7 @@ factoryEntity 't' (x:xs) = (TemplateClass  x, xs)
 factoryEntity 'v' (x:xs) = (ValueClass x, xs)
 factoryEntity 's' (x:xs) = (SingletonClass x, xs)
 factoryEntity 'n' (x:xs) = (ENamespace x, xs)
+factoryEntity 'y' (x:xs) = (YatsTest x, xs)
 factoryEntity  x  [] = error $ "Gen: missing argument(s) for entity " ++ [x] 
 factoryEntity  x  _  = error $ "Gen: unknown entity " ++ [x] 
 
@@ -169,6 +170,13 @@ model (TemplateClass name) = cpp [ Template [Typename "T"] +++
                                  operExtrc (Just $ Template [Typename "T"]) name
                              ]
 
+model (YatsTest name) = cpp [ Include "yats.hpp" ] ++
+                        cpp [ UsingNamespace "yats" ] ++
+                        cpp [ Raw $ "Context(" ++ name ++ ")",
+                              Raw $ "{\n}\n"
+                        ] ++
+                        cpp [ _main [ "return yats::run(argc, argv);" ] ]
+
 
 ---------------------------------------------------------
 -- CppShow type class
@@ -194,21 +202,23 @@ instance Show CppEntity where
 newtype CommaSep a = CommaSep { getCommaSep :: [a] }   
                          deriving (Show)
 
-
 -- (Maybe a) instance of CppShow 
 --
+
 instance (CppShow a) => CppShow (Maybe a) where
     render (Just x)  = render x
     render (Nothing) = ""
 
 -- [a] instace of CppShow
 --
+
 instance (CppShow a) => CppShow [a] where
     render xs =  intercalate "\n" $ render <$> xs
 
 
 -- (CommaSep a) instance of CppShow
 --
+
 instance (CppShow a) => CppShow (CommaSep a) where
     render (CommaSep xs) = intercalate ", " $ render <$> xs  
 

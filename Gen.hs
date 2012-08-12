@@ -214,6 +214,16 @@ instance (CppShow a) => CppShow (CommaSep a) where
 
 
 ---------------------------------------------------------
+-- Raw: Raw String for CppShow
+--
+
+newtype Raw = Raw { getString :: String }
+                    deriving (Show)
+
+instance CppShow Raw where
+    render = getString
+
+---------------------------------------------------------
 -- Cpp Specifier and Qualifier:
 -- a very approximate rendering for (member) functions... 
 --

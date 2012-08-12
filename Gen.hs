@@ -250,13 +250,26 @@ instance CppShow Qualifier where
     render Pure      = "0"
 
 ---------------------------------------------------------
+-- Using directive and declaration
 
-
-
-
-
+data Using = Using String | UsingNamespace String
                 deriving (Show)
 
+instance CppShow Using where
+    render (Using member) = "using " ++ member ++ ";\n";
+    render (UsingNamespace name) = "using namespace " ++ name ++ ";\n";
+
+
+---------------------------------------------------------
+-- Include directive
+
+data Include = Include FilePath | RelativeInclude FilePath
+                deriving (Show)
+
+instance CppShow Include where
+    render (Include file) = "#include <" ++ file ++ ">\n";
+    render (RelativeInclude file) = "#include \"" ++ file ++ "\"\n";
+               
 
 ---------------------------------------------------------
 -- Cpp Types for Function Arguments
@@ -353,6 +366,10 @@ operMoveAssign spec ns qual = Function Nothing
 -- Predefined Cpp free functions
 --
 
+_main :: [String] -> Function
+_main impl =  Function Nothing 
+                (FuncDecl [] (Just $ Type "int") "main" (CommaSep [Named (Type "int") "argc", Named (Type "char *") "argv[]" ]))
+                (FuncBody impl )
 
 operEq :: (Maybe Template) -> Identifier -> Function
 operEq tp xs  = Function tp (FuncDecl [Inline] (Just (Type "bool")) "operator==" 

@@ -321,7 +321,7 @@ instance CppShow ArgType where
 
 instance CppType ArgType where
     getType              (Unnamed t) = getType t
-    getType              (Named t n) = getType t
+    getType              (Named t _) = getType t
     add_cv               (Unnamed t) = Unnamed (add_cv t) 
     add_cv               (Named t n) = Named   (add_cv t) n 
     add_const            (Unnamed t) = Unnamed (add_const t)

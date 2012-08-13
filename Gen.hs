@@ -72,17 +72,17 @@ helpString = "     c -> simple class\n" ++
              "     r -> crtp idiom\n" ++
              "     y -> yats test"    
 
-factoryEntity 'c' (x:xs) = (SimpleClass x, xs)
-factoryEntity 'm' (x:xs) = (MoveableClass x, xs)
-factoryEntity 't' (x:xs) = (TemplateClass  x, xs)
-factoryEntity 'v' (x:xs) = (ValueClass x, xs)
-factoryEntity 's' (x:xs) = (SingletonClass x, xs)
-factoryEntity 'n' (x:xs) = (ENamespace x, xs)
-factoryEntity 'y' (x:xs) = (YatsTest x, xs)
+factoryEntity 'c' (x:xs)    = (SimpleClass x, xs)
+factoryEntity 'm' (x:xs)    = (MoveableClass x, xs)
+factoryEntity 't' (x:xs)    = (TemplateClass  x, xs)
+factoryEntity 'v' (x:xs)    = (ValueClass x, xs)
+factoryEntity 's' (x:xs)    = (SingletonClass x, xs)
+factoryEntity 'n' (x:xs)    = (ENamespace x, xs)
 factoryEntity 'r' (x:y:xs)  = (CRTPClass x y, xs)
+factoryEntity 'y' (x:xs)    = (YatsTest x, xs)
+
 factoryEntity  c  _ | c `elem` "cmtvsrny" = error $ "Missing argument(s) for entity '" ++ [c] ++ "'"
 factoryEntity  c  _ | otherwise = error $ "Unknown entity '" ++ [c] ++ "'. Usage [code] ARG... \n" ++ helpString
-
 
 ---------------------------------------------------------
 -- Cpp Class Models:                             

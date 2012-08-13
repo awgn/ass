@@ -91,7 +91,8 @@ model :: Entity -> [CppEntity]
 
 model (ENamespace name)  = cpp [ Namespace name [] ]
 
-model (SimpleClass name) = cpp [ Class name [
+
+model (SimpleClass name) = cpp [ Class name NoBaseSpec [
                                     public 
                                     [
                                         ctor [] name Unqualified, 
@@ -107,7 +108,7 @@ model (SimpleClass name) = cpp [ Class name [
                                 operExtrc Nothing name
                             ]
 
-model (MoveableClass name) = cpp [ Class name [
+model (MoveableClass name) = cpp [ Class name NoBaseSpec [
                                         public 
                                         [
                                             ctor [] name Unqualified, 
@@ -124,7 +125,7 @@ model (MoveableClass name) = cpp [ Class name [
                                 operExtrc Nothing name
                              ]
 
-model (ValueClass name) = cpp [ Class name [
+model (ValueClass name) = cpp [ Class name NoBaseSpec [
                                     public [
                                         ctor [] name Unqualified,  
                                         dtor [] name Unqualified, 
@@ -145,7 +146,7 @@ model (ValueClass name) = cpp [ Class name [
                           ]
 
 -- Meyers' Singleton
-model (SingletonClass name) = cpp [ Class name [
+model (SingletonClass name) = cpp [ Class name NoBaseSpec [
                                         private [
                                             ctor [] name Unqualified, 
                                             dtor [] name Unqualified
@@ -161,7 +162,7 @@ model (SingletonClass name) = cpp [ Class name [
                               ]
 -- Template Class
 model (TemplateClass name) = cpp [ Template [Typename "T"] +++ 
-                                   Class name [
+                                   Class name NoBaseSpec [
                                    public [
                                         ctor [] name Unqualified, 
                                         dtor [] name Unqualified, 
@@ -465,22 +466,30 @@ instance CppShow Namespace where
 -- Cpp Class, ClassEntities and CppEntities 
 --
 
-data Class = Class Identifier [ClassEntities] |
-             TClass Template Identifier [ClassEntities]
+data Class = Class Identifier BaseSpecifierList [ClassEntities] |
+             TClass Template Identifier BaseSpecifierList [ClassEntities]
                 deriving (Show)
 
 
 instance CppShow Class where
-    render (Class ns es) =  "class " ++ ns ++ " {\n" ++ (intercalate "\n" $ map render es) ++ "\n\n};\n" 
-    render (TClass tp ns es) =  template ++ (if (null template) then "" else "\n")  ++ "class " ++ ns ++ " {\n" ++
+    render (Class ns base es) =  "class " ++ ns ++ render base ++ " {\n" ++ (intercalate "\n" $ map render es) ++ "\n\n};\n" 
+    render (TClass tp ns base es) =  template ++ (if (null template) then "" else "\n")  ++ "class " ++ ns ++ render base ++ " {\n" ++
                                  (intercalate "\n" $ map render es) ++ "\n\n};\n" 
                                    where template = render tp
 
 
 instance CppTemplate Class where
-    template +++ (Class name ns) = TClass template name ns
-    _ +++ (TClass _ _ _)  = error "Template Syntax error"
+    template +++ (Class name base ns) = TClass template name base ns
+    _ +++ (TClass _ _ _ _)  = error "Template Syntax error"
 
+
+data BaseSpecifier = BasePublic      [Identifier] |
+                     BaseProtected   [Identifier] |
+                     BasePrivate     [Identifier]
+                        deriving (Show)
+
+data BaseSpecifierList = NoBaseSpec | BaseSpecList [BaseSpecifier] 
+                            deriving (Show)
 
 data ClassEntities = Public      [CppEntity] |
                      Protected   [CppEntity] |
@@ -498,22 +507,33 @@ private :: (Show a, CppShow a) => [a] -> ClassEntities
 private xs = Private $ map CppEntity xs  
 
 
+instance CppShow BaseSpecifierList where
+    render (NoBaseSpec)       = ""
+    render (BaseSpecList [])  = ""
+    render (BaseSpecList xs)  = " : " ++ (intercalate ", " $ map render xs)
+
+
+instance CppShow BaseSpecifier where
+    render (BasePublic [])    = ""
+    render (BasePublic xs)    = "public "    ++ (intercalate ", " xs)
+    render (BaseProtected []) = ""
+    render (BaseProtected xs) = "protected " ++ (intercalate ", " xs)
+    render (BasePrivate [])   = ""
+    render (BasePrivate xs)   = "private "   ++ (intercalate ", " xs)
+
+
 instance CppShow ClassEntities where
-    render (Public xs)    = "\npublic:\n"    ++ intercalateEntities xs
-    render (Protected xs) = "\nprotected:\n" ++ intercalateEntities xs
-    render (Private xs)   = "\nprivate:\n"   ++ intercalateEntities xs
+    render (Public xs)    = "\npublic:\n"    ++ (intercalate "\n" $ map render xs)
+    render (Protected xs) = "\nprotected:\n" ++ (intercalate "\n" $ map render xs)
+    render (Private xs)   = "\nprivate:\n"   ++ (intercalate "\n" $ map render xs) 
 
 
 data CppEntities = CppEntities [CppEntity]
                         deriving (Show)
 
 instance CppShow CppEntities where
-    render (CppEntities xs) =  intercalateEntities xs                      
+    render (CppEntities xs) =  intercalate "\n" $ map render xs                      
             
-
-intercalateEntities :: [CppEntity] -> String  
-intercalateEntities xs =  if (null xs) then "" else (intercalate "\n" $ map render xs)  
-
 
 ---------------------------------------------------------
 -- Template

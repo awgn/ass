@@ -25,19 +25,15 @@ import Data.Char
 import Data.List
 import Data.Functor
 import System.Environment(getArgs, getProgName)
-import System.Process
+import System.Process(system)
 import System.IO
 import System.Exit
-import System.Directory
-import Control.Monad
+import System.Directory(getCurrentDirectory)
+import Control.Monad(liftM)
 
 import qualified CppFilter as F
 import qualified CppToken  as T
 
-data CodeLine = CodeLine Int String 
-
-instance Show CodeLine where
-    show (CodeLine n xs) = "#line " ++ show n ++ "\n" ++ xs  
 
 type Source          = String
 type Binary          = String
@@ -49,62 +45,62 @@ type ParserState     = (TranslationUnit, MainFunction)
 data Compiler = Gcc | Clang 
                 deriving (Show, Eq, Ord)
 
+data CodeLine = CodeLine Int String 
+
+instance Show CodeLine where
+    show (CodeLine n xs) = "#line " ++ show n ++ "\n" ++ xs  
+
+
 main :: IO Int
-main = do
-    
-    args <- getArgs
-    cwd' <- getCurrentDirectory
-    src  <- hGetContents stdin
-    
-    comp <- getCompiler
+main = do args <- getArgs
+          cwd' <- getCurrentDirectory
+          src  <- hGetContents stdin
+          comp <- getCompiler
 
-    let cargs = getCompilerArgs args
-    let mt = isMultiThread src cargs
+          let cargs = getCompilerArgs args
+          let mt    = isMultiThread src cargs
 
-    writeSource "/tmp/snippet.cpp" $ makeSourceCode src mt
-    
-    ec <- compileWith comp "/tmp/snippet.cpp" "/tmp/snippet" mt $ ("-I " ++ cwd'):("-I " ++ cwd' ++ "/..") : cargs 
+          writeSource "/tmp/snippet.cpp" $ makeSourceCode src mt
 
-    if (ec == ExitSuccess)  
-    then 
-        system ("/tmp/snippet " ++ (unwords $ getTestArgs args)) >>= exitWith
-    else 
-        exitWith $ ExitFailure 1
+          ec <- compileWith comp "/tmp/snippet.cpp" "/tmp/snippet" mt $ ["-I", cwd', "-I",  cwd' ++ "/.."] ++ cargs 
+
+          if (ec == ExitSuccess)  
+          then system ("/tmp/snippet " ++ (unwords $ getTestArgs args)) >>= exitWith
+          else exitWith $ ExitFailure 1
 
 
 isMultiThread :: Source -> [String] -> Bool
-isMultiThread xs os = "-pthread" `elem` os  || useThreadOrAsync xs 
+isMultiThread src xs = "-pthread" `elem` xs  || useThreadOrAsync src 
 
 
 useThreadOrAsync :: Source -> Bool
-useThreadOrAsync src =  "thread" `elem` is || "async" `elem` is   
-                            where ts = filter T.isTIdentifier $ T.tokens  $ sourceFilter src
-                                  is = T.toString <$> ts
-
-makeSourceCode :: String -> Bool -> [ SourceCode ]
-makeSourceCode xs mt
-    | isSnippet xs = [ mainHeader, toSourceCode xs ]
-    | otherwise    = composeSrc $ foldl parseCodeLine (mainHeader, []) $ toSourceCode xs
-        where mainHeader = if (mt) then [ CodeLine 1 "#include <ass-mt.hpp>" ]
-                                   else [ CodeLine 1 "#include <ass.hpp>" ]
-              mainBegin  = [ CodeLine 1 "int main(int argc, char *argv[]) { cout << boolalpha;" ]
-              mainEnd    = [ CodeLine 1 "}" ]
-              composeSrc (global,body) = [global, mainBegin, body, mainEnd]
+useThreadOrAsync src =  "thread" `elem` identifiers || "async" `elem` identifiers   
+                            where tokens = filter T.isTIdentifier $ T.tokens $ sourceFilter src
+                                  identifiers = T.toString <$> tokens
 
 
-isSnippet :: String -> Bool
-isSnippet xs 
+makeSourceCode :: Source -> Bool -> [ SourceCode ]
+makeSourceCode src mt | hasMain src = [ headers, toSourceCode src ]
+                      | otherwise   = [ headers, global, mainHeader, body, mainFooter ]
+                        where (global, body) = foldl parseCodeLine ([], []) (toSourceCode src) 
+                              headers    = [ CodeLine 1 ("#include " ++ if mt then "<ass-mt.hpp>" else "<ass.hpp>")]
+                              mainHeader = [ CodeLine 1 "int main(int argc, char *argv[]) { cout << boolalpha;" ]
+                              mainFooter = [ CodeLine 1 "}" ]
+
+
+hasMain :: Source -> Bool
+hasMain src 
     | ["int", "main", "("] `isInfixOf` (T.toString <$> ts) = True
     | otherwise = False
-        where ts = T.tokens $ sourceFilter xs
+        where ts = T.tokens $ sourceFilter src
 
 
-sourceFilter :: String -> String
+sourceFilter :: Source -> Source
 sourceFilter = F.cppFilter (True, False, False)   
 
 
-writeSource :: String -> [ SourceCode ] -> IO ()
-writeSource name xs = writeFile name (intercalate "\n" $ map show (concat xs))
+writeSource :: FilePath -> [ SourceCode ] -> IO ()
+writeSource name src = writeFile name (unlines $ map show (concat src))
 
 
 getCompilerArgs :: [String] -> [String]
@@ -123,7 +119,7 @@ isPreprocessor = isPrefixOf "#" . dropWhile isSpace
 
 getGlobalLine :: String -> Maybe String
 getGlobalLine xs 
-    | "..." `isPrefixOf` xs' = Just $ snd $ splitAt 3 xs'
+    | "|||" `isPrefixOf` xs' = Just $ snd $ splitAt 3 xs'
     | otherwise = Nothing
         where xs' = dropWhile isSpace xs
 
@@ -135,17 +131,19 @@ parseCodeLine (t,m) (CodeLine n x)
     | otherwise  =  (t, m ++ [CodeLine n x])
 
 
-toSourceCode :: String -> SourceCode
-toSourceCode xs = zipWith CodeLine [1..] (lines xs)
+toSourceCode :: Source -> SourceCode
+toSourceCode src = zipWith CodeLine [1..] (lines src)
 
 
 getCompiler :: IO Compiler
 getCompiler = liftM (isSuffixOf "clang") getProgName >>= 
                     (\b -> if b then (return Clang) else (return Gcc))
 
+
 getCompilerExe :: Compiler -> String
 getCompilerExe Gcc   = "/usr/bin/g++"
 getCompilerExe Clang = "/usr/bin/clang++"
+
 
 getCompilerOpt :: Compiler -> Bool -> [String]
 getCompilerOpt Gcc   _  =  [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", "-Wextra", "-Wno-unused-parameter" ]
@@ -160,4 +158,6 @@ compileWith comp source binary mt user_opt
                  system $ unwords $ cmd
                     where cmd = [getCompilerExe comp, source, "-o", binary] 
                                 ++ (getCompilerOpt comp mt) 
-                                ++ user_opt ++ if (mt) then ["-pthread"] else []
+                                ++ user_opt 
+                                ++ if (mt) then ["-pthread"] else []
+

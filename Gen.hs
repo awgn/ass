@@ -37,13 +37,12 @@ main = getArgs >>= runRender
 --
 
 runRender :: [String] -> IO ()
-
 runRender [] = return ()
 runRender ("":_) = return ()
 runRender (es:as) = do
-                    let (e, (as')) = renderCode (es !! 0) as
+                    let (e, (as')) = renderCode (head es) as
                     putStrLn $ render (model e)
-                    runRender (drop 1 es: as') 
+                    runRender (tail es : as') 
 
 renderCode :: Code -> [String] -> (Entity, [String])
 renderCode x args = factoryEntity x args
@@ -70,8 +69,8 @@ factoryEntity 'v' (x:xs) = (ValueClass x, xs)
 factoryEntity 's' (x:xs) = (SingletonClass x, xs)
 factoryEntity 'n' (x:xs) = (ENamespace x, xs)
 factoryEntity 'y' (x:xs) = (YatsTest x, xs)
-factoryEntity  x  [] = error $ "Gen: missing argument(s) for entity " ++ [x] 
-factoryEntity  x  _  = error $ "Gen: unknown entity " ++ [x] 
+factoryEntity  c  (x:xs) = error $ "Unknown entity '" ++ [c] ++ "'"
+factoryEntity  c  _ = error $ "Missing argument(s) for entity '" ++ [c] ++ "'"
 
 
 ---------------------------------------------------------

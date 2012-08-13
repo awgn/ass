@@ -24,7 +24,7 @@ module Main where
 import Data.List
 import Data.Maybe
 import Data.Monoid
-import System.Environment
+import System.Environment(getArgs)
 
 type Identifier = String
 type Code = Char
@@ -165,7 +165,7 @@ model (TemplateClass name) = cpp [ Template [Typename "T"] +++
                              ] ++
                              cpp [   
                                  operInsrt (Just $ Template [Typename "T"]) name, 
-                                 operExtrc (Just $ Template [Typename "T"]) name
+                                 operExtrc (Just $ Template [Typename "T"]) name 
                              ]
 
 model (YatsTest name) = cpp [ Include "yats.hpp" ] ++
@@ -470,6 +470,11 @@ instance CppShow Class where
                                    where template = render tp
 
 
+instance CppTemplate Class where
+    template +++ (Class name ns) = TClass template name ns
+    _ +++ (TClass _ _ _)  = error "Template Syntax error"
+
+
 data ClassEntities = Public      [CppEntity] |
                      Protected   [CppEntity] |
                      Private     [CppEntity]
@@ -519,6 +524,10 @@ instance CppShow TemplateParam where
     render (TempTempParam ts value) = ts ++ " " ++ value 
 
 
+class CppTemplate a where
+    (+++) :: Template -> a -> a
+
+
 newtype Template = Template { getTemplate :: [TemplateParam] }
                     deriving (Show)
 
@@ -526,19 +535,10 @@ instance CppShow Template where
     render (Template xs) = "template <" ++ render (CommaSep xs) ++ ">"
 
 
--- ... a template list is also a monoid 
---
-    
 instance Monoid Template where
     mempty = Template []
     mappend (Template xs) (Template ys) = Template (mappend xs ys)
 
--- ... utility function
---
-
-(+++) :: Template -> Class -> Class
-template +++ (Class name xs) = TClass template name xs
-_ +++ (TClass _ _ _)  = error "Template Syntax error"
 
 getFullySpecializedName :: Maybe Template -> String -> String
 getFullySpecializedName Nothing ns = ns
@@ -549,9 +549,9 @@ getFullySpecializedName (Just (Template xs)) ns = ns ++ "<" ++ (intercalate ", "
 -- Cpp Function
 --
 
-
-data Function = Function (Maybe Template) FuncDecl FuncBody  
+data Function = Function (Maybe Template) FuncDecl FuncBody 
                     deriving (Show)
+
 
 function :: FuncDecl -> FuncBody -> Function
 function = Function Nothing
@@ -559,6 +559,8 @@ function = Function Nothing
 instance CppShow Function where
     render (Function templ decl body) = render templ ++ render decl ++ render body 
 
+instance CppTemplate Function where
+    t +++ (Function t' decl body) = Function ((Just t) `mappend` t') decl body
 
 ---------------------------------------------------------
 -- Cpp Function Declaration

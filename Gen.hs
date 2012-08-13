@@ -56,11 +56,19 @@ data Entity = ENamespace     Identifier |
               MoveableClass  Identifier |
               ValueClass     Identifier |   
               SingletonClass Identifier |
-              YatsTest String
+              YatsTest       String
                 deriving (Show)
-                         
-
+           
 factoryEntity :: Code -> [String] -> (Entity, [String])
+
+helpString :: String
+helpString = "     c -> simple class\n" ++
+             "     m -> moavable class\n" ++
+             "     t -> template class\n" ++
+             "     v -> value class\n" ++
+             "     s -> singletom class\n" ++
+             "     n -> namespace\n" ++
+             "     y -> yats test"    
 
 factoryEntity 'c' (x:xs) = (SimpleClass x, xs)
 factoryEntity 'm' (x:xs) = (MoveableClass x, xs)
@@ -69,8 +77,8 @@ factoryEntity 'v' (x:xs) = (ValueClass x, xs)
 factoryEntity 's' (x:xs) = (SingletonClass x, xs)
 factoryEntity 'n' (x:xs) = (ENamespace x, xs)
 factoryEntity 'y' (x:xs) = (YatsTest x, xs)
-factoryEntity  c  (x:xs) = error $ "Unknown entity '" ++ [c] ++ "'"
-factoryEntity  c  _ = error $ "Missing argument(s) for entity '" ++ [c] ++ "'"
+factoryEntity  c  _ | c `elem` "cmtvsny" = error $ "Missing argument(s) for entity '" ++ [c] ++ "'"
+factoryEntity  c  _ | otherwise = error $ "Unknown entity '" ++ [c] ++ "'. Usage [code] ARG... \n" ++ helpString
 
 
 ---------------------------------------------------------

@@ -88,12 +88,10 @@ isTOperOrPunct _ = False
 --
 
 dropWhite :: String -> (String,Int)
+dropWhite xs = (xs', count)
+                where xs' = dropWhile (`elem` " \t\n\\") xs
+                      count = (length xs) - length (xs')
 
-dropWhite xs = dropWhite' (xs, 0)
-               where dropWhite' (y:ys, n) 
-                        | y `elem` " \t\n\\" =  dropWhite' (ys, n+1)
-                        | otherwise = (y:ys, n)
-                     dropWhite' ("",n) = ("", n)
 -- 
 
 data PreprocState = Null | Hash | Include | Define | Undef | If | Ifdef | Ifndef | Elif | Else | Endif |
@@ -161,9 +159,9 @@ getTokenIdOrKeyword xs
 getTokenDirective xs  = TDirective name 0
                         where name = takeWhile (\c -> isAlphaNum c)  xs
 
-getTokenNumber      xs = TNumber  (takeWhile (\c -> c `S.member` S.fromList "0123456789abcdefABCDEF.xXeEuUlL" )  xs) 0
-getTokenString      xs = TString  (getLiteral '"'  '"'  False xs) 0
-getTokenChar        xs = TChar    (getLiteral '\'' '\'' False xs) 0
+getTokenNumber  xs = TNumber  (takeWhile (\c -> c `S.member` S.fromList "0123456789abcdefABCDEF.xXeEuUlL" )  xs) 0
+getTokenString  xs = TString  (getLiteral '"'  '"'  False xs) 0
+getTokenChar    xs = TChar    (getLiteral '\'' '\'' False xs) 0
 
 
 getTokenHeaderName  xs@(y:_)

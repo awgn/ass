@@ -56,6 +56,7 @@ data Entity = ENamespace     Identifier |
               MoveableClass  Identifier |
               ValueClass     Identifier |   
               SingletonClass Identifier |
+              CRTPClass      Identifier Identifier |
               YatsTest       String
                 deriving (Show)
            
@@ -68,6 +69,7 @@ helpString = "     c -> simple class\n" ++
              "     v -> value class\n" ++
              "     s -> singletom class\n" ++
              "     n -> namespace\n" ++
+             "     r -> crtp idiom\n" ++
              "     y -> yats test"    
 
 factoryEntity 'c' (x:xs) = (SimpleClass x, xs)
@@ -77,7 +79,8 @@ factoryEntity 'v' (x:xs) = (ValueClass x, xs)
 factoryEntity 's' (x:xs) = (SingletonClass x, xs)
 factoryEntity 'n' (x:xs) = (ENamespace x, xs)
 factoryEntity 'y' (x:xs) = (YatsTest x, xs)
-factoryEntity  c  _ | c `elem` "cmtvsny" = error $ "Missing argument(s) for entity '" ++ [c] ++ "'"
+factoryEntity 'r' (x:y:xs)  = (CRTPClass x y, xs)
+factoryEntity  c  _ | c `elem` "cmtvsrny" = error $ "Missing argument(s) for entity '" ++ [c] ++ "'"
 factoryEntity  c  _ | otherwise = error $ "Unknown entity '" ++ [c] ++ "'. Usage [code] ARG... \n" ++ helpString
 
 
@@ -175,6 +178,30 @@ model (TemplateClass name) = cpp [ Template [Typename "T"] +++
                                  operInsrt (Just $ Template [Typename "T"]) name, 
                                  operExtrc (Just $ Template [Typename "T"]) name 
                              ]
+
+model (CRTPClass base name) = cpp [
+                                
+                                Template [Typename "T"] +++ 
+                                Class base NoBaseSpec 
+                                [
+                                public [
+                                    ctor [] base Unqualified, 
+                                    dtor [] base Unqualified, 
+                                    copyCtor [] base Delete, 
+                                    operAssign [] base Delete
+                                    ]
+                                ]
+                             ] ++
+                             
+                             cpp [ Class name (BaseSpecList [BasePublic [ base ++ "<" ++ name ++ ">" ]])
+                                [
+                                public [
+                                    ctor [] name Unqualified, 
+                                    dtor [] name Unqualified 
+                                    ]
+                                ]
+                              ]
+                                
 
 model (YatsTest name) = cpp [ Include "yats.hpp" ] ++
                         cpp [ UsingNamespace "yats" ] ++

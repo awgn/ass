@@ -11,27 +11,36 @@ let g:loaded_ass = 1
 
 
 if !exists('g:ass_snippet_file')
-    let g:ass_snippet_file = "\\/tmp\\/snippet.cpp"
+    let g:ass_snippet_file = "/tmp/snippet.cpp"
 endif
+
+
+function! s:escape_name(filename)
+        return substitute(a:filename, "\/", "\\\\/", "g")
+endfunction
 
 
 " compile snippet and run:
 "
 function! s:ass_compile_and_run(comp)
         call inputsave() 
-        let cmd = inputdialog("[" . a:comp . " ass]: ")
-        let fn = expand("%")
+        let l:cmd = inputdialog("[" . a:comp . " ass]: ")
         call inputrestore()  
-        if strlen(fn) 
+        if strlen(expand("%"))
+            let l:fname = expand("%")
+            echohl l:fname
             write 
+        else
+            let l:fname = "/tmp/No_name.cpp"
+            exec "write! " . l:fname 
         endif
         %y+ | new | norm P
         if (a:comp == 'gcc')
-            exec "silent %! ass " . cmd
+            exec "silent %! ass " . l:cmd
         else
-            exec "silent %! ass-clang " . cmd
+            exec "silent %! ass-clang " . l:cmd
         endif
-        exec "silent! %s/" . g:ass_snippet_file . "/" . fn . "/g"
+        exec "silent! %s/" . s:escape_name(g:ass_snippet_file) . "/" . s:escape_name(l:fname) . "/g"
         cgetbuffer | bdelete! | copen
 endfunction
 
@@ -39,10 +48,10 @@ endfunction
 " insert c/c++ gate guard:
 "
 function! s:ass_insert_guard()
-        let gatename = "_" . substitute(toupper(expand("%:t")), "[\\.-]", "_", "g") . "_"
-        exec "norm! ggI#ifndef " . gatename
-        exec "norm! o#define " . gatename . " "
-        exec "norm! Go#endif /* " . gatename . " */"
+        let l:gatename = "_" . substitute(toupper(expand("%:t")), "[\\.-]", "_", "g") . "_"
+        exec "norm! ggI#ifndef "  . l:gatename
+        exec "norm! o#define "    . l:gatename . " "
+        exec "norm! Go#endif /* " . l:gatename . " */"
         norm! k
 endfunction
 
@@ -51,21 +60,21 @@ endfunction
 "
 function! s:ass_code_gen()
         call inputsave()
-        let cmd =  inputdialog("[gen]: ")
+        let l:cmd =  inputdialog("[gen]: ")
         call inputrestore()
-        exec "r !gen " . cmd
+        exec "r !gen " . l:cmd
 endfunction
                        
 
 " include this header in new window:
 "
 function! s:ass_include_this()
-        let current_header = expand("%")
-        if !strlen(current_header)
+        let l:current_header = expand("%")
+        if !strlen(l:current_header)
             echoe "[ass]: file with no name cannot be included"
             return 0
         endif
-        new | exec "norm! i#include \"" . current_header . "\"\n"
+        new | exec "norm! i#include \"" . l:current_header . "\"\n"
 endfunction
 
 

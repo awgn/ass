@@ -18,6 +18,9 @@
  
  
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE FlexibleInstances #-} 
+{-# LANGUAGE MultiParamTypeClasses #-}
+
 
 module Main where
 
@@ -193,7 +196,7 @@ model (CRTPClass base name) = cpp [
                                 ]
                              ] ++
                              
-                             cpp [ Class name (BaseSpecList [BasePublic [ base ++ "<" ++ name ++ ">" ]])
+                             cpp [ Class name (BaseSpecList [ public [ R (base ++ "<" ++ name ++ ">") ]])
                                 [
                                 public [
                                     ctor [] name Unqualified, 
@@ -205,8 +208,8 @@ model (CRTPClass base name) = cpp [
 
 model (YatsTest name) = cpp [ Include "yats.hpp" ] ++
                         cpp [ UsingNamespace "yats" ] ++
-                        cpp [ Raw $ "Context(" ++ name ++ ")",
-                              Raw $ "{\n}\n"
+                        cpp [ R ("Context(" ++ name ++ ")" ),
+                              R "{\n}\n"
                         ] ++
                         cpp [ _main [ "return yats::run(argc, argv);" ] ]
 
@@ -260,10 +263,10 @@ instance (CppShow a) => CppShow (CommaSep a) where
 -- Raw: Raw String for CppShow
 --
 
-newtype Raw = Raw { getString :: String }
+newtype R = R { getString :: String }
                     deriving (Show)
 
-instance CppShow Raw where
+instance CppShow R where
     render = getString
 
 ---------------------------------------------------------
@@ -510,13 +513,14 @@ instance CppTemplate Class where
     _ +++ (TClass _ _ _ _)  = error "Template Syntax error"
 
 
+data BaseSpecifierList = NoBaseSpec | BaseSpecList [BaseSpecifier] 
+                            deriving (Show)
+
 data BaseSpecifier = BasePublic      [Identifier] |
                      BaseProtected   [Identifier] |
                      BasePrivate     [Identifier]
                         deriving (Show)
 
-data BaseSpecifierList = NoBaseSpec | BaseSpecList [BaseSpecifier] 
-                            deriving (Show)
 
 data ClassEntities = Public      [CppEntity] |
                      Protected   [CppEntity] |
@@ -524,14 +528,22 @@ data ClassEntities = Public      [CppEntity] |
                         deriving (Show)
 
 
-public :: (Show a, CppShow a) => [a] -> ClassEntities
-public xs = Public $ map CppEntity xs  
+class AccessSpecifier a b where
+    public    :: (Show a, CppShow a) => [a] -> b
+    private   :: (Show a, CppShow a) => [a] -> b
+    protected :: (Show a, CppShow a) => [a] -> b
 
-protected :: (Show a, CppShow a) => [a] -> ClassEntities
-protected xs = Protected $ map CppEntity xs  
 
-private :: (Show a, CppShow a) => [a] -> ClassEntities
-private xs = Private $ map CppEntity xs  
+instance AccessSpecifier a ClassEntities where
+    public    xs = Public    $ map CppEntity xs
+    protected xs = Protected $ map CppEntity xs
+    private   xs = Private   $ map CppEntity xs
+
+
+instance AccessSpecifier R BaseSpecifier where
+    public    xs = BasePublic    $ map getString xs
+    protected xs = BaseProtected $ map getString xs
+    private   xs = BasePrivate   $ map getString xs
 
 
 instance CppShow BaseSpecifierList where

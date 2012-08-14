@@ -18,24 +18,24 @@
 -- ass: C++11 code ass'istant 
 
 
-module CppFilter (CppZone(..), CppZoneFilter, cppFilter)  where
+module Cpp.Filter (Zone(..), ZoneFilter, Cpp.Filter.filter)  where
 
 
-data CppZone = Code | Comment | Literal
+data Zone = Code | Comment | Literal
                 deriving (Eq, Show)
 
 
 type Source = String
 
 
-type CppZoneFilter = (Bool, Bool, Bool)
+type ZoneFilter = (Bool, Bool, Bool)
 
 
-cppFilter :: CppZoneFilter -> Source  -> Source
-cppFilter = runFilter CodeState 
+filter :: ZoneFilter -> Source  -> Source
+filter = runFilter CodeState 
 
 
-runFilter :: FilterState -> CppZoneFilter -> Source -> Source
+runFilter :: FilterState -> ZoneFilter -> Source -> Source
 runFilter _ _ [] = []
 runFilter state filt (x:n:xs) 
     | zoneFilter region filt   = x   : (runFilter nextState filt (n:xs))
@@ -45,6 +45,7 @@ runFilter state filt (x:xs)
     | zoneFilter region filt   = x   : (runFilter nextState filt xs)
     | otherwise                = charReplace x : (runFilter nextState filt xs)
         where (region, nextState) = charFilter (x, ' ') state
+
 
 charReplace :: Char -> Char
 charReplace '\n' = '\n'
@@ -59,7 +60,7 @@ data FilterState =  CodeState       |
                     deriving (Eq, Show)
 
 
-charFilter :: (Char,Char) -> FilterState -> (CppZone, FilterState)
+charFilter :: (Char,Char) -> FilterState -> (Zone, FilterState)
 
 
 charFilter (x,n) CodeState 
@@ -91,7 +92,7 @@ charFilter (x,_) LiteralState
     | otherwise = (Literal, LiteralState)
 
 
-zoneFilter :: CppZone -> CppZoneFilter -> Bool
+zoneFilter :: Zone -> ZoneFilter -> Bool
 zoneFilter Code    (x, _, _) = x
 zoneFilter Comment (_, x, _) = x
 zoneFilter Literal (_, _, x) = x

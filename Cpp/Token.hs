@@ -17,7 +17,7 @@
 -- ass: C++11 code ass'istant 
 
 
-module CppToken(Token(..), isTIdentifier, isTKeyword, isTDirective, isTNumber, 
+module Cpp.Token(Token(..), isTIdentifier, isTKeyword, isTDirective, isTNumber, 
                            isTHeaderName, isTString, isTChar, isTOperOrPunct, 
                            tokens)  where
       

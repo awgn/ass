@@ -31,8 +31,11 @@ import System.Exit
 import System.Directory(getCurrentDirectory)
 import Control.Monad(liftM)
 
-import qualified CppFilter as F
-import qualified CppToken  as T
+-- import qualified CppFilter as F
+-- import qualified CppToken  as T
+
+import qualified Cpp.Filter as Cpp
+import qualified Cpp.Token  as Cpp
 
 
 type Source          = String
@@ -75,8 +78,8 @@ isMultiThread src xs = "-pthread" `elem` xs  || useThreadOrAsync src
 
 useThreadOrAsync :: Source -> Bool
 useThreadOrAsync src =  "thread" `elem` identifiers || "async" `elem` identifiers   
-                            where tokens = filter T.isTIdentifier $ T.tokens $ sourceFilter src
-                                  identifiers = T.toString <$> tokens
+                            where tokens = filter Cpp.isTIdentifier $ Cpp.tokens $ sourceFilter src
+                                  identifiers = Cpp.toString <$> tokens
 
 
 makeSourceCode :: Source -> Bool -> [ SourceCode ]
@@ -90,13 +93,13 @@ makeSourceCode src mt | hasMain src = [ headers, toSourceCode src ]
 
 hasMain :: Source -> Bool
 hasMain src 
-    | ["int", "main", "("] `isInfixOf` (T.toString <$> ts) = True
+    | ["int", "main", "("] `isInfixOf` (Cpp.toString <$> ts) = True
     | otherwise = False
-        where ts = T.tokens $ sourceFilter src
+        where ts = Cpp.tokens $ sourceFilter src
 
 
 sourceFilter :: Source -> Source
-sourceFilter = F.cppFilter (True, False, False)   
+sourceFilter = Cpp.filter (True, False, False)   
 
 
 writeSource :: FilePath -> [ SourceCode ] -> IO ()

@@ -493,11 +493,11 @@ instance CppShow Namespace where
                                     "\n} // namespace " ++ ns 
 
 ---------------------------------------------------------
--- Cpp Class, ClassEntities and CppEntities 
+-- Cpp Class, ClassAccessSpecifier and CppEntities 
 --
 
-data Class = Class Identifier BaseSpecifierList [ClassEntities] |
-             TClass Template Identifier BaseSpecifierList [ClassEntities]
+data Class = Class Identifier BaseSpecifierList [ClassAccessSpecifier] |
+             TClass Template Identifier BaseSpecifierList [ClassAccessSpecifier]
                 deriving (Show)
 
 
@@ -513,19 +513,18 @@ instance CppTemplate Class where
     _ +++ (TClass _ _ _ _)  = error "Template Syntax error"
 
 
-data BaseSpecifierList = NoBaseSpec | BaseSpecList [BaseSpecifier] 
+data BaseSpecifierList = NoBaseSpec | BaseSpecList [BaseAccessSpecifier] 
                             deriving (Show)
 
-data BaseSpecifier = BasePublic      [Identifier] |
-                     BaseProtected   [Identifier] |
-                     BasePrivate     [Identifier]
-                        deriving (Show)
+data BaseAccessSpecifier = BasePublic      [Identifier] |
+                           BaseProtected   [Identifier] |
+                           BasePrivate     [Identifier]
+                                deriving (Show)
 
-
-data ClassEntities = Public      [CppEntity] |
-                     Protected   [CppEntity] |
-                     Private     [CppEntity]
-                        deriving (Show)
+data ClassAccessSpecifier = Public      [CppEntity] |
+                            Protected   [CppEntity] |
+                            Private     [CppEntity]
+                                deriving (Show)
 
 
 class AccessSpecifier a b where
@@ -534,13 +533,13 @@ class AccessSpecifier a b where
     protected :: (Show a, CppShow a) => [a] -> b
 
 
-instance AccessSpecifier a ClassEntities where
+instance AccessSpecifier a ClassAccessSpecifier where
     public    xs = Public    $ map CppEntity xs
     protected xs = Protected $ map CppEntity xs
     private   xs = Private   $ map CppEntity xs
 
 
-instance AccessSpecifier R BaseSpecifier where
+instance AccessSpecifier R BaseAccessSpecifier where
     public    xs = BasePublic    $ map getString xs
     protected xs = BaseProtected $ map getString xs
     private   xs = BasePrivate   $ map getString xs
@@ -552,7 +551,7 @@ instance CppShow BaseSpecifierList where
     render (BaseSpecList xs)  = " : " ++ (intercalate ", " $ map render xs)
 
 
-instance CppShow BaseSpecifier where
+instance CppShow BaseAccessSpecifier where
     render (BasePublic [])    = ""
     render (BasePublic xs)    = "public "    ++ (intercalate ", " xs)
     render (BaseProtected []) = ""
@@ -561,7 +560,7 @@ instance CppShow BaseSpecifier where
     render (BasePrivate xs)   = "private "   ++ (intercalate ", " xs)
 
 
-instance CppShow ClassEntities where
+instance CppShow ClassAccessSpecifier where
     render (Public xs)    = "\npublic:\n"    ++ (intercalate "\n" $ map render xs)
     render (Protected xs) = "\nprotected:\n" ++ (intercalate "\n" $ map render xs)
     render (Private xs)   = "\nprivate:\n"   ++ (intercalate "\n" $ map render xs) 

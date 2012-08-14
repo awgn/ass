@@ -28,13 +28,12 @@ function! s:ass_compile_and_run(comp)
         call inputrestore()  
         if strlen(expand("%"))
             let l:fname = expand("%")
-            echohl l:fname
             write 
         else
             let l:fname = "/tmp/No_name.cpp"
             exec "write! " . l:fname 
         endif
-        %y+ | new | norm P
+        %y+ | new | normal! P
         if (a:comp == 'gcc')
             exec "silent %! ass " . l:cmd
         else
@@ -49,10 +48,10 @@ endfunction
 "
 function! s:ass_insert_guard()
         let l:gatename = "_" . substitute(toupper(expand("%:t")), "[\\.-]", "_", "g") . "_"
-        exec "norm! ggI#ifndef "  . l:gatename
-        exec "norm! o#define "    . l:gatename . " "
-        exec "norm! Go#endif /* " . l:gatename . " */"
-        norm! k
+        exec "normal! ggI#ifndef "  . l:gatename
+        exec "normal! o#define "    . l:gatename . " "
+        exec "normal! Go#endif /* " . l:gatename . " */"
+        normal! k
 endfunction
 
 
@@ -72,9 +71,9 @@ function! s:ass_include_this()
         let l:current_header = expand("%")
         if !strlen(l:current_header)
             echoe "[ass]: file with no name cannot be included"
-            return 0
+            return 
         endif
-        new | exec "norm! i#include \"" . l:current_header . "\"\n"
+        new | exec "normal! i#include \"" . l:current_header . "\"\n"
 endfunction
 
 

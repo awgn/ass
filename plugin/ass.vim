@@ -31,13 +31,13 @@ function! s:ass_compile_and_run(comp)
             write 
         else
             let l:fname = "/tmp/No_name.cpp"
-            exec "write! " . l:fname 
+            exec "silent! write! " . l:fname 
         endif
         %y+ | new | normal! P
         if (a:comp == 'gcc')
-            exec "silent %! ass " . l:cmd
+            exec "silent! %! ass " . l:cmd
         else
-            exec "silent %! ass-clang " . l:cmd
+            exec "silent! %! ass-clang " . l:cmd
         endif
         exec "silent! %s/" . s:escape_name(g:ass_snippet_file) . "/" . s:escape_name(l:fname) . "/g"
         cgetbuffer | bdelete! | copen

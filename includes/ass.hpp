@@ -298,9 +298,9 @@ namespace std {
     typename std::enable_if< ass::traits::is_tuple<T>::value, std::basic_ostream<CharT,Traits> >::type &
     operator<<(std::basic_ostream<CharT,Traits> &out, const T &rhs)
     {
-        out << "{ ";
+        out << "(";
         ass::streamer::printon<CharT, Traits, T, std::tuple_size<T>::value>::apply(out,rhs);
-        return out << "}";
+        return out << ")";
     }
 
     ////////////////////////////////////////////////////////
@@ -402,34 +402,47 @@ struct O
     
     O() : 
     value(reinterpret_cast<std::intptr_t>(this)) 
-    { print(std::cout," O()"); } 
+    { 
+        print(std::cout," O()"); 
+    } 
    
     O(O &other) :
     value(other.value) 
-    { print(std::cout," O(O&)"); } 
+    { 
+        print(std::cout," O(O&)"); 
+    } 
 
     O(const O &other) :
     value(other.value) 
-    { print(std::cout," O(const O&)"); } 
+    { 
+        print(std::cout," O(const O&)"); 
+    } 
 
     O &operator=(const O &other) 
-    { value = other.value;
-            print(std::cout," op=(const O&)"); return *this; } 
+    { 
+        value = other.value;
+        print(std::cout," op=(const O&)"); return *this; 
+    } 
 
     ~O() 
-    { print(std::cout," ~O()"); }
+    { 
+        print(std::cout," ~O()"); 
+    }
 
     O(O &&other) :
     value(other.value)    
     { 
-        other.value = 0xdead;
-            print(std::cout," O(O&&)"); } 
+        other.value = 0xdeadbeef;
+        print(std::cout," O(O&&)"); 
+    } 
 
     O &operator=(O &&other) 
     { 
         value = other.value;
-        other.value = 0xdead;        
-            print(std::cout," op=(O&&)"); return *this; } 
+        other.value = 0xdeadbeef;        
+        print(std::cout," op=(O&&)"); 
+        return *this; 
+    } 
     
     template <typename ...Ti> 
     explicit O(Ti&& ...arg) :
@@ -438,12 +451,14 @@ struct O
         std::ostringstream ss; ss << " O(";
         print_type(ss, std::forward<Ti>(arg)...);
         ss << ")";
-            print(std::cout,ss.str().c_str()); 
+        print(std::cout,ss.str().c_str()); 
     } 
 
     void swap(O &rhs) 
-    { std::swap(value, rhs.value);
-            print(std::cout," swap(O,O)"); }
+    { 
+        std::swap(value, rhs.value);
+        print(std::cout," swap(O,O)"); 
+    }
 
     bool operator<(const O &rhs) const
     {
@@ -489,20 +504,21 @@ operator<<(std::basic_ostream<CharT,Traits> &out, const O & rhs)
 
 ////////////////////////////////////////////////////////////// R(): Ranges ala Haskell 
 
-// We all know that what follows is very nasty, but alas there's no legal
-// way to do it (Nicola).
+// The following implementation mimics the std::initializer_list, and can be constructed
+// by the user. We all know that what follows is barely legal and is not guaranteed to work 
+// by the standard (fake and standard initializer list have indeed a different layout).
+// Although, it works with gcc and clang, and no better way to do it is possibile (Nicola).
 
 namespace ass {
 
-   /// initializer
-  template<class _E>
-    struct fake_list
+    template<class _E>
+    class initializer_list
     {
     public:
       typedef _E 		    value_type;
       typedef const _E& 	reference;
       typedef const _E& 	const_reference;
-      typedef std::size_t 	size_type;
+      typedef size_t 		size_type;
       typedef const _E* 	iterator;
       typedef const _E* 	const_iterator;
 
@@ -511,31 +527,44 @@ namespace ass {
       size_type			_M_len;
 
     public:
-      fake_list(const_iterator __a, size_type __l)
+      // User can call this public constructor.
+      initializer_list(const_iterator __a, size_type __l)
       : _M_array(__a), _M_len(__l) { }
-    };
-                                                    
-    static_assert(sizeof(fake_list<int>) == sizeof(std::initializer_list<int>), "fake_list<> implementation not compliant!");
-}
 
-// leak, uhm LEAK!!! In this case it's not worth avoiding it!!!
-//
+      initializer_list() noexcept
+      : _M_array(0), _M_len(0) { }
+
+      // Number of elements.
+      size_type
+      size() const noexcept { return _M_len; }
+
+      // First element.
+      const_iterator
+      begin() const noexcept { return _M_array; }
+
+      // One past the last element.
+      const_iterator
+      end() const noexcept { return begin() + size(); }
+    };
+        
+    static_assert(sizeof(initializer_list<int>) == sizeof(std::initializer_list<int>), "ass::initializer_list<_E>");
+}
 
 template <typename Tp = int>
 std::initializer_list<Tp> 
 R(int a0, int a1, int b)
 {                                 
     int step = a1 - a0;
-    int size = (b-a0+ (step < 0 ? -1 : 1))/step; 
+    int size = (b - a0 + (step < 0 ? -1 : 1))/step; 
     size = (size > 0 ? size : 0);
     
-    Tp * leak = nullptr;
+    Tp * leak = nullptr;   // leak! a per-thread static should be a viable option...
     if (size) {
-        leak = static_cast<Tp *>(malloc(size * sizeof(Tp)));
+        leak = static_cast<Tp *>(realloc(leak, size * sizeof(Tp)));
         for(int n = 0; (step > 0  ? a0 <= b : a0 >= b); a0 += step, n++)
             new (leak+n) Tp(a0);  
     }
-    ass::fake_list<Tp> ret(leak,size);
+    ass::initializer_list<Tp> ret(leak,size);
     return reinterpret_cast<std::initializer_list<Tp> &>(ret);
 }
 

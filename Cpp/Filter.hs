@@ -18,33 +18,36 @@
 -- ass: C++11 code ass'istant 
 
 
-module Cpp.Filter (Zone(..), ZoneFilter, Cpp.Filter.filter)  where
+module Cpp.Filter (Context(..), ContextFilter(..), Cpp.Filter.filter)  where
 
 
-data Zone = Code | Comment | Literal
+data Context = Code | Comment | Literal
                 deriving (Eq, Show)
 
 
 type Source = String
 
 
-type ZoneFilter = (Bool, Bool, Bool)
+data ContextFilter = ContextFilter { getCode    :: Bool,
+                                     getComment :: Bool,
+                                     getLiteral :: Bool }
+                    deriving (Eq, Show)
 
 
-filter :: ZoneFilter -> Source  -> Source
+filter :: ContextFilter -> Source  -> Source
 filter = runFilter CodeState 
 
 
-runFilter :: FilterState -> ZoneFilter -> Source -> Source
-runFilter _ _ [] = []
-runFilter state filt (x:n:xs) 
-    | zoneFilter region filt   = x   : (runFilter nextState filt (n:xs))
-    | otherwise                = charReplace x : (runFilter nextState filt (n:xs))
-        where (region, nextState) = charFilter (x,n) state
+runFilter :: FilterState -> ContextFilter -> Source -> Source
+runFilter _ _ (C.uncons -> Nothing) = C.empty
+runFilter state filt (C.uncons -> x:n:xs) 
+    | cxtFilter cxt filt = x : (runFilter nextState filt (n:xs))
+    | otherwise          = charReplace x : (runFilter nextState filt (n:xs))
+        where (cxt, nextState) = charFilter (x,n) state
 runFilter state filt (x:xs) 
-    | zoneFilter region filt   = x   : (runFilter nextState filt xs)
-    | otherwise                = charReplace x : (runFilter nextState filt xs)
-        where (region, nextState) = charFilter (x, ' ') state
+    | cxtFilter cxt filt = x : (runFilter nextState filt xs)
+    | otherwise          = charReplace x : (runFilter nextState filt xs)
+        where (cxt, nextState) = charFilter (x, ' ') state
 
 
 charReplace :: Char -> Char
@@ -60,7 +63,7 @@ data FilterState =  CodeState       |
                     deriving (Eq, Show)
 
 
-charFilter :: (Char,Char) -> FilterState -> (Zone, FilterState)
+charFilter :: (Char,Char) -> FilterState -> (Context, FilterState)
 
 
 charFilter (x,n) CodeState 
@@ -92,9 +95,8 @@ charFilter (x,_) LiteralState
     | otherwise = (Literal, LiteralState)
 
 
-zoneFilter :: Zone -> ZoneFilter -> Bool
-zoneFilter Code    (x, _, _) = x
-zoneFilter Comment (_, x, _) = x
-zoneFilter Literal (_, _, x) = x
-
+cxtFilter :: Context -> ContextFilter -> Bool
+cxtFilter Code    xs = getCode xs
+cxtFilter Comment xs = getComment xs
+cxtFilter Literal xs = getLiteral xs
 

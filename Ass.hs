@@ -112,7 +112,7 @@ hasMain src
 
 
 sourceFilter :: Source -> Source
-sourceFilter = Cpp.filter (True, False, False)   
+sourceFilter = Cpp.filter Cpp.ContextFilter { Cpp.getCode = True, Cpp.getComment = False, Cpp.getLiteral = False }   
 
 
 getCompilerArgs :: [String] -> [String]

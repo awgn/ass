@@ -20,7 +20,6 @@
 
 module Main where
 
-
 import Data.Char
 import Data.List
 import Data.Functor
@@ -32,14 +31,15 @@ import System.FilePath
 import System.Directory(getCurrentDirectory)
 
 import Control.Monad(liftM)
-
+import qualified Data.ByteString.Char8 as C
 
 import qualified Cpp.Filter as Cpp
 import qualified Cpp.Token  as Cpp
 
 
-type Source          = String
-type Binary          = String
+type Source          = C.ByteString
+type SourceLine      = C.ByteString
+
 type SourceCode      = [CodeLine]
 type TranslationUnit = SourceCode
 type MainFunction    = SourceCode
@@ -49,11 +49,12 @@ type ParserState     = (TranslationUnit, MainFunction)
 data Compiler = Gcc | Clang 
                 deriving (Show, Eq, Ord)
 
-data CodeLine = CodeLine Int String 
+
+data CodeLine = CodeLine Int SourceLine 
 
 
 instance Show CodeLine where
-    show (CodeLine n xs) = "#line " ++ show n ++ "\n" ++ xs  
+    show (CodeLine n xs) = "#line " ++ show n ++ "\n" ++ C.unpack xs  
 
 
 snippet, tmpDir :: String 
@@ -61,11 +62,10 @@ snippet, tmpDir :: String
 snippet = "snippet" 
 tmpDir =  "/tmp" 
 
-
 main :: IO Int
 main = do args <- getArgs
           cwd' <- getCurrentDirectory
-          code <- hGetContents stdin
+          code <- C.hGetContents stdin
           cxx  <- getCompiler
 
           let args' = getCompilerArgs args
@@ -99,9 +99,9 @@ makeSourceCode :: Source -> Bool -> [SourceCode]
 makeSourceCode src mt | hasMain src = [ headers, toSourceCode src ]
                       | otherwise   = [ headers, global, mainHeader, body, mainFooter ]
                         where (global, body) = foldl parseCodeLine ([], []) (toSourceCode src) 
-                              headers    = [ CodeLine 1 ("#include " ++ if mt then "<ass-mt.hpp>" else "<ass.hpp>")]
-                              mainHeader = [ CodeLine 1 "int main(int argc, char *argv[]) { cout << boolalpha;" ]
-                              mainFooter = [ CodeLine 1 "}" ]
+                              headers    = [ CodeLine 1 (C.pack $ "#include " ++ if mt then "<ass-mt.hpp>" else "<ass.hpp>")]
+                              mainHeader = [ CodeLine 1 (C.pack "int main(int argc, char *argv[]) { cout << boolalpha;") ]
+                              mainFooter = [ CodeLine 1 (C.pack "}") ]
 
 
 hasMain :: Source -> Bool
@@ -125,15 +125,15 @@ getTestArgs = tail' . dropWhile ( /= "--" )
                       tail' (_:xs) = xs
 
 
-isPreprocessor :: String -> Bool
-isPreprocessor = isPrefixOf "#" . dropWhile isSpace 
+isPreprocessor :: SourceLine -> Bool
+isPreprocessor = C.isPrefixOf (C.pack "#") . C.dropWhile isSpace 
 
 
-getGlobalLine :: String -> Maybe String
+getGlobalLine :: SourceLine -> Maybe SourceLine
 getGlobalLine xs 
-    | "|||" `isPrefixOf` xs' = Just $ snd $ splitAt 3 xs'
+    | C.pack "|||" `C.isPrefixOf` xs' = Just $ snd $ C.splitAt 3 xs'
     | otherwise = Nothing
-        where xs' = dropWhile isSpace xs
+        where xs' = C.dropWhile isSpace xs
 
 
 parseCodeLine :: ParserState -> CodeLine -> ParserState
@@ -144,7 +144,7 @@ parseCodeLine (t,m) (CodeLine n x)
 
 
 toSourceCode :: Source -> SourceCode
-toSourceCode src = zipWith CodeLine [1..] (lines src)
+toSourceCode src = zipWith CodeLine [1..] (C.lines src)
 
 
 getCompiler :: IO Compiler
@@ -164,7 +164,7 @@ getCompilerOpt Clang mt =  [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", "
                                                  |otherwise = "/usr/local/include/ass.hpp.pch" 
 
 
-compileWith :: Compiler -> Source -> Binary -> Bool -> [String] -> IO ExitCode
+compileWith :: Compiler -> FilePath -> FilePath -> Bool -> [String] -> IO ExitCode
 compileWith cxx source binary mt user_opt 
             = do -- print cmd 
                  system $ unwords $ cmd

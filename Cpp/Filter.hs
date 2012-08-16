@@ -17,15 +17,18 @@
 --
 -- ass: C++11 code ass'istant 
 
+{-# LANGUAGE ViewPatterns #-} 
 
 module Cpp.Filter (Context(..), ContextFilter(..), Cpp.Filter.filter)  where
+
+import qualified Data.ByteString.Char8 as C
+
+
+type Source = C.ByteString
 
 
 data Context = Code | Comment | Literal
                 deriving (Eq, Show)
-
-
-type Source = String
 
 
 data ContextFilter = ContextFilter { getCode    :: Bool,
@@ -39,20 +42,22 @@ filter = runFilter CodeState
 
 
 runFilter :: FilterState -> ContextFilter -> Source -> Source
-runFilter _ _ (C.uncons -> Nothing) = C.empty
-runFilter state filt (C.uncons -> x:n:xs) 
-    | cxtFilter cxt filt = x : (runFilter nextState filt (n:xs))
-    | otherwise          = charReplace x : (runFilter nextState filt (n:xs))
+runFilter state filt (C.uncons -> Just (x, C.uncons -> Just (n,xs))) 
+    | cxtFilter cxt filt = x `C.cons` (runFilter nextState filt (n `C.cons` xs))
+    | otherwise          = charReplace x `C.cons` (runFilter nextState filt (n `C.cons` xs))
         where (cxt, nextState) = charFilter (x,n) state
-runFilter state filt (x:xs) 
-    | cxtFilter cxt filt = x : (runFilter nextState filt xs)
-    | otherwise          = charReplace x : (runFilter nextState filt xs)
+runFilter state filt (C.uncons -> Just (x,xs)) 
+    | cxtFilter cxt filt = x `C.cons` (runFilter nextState filt xs)
+    | otherwise          = charReplace x `C.cons` (runFilter nextState filt xs)
         where (cxt, nextState) = charFilter (x, ' ') state
+runFilter _ _ (C.uncons -> Nothing) = C.empty
+runFilter _ _ _ = C.empty
 
 
 charReplace :: Char -> Char
 charReplace '\n' = '\n'
 charReplace  _   = ' '
+
 
 data FilterState =  CodeState       | 
                     SlashState      | 

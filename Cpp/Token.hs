@@ -26,8 +26,14 @@ import Data.Char
 import Data.Maybe
 import Data.Set as S
 import Control.Monad
-
+ 
+import qualified Cpp.Source as Cpp
 import qualified Data.ByteString.Char8 as C
+
+type TokenizerState = (Source, Offset, State)
+type Source = Cpp.Source
+type Offset = Int64
+
 
 -- Tokenize the source code in a list 
 -- Precondition: the c++ source code must not be not ill-formed
@@ -97,7 +103,6 @@ dropWhite xs = (xs', count)
                 where xs' = C.dropWhile (`elem` " \t\n\\") xs
                       count = fromIntegral $ (C.length xs) - C.length (xs')
 
--- 
 
 data State = Null | Hash | Include | Define | Undef | If | Ifdef | Ifndef | Elif | Else | Endif |
                     Line | Error | Pragma
@@ -121,11 +126,6 @@ nextState "pragma"  Hash = Pragma
 nextState _   _          = Null
 
 ---
-
-type TokenizerState = (Source, Offset, State)
-type Source = C.ByteString
-type Offset = Int64
-
 
 runGetToken :: TokenizerState -> [Token]
 

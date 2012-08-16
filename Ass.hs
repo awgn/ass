@@ -33,12 +33,12 @@ import System.Directory(getCurrentDirectory)
 import Control.Monad(liftM)
 import qualified Data.ByteString.Char8 as C
 
+import qualified Cpp.Source as Cpp
 import qualified Cpp.Filter as Cpp
 import qualified Cpp.Token  as Cpp
 
-
-type Source          = C.ByteString
-type SourceLine      = C.ByteString
+type Source          = Cpp.Source
+type SourceLine      = Cpp.Source
 
 type SourceCode      = [CodeLine]
 type TranslationUnit = SourceCode

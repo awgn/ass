@@ -21,10 +21,11 @@
 
 module Cpp.Filter (Context(..), ContextFilter(..), Cpp.Filter.filter)  where
 
+import qualified Cpp.Source as Cpp
 import qualified Data.ByteString.Char8 as C
 
 
-type Source = C.ByteString
+type Source = Cpp.Source
 
 
 data Context = Code | Comment | Literal
@@ -37,7 +38,7 @@ data ContextFilter = ContextFilter { getCode    :: Bool,
                     deriving (Eq, Show)
 
 
-filter :: ContextFilter -> Source  -> Source
+filter :: ContextFilter -> Source -> Source
 filter = runFilter CodeState 
 
 
@@ -104,4 +105,5 @@ cxtFilter :: Context -> ContextFilter -> Bool
 cxtFilter Code    xs = getCode xs
 cxtFilter Comment xs = getComment xs
 cxtFilter Literal xs = getLiteral xs
+
 

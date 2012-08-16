@@ -19,6 +19,7 @@
 
 {-# LANGUAGE ViewPatterns #-} 
 
+
 module Cpp.Filter (Context(..), ContextFilter(..), Cpp.Filter.filter)  where
 
 import qualified Cpp.Source as Cpp
@@ -26,6 +27,7 @@ import qualified Data.ByteString.Char8 as C
 
 
 type Source = Cpp.Source
+type State  = (Char, ContextState, ContextFilter)
 
 
 data Context = Code | Comment | Literal
@@ -39,66 +41,64 @@ data ContextFilter = ContextFilter { getCode    :: Bool,
 
 
 filter :: ContextFilter -> Source -> Source
-filter = runFilter CodeState 
+filter filt src =  snd $ C.mapAccumL runFilter (' ', CodeState, filt) src 
 
 
-runFilter :: FilterState -> ContextFilter -> Source -> Source
-runFilter state filt (C.uncons -> Just (x, C.uncons -> Just (n,xs))) 
-    | cxtFilter cxt filt = x `C.cons` (runFilter nextState filt (n `C.cons` xs))
-    | otherwise          = charReplace x `C.cons` (runFilter nextState filt (n `C.cons` xs))
-        where (cxt, nextState) = charFilter (x,n) state
-runFilter state filt (C.uncons -> Just (x,xs)) 
-    | cxtFilter cxt filt = x `C.cons` (runFilter nextState filt xs)
-    | otherwise          = charReplace x `C.cons` (runFilter nextState filt xs)
-        where (cxt, nextState) = charFilter (x, ' ') state
-runFilter _ _ (C.uncons -> Nothing) = C.empty
-runFilter _ _ _ = C.empty
+runFilter :: State -> Char -> (State, Char) 
+runFilter (p, state, filt) c = ((p', state', filt), charFilter (cxtFilter cxt filt) cxt c)
+                                where (cxt, state', p') = charParser(p, c) state
 
 
-charReplace :: Char -> Char
-charReplace '\n' = '\n'
-charReplace  _   = ' '
+charFilter :: Bool -> Context -> Char -> Char
+charFilter  _ _ '\n' = '\n'
+charFilter  cond _ c
+    | cond = c
+    | otherwise = ' '
 
 
-data FilterState =  CodeState       | 
-                    SlashState      | 
-                    AsteriskState   | 
+-- debugFilter :: Bool -> Context -> Char -> Char
+-- debugFilter  _ _ '\n' = '\n'
+-- debugFilter  _ cxt _
+--     | Code    <- cxt = '#'
+--     | Comment <- cxt = '*'
+--     | Literal <- cxt = '_'
+
+
+data ContextState = CodeState       | 
                     CommentCState   | 
                     CommentCppState | 
-                    LiteralState
+                    LiteralStateS   |
+                    LiteralStateC
                     deriving (Eq, Show)
 
 
-charFilter :: (Char,Char) -> FilterState -> (Context, FilterState)
+charParser :: (Char,Char) -> ContextState -> (Context, ContextState, Char)
 
+charParser (p,c) CodeState 
+    | p == '/'  && c == '/'  = (Code, CommentCppState, c)
+    | p == '/'  && c == '*'  = (Code, CommentCState,   c)
+    | p /= '\\' && c == '"'  = (Code, LiteralStateS,   c)
+    | p /= '\\' && c == '\'' = (Code, LiteralStateC,   c) 
+    | p == '\\' && c == '\\' = (Code, CodeState,     ' ')
+    | otherwise = (Code, CodeState, c)
+                                       
+charParser (_,c) CommentCppState
+    | c == '\n' = (Comment, CodeState, c)
+    | otherwise = (Comment, CommentCppState, c)
 
-charFilter (x,n) CodeState 
-    | x == '/' && n == '/' = (Comment, SlashState)
-    | x == '/' && n == '*' = (Comment, SlashState)
-    | x == '"'  = (Code, LiteralState)
-    | otherwise = (Code, CodeState)
+charParser (p,c) CommentCState
+    | p == '*' && c == '/'  = (Comment, CodeState, c)
+    | otherwise = (Comment, CommentCState, c)
 
-charFilter (x,_) SlashState 
-    | x == '/'  = (Comment, CommentCppState)
-    | x == '*'  = (Comment, CommentCState) 
-    | otherwise = error "charFilter"
+charParser (p,c) LiteralStateS
+    | p /= '\\' && c == '"'  = (Code, CodeState, c)
+    | p == '\\' && c == '\\' = (Literal, LiteralStateS, ' ')
+    | otherwise = (Literal, LiteralStateS, c) 
 
-charFilter (x,_) CommentCppState
-    | x == '\n' = (Comment, CodeState)
-    | otherwise = (Comment, CommentCppState)
-
-charFilter (x,_) CommentCState
-    | x == '*'  = (Comment, AsteriskState)
-    | otherwise = (Comment, CommentCState)
-
-charFilter (x,_) AsteriskState
-    | x == '/'  = (Comment, CodeState)
-    | x == '*'  = (Comment, AsteriskState)
-    | otherwise = (Comment, CommentCState)
-
-charFilter (x,_) LiteralState
-    | x == '"'  = (Code, CodeState)
-    | otherwise = (Literal, LiteralState)
+charParser (p,c) LiteralStateC
+    | p /= '\\' && c == '\'' = (Code, CodeState, c)
+    | p == '\\' && c == '\\' = (Literal, LiteralStateC, ' ')
+    | otherwise = (Literal, LiteralStateC, c)
 
 
 cxtFilter :: Context -> ContextFilter -> Bool

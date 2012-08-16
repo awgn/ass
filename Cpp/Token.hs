@@ -28,7 +28,7 @@ import Data.Set as S
 import Control.Monad
  
 import qualified Cpp.Source as Cpp
-import qualified Data.ByteString.Char8 as C
+import qualified Data.ByteString.Lazy.Char8 as C
 
 type TokenizerState = (Source, Offset, State)
 type Source = Cpp.Source

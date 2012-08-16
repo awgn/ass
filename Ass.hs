@@ -31,7 +31,7 @@ import System.FilePath
 import System.Directory(getCurrentDirectory)
 
 import Control.Monad(liftM)
-import qualified Data.ByteString.Char8 as C
+import qualified Data.ByteString.Lazy.Char8 as C
 
 import qualified Cpp.Source as Cpp
 import qualified Cpp.Filter as Cpp

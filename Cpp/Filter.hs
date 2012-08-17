@@ -26,26 +26,40 @@ import qualified Cpp.Source as Cpp
 import qualified Data.ByteString.Lazy.Char8 as C
 
 type Source = Cpp.Source
-type State  = (Char, ContextState, ContextFilter)
+
+
+data State = State {
+                cstate  :: ContextState,
+                cfilter :: ContextFilter,
+                pchar   :: Char
+             } deriving (Eq, Show)
 
 
 data Context = Code | Comment | Literal
                 deriving (Eq, Show)
 
 
+data ContextState = CodeState       | 
+                    CommentCState   | 
+                    CommentCppState | 
+                    LiteralStateS   |
+                    LiteralStateC
+                        deriving (Eq, Show)
+
+
 data ContextFilter = ContextFilter { getCode    :: Bool,
                                      getComment :: Bool,
-                                     getLiteral :: Bool }
-                    deriving (Eq, Show)
+                                     getLiteral :: Bool 
+                     } deriving (Eq, Show)
 
 
 filter :: ContextFilter -> Source -> Source
-filter filt src =  snd $ C.mapAccumL runFilter (' ', CodeState, filt) src 
+filter filt src =  snd $ C.mapAccumL runFilter (State CodeState filt ' ') src 
 
 
 runFilter :: State -> Char -> (State, Char) 
-runFilter (p, state, filt) c = ((p', state', filt), charFilter (cxtFilter cxt filt) cxt c)
-                                where (cxt, state', p') = charParser(p, c) state
+runFilter state c = (state', charFilter (cxtFilter cxt (cfilter state)) cxt c)
+                        where (cxt, state') = charParser(pchar state, c) state
 
 
 charFilter :: Bool -> Context -> Char -> Char
@@ -63,41 +77,33 @@ charFilter  cond _ c
 --     | Literal <- cxt = '_'
 
 
-data ContextState = CodeState       | 
-                    CommentCState   | 
-                    CommentCppState | 
-                    LiteralStateS   |
-                    LiteralStateC
-                    deriving (Eq, Show)
+charParser :: (Char,Char) -> State -> (Context, State)
 
-
-charParser :: (Char,Char) -> ContextState -> (Context, ContextState, Char)
-
-charParser (p,c) CodeState 
-    | p == '/'  && c == '/'  = (Code, CommentCppState, c)
-    | p == '/'  && c == '*'  = (Code, CommentCState,   c)
-    | p /= '\\' && c == '"'  = (Code, LiteralStateS,   c)
-    | p /= '\\' && c == '\'' = (Code, LiteralStateC,   c) 
-    | p == '\\' && c == '\\' = (Code, CodeState,     ' ')
-    | otherwise = (Code, CodeState, c)
+charParser (p,c) state@(State CodeState _ _) 
+    | p == '/'  && c == '/'  = (Code, state { cstate = CommentCppState, pchar = c })
+    | p == '/'  && c == '*'  = (Code, state { cstate = CommentCState,   pchar = c })
+    | p /= '\\' && c == '"'  = (Code, state { cstate = LiteralStateS,   pchar = c })
+    | p /= '\\' && c == '\'' = (Code, state { cstate = LiteralStateC,   pchar = c }) 
+    | p == '\\' && c == '\\' = (Code, state { pchar = ' ' })
+    | otherwise = (Code, state { pchar = c } )
                                        
-charParser (_,c) CommentCppState
-    | c == '\n' = (Comment, CodeState, c)
-    | otherwise = (Comment, CommentCppState, c)
+charParser (_,c) state@(State CommentCppState _ _)
+    | c == '\n' = (Comment, state { cstate = CodeState, pchar = c })
+    | otherwise = (Comment, state { pchar = c })
 
-charParser (p,c) CommentCState
-    | p == '*' && c == '/'  = (Comment, CodeState, c)
-    | otherwise = (Comment, CommentCState, c)
+charParser (p,c) state@(State CommentCState _ _)
+    | p == '*' && c == '/'  = (Comment, state { cstate = CodeState, pchar = c})
+    | otherwise = (Comment, state { pchar = c })
 
-charParser (p,c) LiteralStateS
-    | p /= '\\' && c == '"'  = (Code, CodeState, c)
-    | p == '\\' && c == '\\' = (Literal, LiteralStateS, ' ')
-    | otherwise = (Literal, LiteralStateS, c) 
+charParser (p,c) state@(State LiteralStateS _ _)
+    | p /= '\\' && c == '"'  = (Code,    state { cstate = CodeState, pchar = c})
+    | p == '\\' && c == '\\' = (Literal, state { pchar = ' '})
+    | otherwise = (Literal, state { pchar = c }) 
 
-charParser (p,c) LiteralStateC
-    | p /= '\\' && c == '\'' = (Code, CodeState, c)
-    | p == '\\' && c == '\\' = (Literal, LiteralStateC, ' ')
-    | otherwise = (Literal, LiteralStateC, c)
+charParser (p,c) state@(State LiteralStateC _ _)
+    | p /= '\\' && c == '\'' = (Code, state { cstate = CodeState, pchar = c })
+    | p == '\\' && c == '\\' = (Literal, state { pchar = ' '})
+    | otherwise = (Literal, state { pchar = c})
 
 
 cxtFilter :: Context -> ContextFilter -> Bool

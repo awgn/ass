@@ -91,7 +91,7 @@ isMultiThread src xs = "-pthread" `elem` xs  || useThreadOrAsync src
 
 useThreadOrAsync :: Source -> Bool
 useThreadOrAsync src =  "thread" `elem` identifiers || "async" `elem` identifiers   
-                            where tokens = filter Cpp.isTIdentifier $ Cpp.tokens $ sourceFilter src
+                            where tokens = filter Cpp.isIdentifier $ Cpp.tokens $ sourceFilter src
                                   identifiers = Cpp.toString <$> tokens
 
 

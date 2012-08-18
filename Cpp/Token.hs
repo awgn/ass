@@ -202,7 +202,7 @@ getTokenIdOrKeyword _ _ = Nothing
 
 
 getTokenOpOrPunct source _ = go source (min 4 (C.length source)) 
-                                where go src 0   
+                                where go _ 0   
                                         | C.length source > 0 = error $ "getTokenOpOrPunct: error " ++ show source
                                         | otherwise = Nothing
                                       go src len 

@@ -25,6 +25,7 @@ import Data.Int
 import Data.Char 
 import Data.Maybe
 import Data.Set as S
+import Data.Array 
 import Control.Monad
  
 import qualified Cpp.Source as Cpp
@@ -196,22 +197,22 @@ getTokenIdOrKeyword (C.uncons -> Nothing) _ = Nothing
 getTokenIdOrKeyword _ _ = Nothing
 
 getTokenOpOrPunct (C.uncons -> Just (a, C.uncons -> Just (b, C.uncons -> Just (c, C.uncons -> Just (d,_))))) _
-    | (a:b:c:[d]) `S.member` (operOrPunct !! 3) = Just $ TOperOrPunct (a:b:c:[d]) 0
-    | (a:b:[c])   `S.member` (operOrPunct !! 2) = Just $ TOperOrPunct (a:b:[c]) 0
-    | (a:[b])     `S.member` (operOrPunct !! 1) = Just $ TOperOrPunct (a:[b]) 0
-    | ([a])       `S.member` (operOrPunct !! 0) = Just $ TOperOrPunct [a] 0
+    | (a:b:c:[d]) `S.member` (operOrPunct ! 3) = Just $ TOperOrPunct (a:b:c:[d]) 0
+    | (a:b:[c])   `S.member` (operOrPunct ! 2) = Just $ TOperOrPunct (a:b:[c]) 0
+    | (a:[b])     `S.member` (operOrPunct ! 1) = Just $ TOperOrPunct (a:[b]) 0
+    | ([a])       `S.member` (operOrPunct ! 0) = Just $ TOperOrPunct [a] 0
     | otherwise  = error $ "getTokenOpOrPunct: error -> " ++ (show $ a:b:c:[d]) 
 getTokenOpOrPunct (C.uncons -> Just (a, C.uncons -> Just (b, C.uncons -> Just (c,_)))) _
-    | (a:b:[c])   `S.member` (operOrPunct !! 2) = Just $ TOperOrPunct (a:b:[c]) 0
-    | (a:[b])     `S.member` (operOrPunct !! 1) = Just $ TOperOrPunct (a:[b]) 0
-    | ([a])       `S.member` (operOrPunct !! 0) = Just $ TOperOrPunct [a] 0
+    | (a:b:[c])   `S.member` (operOrPunct ! 2) = Just $ TOperOrPunct (a:b:[c]) 0
+    | (a:[b])     `S.member` (operOrPunct ! 1) = Just $ TOperOrPunct (a:[b]) 0
+    | ([a])       `S.member` (operOrPunct ! 0) = Just $ TOperOrPunct [a] 0
     | otherwise  = error $ "getTokenOpOrPunct: error -> " ++ (show $ a:b:[c])
 getTokenOpOrPunct (C.uncons -> Just (a, C.uncons -> Just (b,_))) _ 
-    | (a:[b])     `S.member` (operOrPunct !! 1) = Just $ TOperOrPunct (a:[b]) 0
-    | ([a])       `S.member` (operOrPunct !! 0) = Just $ TOperOrPunct [a] 0
+    | (a:[b])     `S.member` (operOrPunct ! 1) = Just $ TOperOrPunct (a:[b]) 0
+    | ([a])       `S.member` (operOrPunct ! 0) = Just $ TOperOrPunct [a] 0
     | otherwise  = error $ "getTokenOpOrPunct: error -> " ++ (show $ a:[b])
 getTokenOpOrPunct (C.uncons -> Just (a,_)) _
-    | ([a])       `S.member` (operOrPunct !! 0) = Just $ TOperOrPunct [a] 0
+    | ([a])       `S.member` (operOrPunct ! 0) = Just $ TOperOrPunct [a] 0
     | otherwise  = error $ "getTokenOpOrPunct: error -> " ++ (show $ [a])
 getTokenOpOrPunct (C.uncons -> Nothing) _ = Nothing
 getTokenOpOrPunct _ _ = Nothing
@@ -230,15 +231,14 @@ getLiteral b e True (C.uncons -> Just (x,xs))
                         (C.uncons -> Just(x',xs')) = xs
 getLiteral _  _ _ _ = []
 
-operOrPunct :: [ S.Set String ]
-operOrPunct =  [ S.fromList  [ "{","}","[","]","#","(",")",";",":","?",".","+","-","*",
-                               "/","%","^","&","|","~","!","=","<",">","," ],
-                 S.fromList  [ "##", "<:", ":>", "<%", "%>", "%:", "::", ".*", "+=", "-=", 
-                               "*=", "/=", "%=", "^=", "&=", "|=", "<<", ">>", ">=", "<=", 
-                               "&&", "||", "==", "!=", "++", "--", "->", "//", "/*", "*/"],      
-                 S.fromList  [ "...", "<<=", ">>=", "->*"],   
-                 S.fromList  [ "%:%:" ]       
-               ]
+operOrPunct :: Array Int (S.Set String) 
+operOrPunct =  listArray (0, 3) [ S.fromList [ "{","}","[","]","#","(",")",";",":","?",".","+","-","*",
+                                               "/","%","^","&","|","~","!","=","<",">","," ],
+                                  S.fromList [ "##", "<:", ":>", "<%", "%>", "%:", "::", ".*", "+=", "-=", 
+                                               "*=", "/=", "%=", "^=", "&=", "|=", "<<", ">>", ">=", "<=", 
+                                               "&&", "||", "==", "!=", "++", "--", "->", "//", "/*", "*/"],      
+                                  S.fromList [ "...", "<<=", ">>=", "->*"],   
+                                  S.fromList [ "%:%:" ]]
 
 keywords :: S.Set String
 keywords = S.fromList ["alignas", "continue", "friend", "alignof", "decltype", "goto", "asm", 

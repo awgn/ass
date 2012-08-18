@@ -111,26 +111,27 @@ data State = Null | Hash | Include | Define | Undef | If | Ifdef | Ifndef | Elif
 
 
 nextState :: String -> State -> State
-nextState "#" Null       = Hash
-nextState "include" Hash = Include
-nextState "define"  Hash = Define
-nextState "undef"   Hash = Undef
-nextState "if"      Hash = If 
-nextState "ifdef"   Hash = Ifdef 
-nextState "ifndef"  Hash = Ifndef 
-nextState "elif"    Hash = Elif 
-nextState "else"    Hash = Else 
-nextState "endif"   Hash = Endif 
-nextState "line"    Hash = Line  
-nextState "error"   Hash = Error  
-nextState "pragma"  Hash = Pragma
-nextState _   _          = Null
+nextState "#"               _    = Hash
+nextState "include"         Hash = Include
+nextState "include_next"    Hash = Include
+nextState "define"          Hash = Define
+nextState "undef"           Hash = Undef
+nextState "if"              Hash = If 
+nextState "ifdef"           Hash = Ifdef 
+nextState "ifndef"          Hash = Ifndef 
+nextState "elif"            Hash = Elif 
+nextState "else"            Hash = Else 
+nextState "endif"           Hash = Endif 
+nextState "line"            Hash = Line  
+nextState "error"           Hash = Error  
+nextState "pragma"          Hash = Pragma
+nextState _  _  = Null
 
 ---
 
 runGetToken :: TokenizerState -> [Token]
 
-runGetToken ((C.uncons -> Nothing), _, _) = []
+runGetToken ((C.uncons  -> Nothing), _, _) = []
 runGetToken ts = token : runGetToken ns
                     where (token, ns) = getToken ts
 
@@ -158,7 +159,7 @@ getTokenIdOrKeyword, getTokenNumber, getTokenHeaderName,
 getTokenDirective xs  state 
     | state == Hash = Just (TDirective name 0)
     | otherwise = Nothing
-                      where name = C.unpack $ C.takeWhile (\c -> isAlphaNum c) xs
+                      where name = C.unpack $ C.takeWhile (\c -> isAlphaNum c || c == '_') xs
 
 getTokenHeaderName  xs@(C.uncons -> Just (x,_)) state 
     | state /= Include  = Nothing

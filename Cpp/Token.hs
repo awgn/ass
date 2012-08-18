@@ -175,17 +175,20 @@ getTokenNumber xs@(C.uncons -> Just (x,_)) _
 getTokenNumber (C.uncons -> Nothing) _ = Nothing
 getTokenNumber _ _ = Nothing
 
+
 getTokenString xs@(C.uncons -> Just (x,_)) _
     | x == '"' = Just $ TString (getLiteral '"'  '"'  False xs) 0
     | otherwise = Nothing
 getTokenString (C.uncons -> Nothing) _ = Nothing
 getTokenString _ _ = Nothing
 
+
 getTokenChar xs@(C.uncons -> Just (x,_)) _
     | x == '\'' = Just $ TChar  (getLiteral '\'' '\'' False xs) 0
     | otherwise = Nothing
 getTokenChar (C.uncons -> Nothing) _ = Nothing
 getTokenChar _ _ = Nothing
+
 
 getTokenIdOrKeyword xs@(C.uncons -> Just (x,_)) _
     | not $ isIdentifierChar x = Nothing 
@@ -196,27 +199,16 @@ getTokenIdOrKeyword xs@(C.uncons -> Just (x,_)) _
 getTokenIdOrKeyword (C.uncons -> Nothing) _ = Nothing
 getTokenIdOrKeyword _ _ = Nothing
 
-getTokenOpOrPunct (C.uncons -> Just (a, C.uncons -> Just (b, C.uncons -> Just (c, C.uncons -> Just (d,_))))) _
-    | (a:b:c:[d]) `S.member` (operOrPunct ! 3) = Just $ TOperOrPunct (a:b:c:[d]) 0
-    | (a:b:[c])   `S.member` (operOrPunct ! 2) = Just $ TOperOrPunct (a:b:[c]) 0
-    | (a:[b])     `S.member` (operOrPunct ! 1) = Just $ TOperOrPunct (a:[b]) 0
-    | ([a])       `S.member` (operOrPunct ! 0) = Just $ TOperOrPunct [a] 0
-    | otherwise  = error $ "getTokenOpOrPunct: error -> " ++ (show $ a:b:c:[d]) 
-getTokenOpOrPunct (C.uncons -> Just (a, C.uncons -> Just (b, C.uncons -> Just (c,_)))) _
-    | (a:b:[c])   `S.member` (operOrPunct ! 2) = Just $ TOperOrPunct (a:b:[c]) 0
-    | (a:[b])     `S.member` (operOrPunct ! 1) = Just $ TOperOrPunct (a:[b]) 0
-    | ([a])       `S.member` (operOrPunct ! 0) = Just $ TOperOrPunct [a] 0
-    | otherwise  = error $ "getTokenOpOrPunct: error -> " ++ (show $ a:b:[c])
-getTokenOpOrPunct (C.uncons -> Just (a, C.uncons -> Just (b,_))) _ 
-    | (a:[b])     `S.member` (operOrPunct ! 1) = Just $ TOperOrPunct (a:[b]) 0
-    | ([a])       `S.member` (operOrPunct ! 0) = Just $ TOperOrPunct [a] 0
-    | otherwise  = error $ "getTokenOpOrPunct: error -> " ++ (show $ a:[b])
-getTokenOpOrPunct (C.uncons -> Just (a,_)) _
-    | ([a])       `S.member` (operOrPunct ! 0) = Just $ TOperOrPunct [a] 0
-    | otherwise  = error $ "getTokenOpOrPunct: error -> " ++ (show $ [a])
-getTokenOpOrPunct (C.uncons -> Nothing) _ = Nothing
-getTokenOpOrPunct _ _ = Nothing
 
+getTokenOpOrPunct source _ = go source (min 4 (C.length source)) 
+                                where go src 0   
+                                        | C.length source > 0 = error $ "getTokenOpOrPunct: error " ++ show source
+                                        | otherwise = Nothing
+                                      go src len 
+                                        | sub `S.member` (operOrPunct ! fromIntegral len) = Just $ TOperOrPunct sub 0 
+                                        | otherwise = go src (len-1)
+                                            where sub = C.unpack (C.take len src)
+                                                                                                              
 
 getLiteral :: Char -> Char -> Bool -> C.ByteString -> String
 getLiteral _  _  _ (C.uncons -> Nothing)  = []
@@ -231,8 +223,9 @@ getLiteral b e True (C.uncons -> Just (x,xs))
                         (C.uncons -> Just(x',xs')) = xs
 getLiteral _  _ _ _ = []
 
+
 operOrPunct :: Array Int (S.Set String) 
-operOrPunct =  listArray (0, 3) [ S.fromList [ "{","}","[","]","#","(",")",";",":","?",".","+","-","*",
+operOrPunct =  listArray (1, 4) [ S.fromList [ "{","}","[","]","#","(",")",";",":","?",".","+","-","*",
                                                "/","%","^","&","|","~","!","=","<",">","," ],
                                   S.fromList [ "##", "<:", ":>", "<%", "%>", "%:", "::", ".*", "+=", "-=", 
                                                "*=", "/=", "%=", "^=", "&=", "|=", "<<", ">>", ">=", "<=", 

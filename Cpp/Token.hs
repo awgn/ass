@@ -18,9 +18,9 @@
 
 {-# LANGUAGE ViewPatterns #-} 
 
-module Cpp.Token(Token(..), isTIdentifier, isTKeyword, isTDirective, isTNumber, 
-                           isTHeaderName, isTString, isTChar, isTOperOrPunct, 
-                           tokens)  where
+module Cpp.Token(Token(..), isIdentifier, isKeyword, isDirective, isLiteralNumber, 
+                            isHeaderName, isString, isChar, isOperOrPunct, 
+                            tokens)  where
 import Data.Int                                                             
 import Data.Char 
 import Data.Maybe
@@ -56,44 +56,44 @@ data Token = TIdentifier  { toString :: String, offset :: Int64 } |
                 deriving (Show, Eq)  
 
 
-isTIdentifier :: Token -> Bool
-isTIdentifier (TIdentifier _ _)  = True
-isTIdentifier _ = False
+isIdentifier :: Token -> Bool
+isIdentifier (TIdentifier _ _)  = True
+isIdentifier _ = False
 
 
-isTKeyword :: Token -> Bool
-isTKeyword (TKeyword _ _)  = True
-isTKeyword _ = False
+isKeyword :: Token -> Bool
+isKeyword (TKeyword _ _)  = True
+isKeyword _ = False
 
 
-isTDirective :: Token -> Bool
-isTDirective (TDirective _ _)  = True
-isTDirective _ = False
+isDirective :: Token -> Bool
+isDirective (TDirective _ _)  = True
+isDirective _ = False
 
 
-isTNumber :: Token -> Bool
-isTNumber (TNumber _ _) = True
-isTNumber _ = False
+isLiteralNumber :: Token -> Bool
+isLiteralNumber (TNumber _ _) = True
+isLiteralNumber _ = False
 
 
-isTHeaderName :: Token -> Bool
-isTHeaderName (THeaderName _ _)  = True
-isTHeaderName _ = False
+isHeaderName :: Token -> Bool
+isHeaderName (THeaderName _ _)  = True
+isHeaderName _ = False
 
 
-isTString :: Token -> Bool
-isTString (TString _ _) = True
-isTString _ = False
+isString :: Token -> Bool
+isString (TString _ _) = True
+isString _ = False
 
 
-isTChar :: Token -> Bool
-isTChar (TChar _ _) = True
-isTChar _ = False
+isChar :: Token -> Bool
+isChar (TChar _ _) = True
+isChar _ = False
 
 
-isTOperOrPunct :: Token -> Bool
-isTOperOrPunct (TOperOrPunct _ _)  = True
-isTOperOrPunct _ = False
+isOperOrPunct :: Token -> Bool
+isOperOrPunct (TOperOrPunct _ _)  = True
+isOperOrPunct _ = False
 
 
 -- Drop leading whitespace and count them

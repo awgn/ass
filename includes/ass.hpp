@@ -256,8 +256,9 @@ namespace std {
     //
 
     template <typename CharT, typename Traits, typename T>
-    inline typename std::enable_if<(ass::traits::is_container<T>::value && 
-    !is_same<typename std::string,T>::value) || (rank<T>::value > 0), 
+    inline typename std::enable_if<(
+        ass::traits::is_container<T>::value && !is_same<typename std::string,T>::value) || 
+        (rank<T>::value > 0 && !is_same<char, typename remove_cv<typename remove_all_extents<T>::type>::type>::value ), 
         std::basic_ostream<CharT,Traits>>::type &
     operator<<(std::basic_ostream<CharT,Traits> &out, const T &xs)
     {

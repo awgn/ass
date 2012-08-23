@@ -234,7 +234,7 @@ namespace ass { namespace streamer {
         {
             static void apply(std::basic_ostream<CharT,Traits> &out, const T &tupl)
             {
-                out << std::get< std::tuple_size<T>::value - N>(tupl) << " ";
+                out << std::get< std::tuple_size<T>::value - N>(tupl) << ' ';
                 printon<CharT, Traits, T,N-1>::apply(out,tupl);
             }
         }; 
@@ -251,9 +251,9 @@ namespace ass { namespace streamer {
 
 namespace std {
 
-    ///////////////////////////////////////
+    //////////////////////////////////////////////////
     // operator<< for generic containers...
-    //
+    //            apart from: std::string, char[] etc.
 
     template <typename CharT, typename Traits, typename T>
     inline typename std::enable_if<(
@@ -265,7 +265,7 @@ namespace std {
         out << '{'; 
         for(auto & x : xs)
         {
-            cout << x << " ";
+            cout << x << ' ';
         }
         return out << '}';
     };
@@ -289,7 +289,7 @@ namespace std {
     {
         out << "[ ";
         ass::streamer::printon<CharT, Traits, std::array<T,N>, N>::apply(out,rhs);
-        return out << "]";
+        return out << ']';
     }
 
     ////////////////////////////////////////////////////////
@@ -299,9 +299,9 @@ namespace std {
     typename std::enable_if< ass::traits::is_tuple<T>::value, std::basic_ostream<CharT,Traits> >::type &
     operator<<(std::basic_ostream<CharT,Traits> &out, const T &rhs)
     {
-        out << "(";
+        out << '(';
         ass::streamer::printon<CharT, Traits, T, std::tuple_size<T>::value>::apply(out,rhs);
-        return out << ")";
+        return out << ')';
     }
 
     ////////////////////////////////////////////////////////

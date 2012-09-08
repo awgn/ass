@@ -606,12 +606,11 @@ std::tuple<T...> _(T&& ...arg)
     return std::make_tuple(std::forward<T>(arg) ...);
 }
 
-////////////////////////////////////////////////////////////// T(): print the type of an expression
+////////////////////////////////////////////////////////////// _T(): return the type of an expression
 //
 
-#define TYPE(x) { \
-    std::cout << ass::type_name<is_reference<decltype(x)>::value>(x); \
-}
+#define _T(x)   ass::type_name<is_reference<decltype(x)>::value>(x)
+
 
 using namespace std;
 using namespace std::chrono;

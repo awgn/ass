@@ -161,7 +161,7 @@ getCompilerOpt :: Compiler -> Bool -> [String]
 getCompilerOpt Gcc   _  =  [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", "-Wextra", "-Wno-unused-parameter" ]
 getCompilerOpt Clang mt =  [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", "-include-pch", precomp_header, "-Wextra", "-Wno-unused-parameter" , "-Wno-unneeded-internal-declaration"]
                             where precomp_header | mt = "/usr/local/include/ass-mt.hpp.pch"
-                                                 |otherwise = "/usr/local/include/ass.hpp.pch" 
+                                                 | otherwise = "/usr/local/include/ass.hpp.pch" 
 
 
 compileWith :: Compiler -> FilePath -> FilePath -> Bool -> [String] -> IO ExitCode

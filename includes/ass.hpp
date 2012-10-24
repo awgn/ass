@@ -222,115 +222,6 @@ namespace ass
 
 } // namespace ass 
 
-////////////////////////////////////////////////////////////// streamer
-
-namespace ass { namespace streamer {
-
-        // printon policy 
-        //
-
-        template <typename CharT, typename Traits, typename T, int N>
-        struct printon
-        {
-            static void apply(std::basic_ostream<CharT,Traits> &out, const T &tupl)
-            {
-                out << std::get< std::tuple_size<T>::value - N>(tupl) << ' ';
-                printon<CharT, Traits, T,N-1>::apply(out,tupl);
-            }
-        }; 
-        template <typename CharT, typename Traits, typename T>
-        struct printon<CharT, Traits, T,0>
-        {
-            static void apply(std::basic_ostream<CharT, Traits> &, const T &)
-            {}
-        };
-
-} // namespace streamer
-} // namespace ass
-
-
-namespace std {
-
-    //////////////////////////////////////////////////
-    // operator<< for generic containers...
-    //            apart from: std::string, char[] etc.
-
-    template <typename CharT, typename Traits, typename T>
-    inline typename std::enable_if<(
-        (ass::traits::is_container<T>::value && 
-            !is_same<typename std::string,T>::value)) || 
-        (rank<T>::value > 0 && 
-            !is_same<char, typename remove_cv<typename remove_all_extents<T>::type>::type>::value), 
-        std::basic_ostream<CharT,Traits>>::type &
-    operator<<(std::basic_ostream<CharT,Traits> &out, const T &xs)
-    {
-        out << '{'; 
-        for(auto & x : xs)
-        {
-            cout << x << ' ';
-        }
-        return out << '}';
-    };
-
-    //////////////////////////
-    // operator<< for pair...
-
-    template <typename CharT, typename Traits, typename U, typename V>
-    inline std::basic_ostream<CharT, Traits> &
-    operator<< (std::basic_ostream<CharT, Traits> &out, const std::pair<U,V> &r)
-    {
-        return out << '(' << r.first << ',' << r.second << ')';
-    }
-
-    ///////////////////////////////
-    // operator<< for std::array...
-
-    template <typename CharT, typename Traits, typename T, std::size_t N>
-    std::basic_ostream<CharT,Traits> &
-    operator<<(std::basic_ostream<CharT,Traits> &out, const std::array<T,N> &rhs)
-    {
-        out << "[ ";
-        ass::streamer::printon<CharT, Traits, std::array<T,N>, N>::apply(out,rhs);
-        return out << ']';
-    }
-
-    ////////////////////////////////////////////////////////
-    // operator<< for tuple: (enabled if T is a tuple<>)... 
-
-    template <typename CharT, typename Traits, typename T>
-    typename std::enable_if< ass::traits::is_tuple<T>::value, std::basic_ostream<CharT,Traits> >::type &
-    operator<<(std::basic_ostream<CharT,Traits> &out, const T &rhs)
-    {
-        out << '(';
-        ass::streamer::printon<CharT, Traits, T, std::tuple_size<T>::value>::apply(out,rhs);
-        return out << ')';
-    }
-
-    ////////////////////////////////////////////////////////
-    // operator<< for chrono types... 
-
-    template <typename CharT, typename Traits, typename Tp>
-    typename std::enable_if< std::is_same<Tp, std::chrono::nanoseconds>::value ||
-                             std::is_same<Tp, std::chrono::microseconds>::value || 
-                             std::is_same<Tp, std::chrono::milliseconds>::value || 
-                             std::is_same<Tp, std::chrono::seconds>::value || 
-                             std::is_same<Tp, std::chrono::minutes>::value || 
-                             std::is_same<Tp, std::chrono::hours>::value, 
-             std::basic_ostream<CharT, Traits>>::type &
-    operator<< (std::basic_ostream<CharT, Traits> &out, const Tp &r)
-    {
-        return out << r.count() << ass::traits::_duration_traits<Tp>::str;
-    }
-
-    template <typename CharT, typename Traits, typename Clock, typename Dur>
-    inline std::basic_ostream<CharT, Traits> &
-    operator<< (std::basic_ostream<CharT, Traits> &out, std::chrono::time_point<Clock, Dur> const &r)
-    {
-        return out << r.time_since_epoch();
-    }
-
-} // namespace std
-
 
 ////////////////////////////////////////////////////////////// type utils 
 
@@ -369,7 +260,240 @@ namespace ass {
     
 } // namespace ass
 
+
+///////////////// libmore show:
+
+
+inline namespace ass_show {
+
+    // forward declarations:
+    //
+    
+    inline std::string 
+    show(const char *v, const char *n = nullptr);
+    
+    inline std::string 
+    show(std::string const &s, const char *n = nullptr);
+
+    template <typename T> 
+    inline 
+    typename std::enable_if<std::is_arithmetic<T>::value, std::string>::type 
+    show(T const &value, const char * n = nullptr);
+
+    template <typename T>
+    inline  
+    typename std::enable_if<std::is_pointer<T>::value, std::string>::type 
+    show(T const &p, const char *n = nullptr);
+
+    template <typename U, typename V>
+    inline std::string
+    show(std::pair<U,V> const &r, const char * n = nullptr);
+
+    template <typename T, std::size_t N>
+    inline std::string
+    show(std::array<T,N> const &a, const char * n = nullptr);
+
+    template <typename ...Ts>
+    inline std::string
+    show(std::tuple<Ts...> const &t, const char * n = nullptr);
+
+    template <typename Rep, typename Period>
+    inline std::string
+    show(std::chrono::duration<Rep, Period> const &dur, const char *n = nullptr);
+    
+    template <typename Clock, typename Dur>
+    inline std::string
+    show(std::chrono::time_point<Clock, Dur> const &r, const char *n = nullptr);
+
+    template <typename T>
+    inline typename std::enable_if<
+        (!std::is_pointer<T>::value) && (
+        (ass::traits::is_container<T>::value && !std::is_same<typename std::string,T>::value) ||
+        (std::rank<T>::value > 0 && !std::is_same<char, typename std::remove_cv<typename std::remove_all_extents<T>::type>::type>::value)),
+    std::string>::type 
+    show(const T &v, const char * n = nullptr);
+    
+    namespace details {
+
+        template <typename T>
+        inline std::string 
+        header(const char *n)
+        {
+            return n == nullptr ? std::string() : 
+                    *n == '\0' ? ass::cxa_demangle(typeid(T).name()) + " " :
+                     std::string(n) + " ";
+        }
+
+        // show_on policy 
+        //
+
+        template <typename T, int N>
+        struct show_on
+        {
+            static inline
+            void apply(std::string &out, const T &tupl, const char *n)
+            {
+                out += show(std::get< std::tuple_size<T>::value - N>(tupl), nullptr) + " ";
+                show_on<T,N-1>::apply(out,tupl, n);
+            }
+        }; 
+        template <typename T>
+        struct show_on<T, 0>
+        {
+            static inline
+            void apply(std::string&, const T &, const char *)
+            {}
+        };
+
+        template <typename T>
+        struct _duration_traits;
+            template <> struct _duration_traits<std::chrono::nanoseconds>  { static constexpr const char *str = "_ns"; };
+            template <> struct _duration_traits<std::chrono::microseconds> { static constexpr const char *str = "_us"; };
+            template <> struct _duration_traits<std::chrono::milliseconds> { static constexpr const char *str = "_ms"; };
+            template <> struct _duration_traits<std::chrono::seconds>      { static constexpr const char *str = "_s"; };
+            template <> struct _duration_traits<std::chrono::minutes>      { static constexpr const char *str = "_m"; };
+            template <> struct _duration_traits<std::chrono::hours>        { static constexpr const char *str = "_h"; };
+
+    }
+
+    ///////////////////////////////////////
+    // show for const char *
+    //
+    
+    inline std::string
+    show(const char *v, const char *n)
+    {
+        return details::header<const char *>(n) + "\"" + std::string(v) + "\"";
+    }
+    
+    ///////////////////////////////////////
+    // show for std::string
+    //
+    
+    inline std::string
+    show(std::string const &s, const char *n)
+    {
+        return details::header<std::string>(n) + "\"" + s + "\"";
+    }
+
+    ///////////////////////////////////////
+    // show for arithmetic types..
+    //
+    
+    template <typename T>
+    inline typename std::enable_if<std::is_arithmetic<T>::value, std::string>::type
+    show(T const &value, const char * n)
+    {
+        return details::header<T>(n) + std::to_string(value);
+    }
+
+    ///////////////////////////////////////
+    // show for pointers *
+    //
+    
+    template <typename T> 
+    inline typename std::enable_if<std::is_pointer<T>::value, std::string>::type
+    show(T const &p, const char *n)
+    {
+        std::ostringstream o;
+        o << static_cast<void *>(p);
+        return details::header<T>(n) + o.str();
+    }
+
+    //////////////////////////
+    // show for pair...
+
+    template <typename U, typename V>
+    inline std::string
+    show(const std::pair<U,V> &r, const char * n)
+    {
+        return details::header<std::pair<U,V>>(n) + 
+                "(" + show(r.first) + 
+                "," + show(r.second) + ")";
+    }
+
+    ///////////////////////////
+    // show for array...
+
+    template <typename T, std::size_t N>
+    inline std::string
+    show(std::array<T,N> const &a, const char * n)
+    {
+        std::string out("[ ");
+        details::show_on<std::array<T,N>, N>::apply(out,a, n ? "" : nullptr);
+        return details::header<std::array<T,N>>(n) + out + "]";
+    }
+
+    ////////////////////////////////////////////////////////
+    // show for tuple... 
+
+    template <typename ...Ts>
+    inline std::string
+    show(std::tuple<Ts...> const &t, const char * n)
+    {
+        std::string out("{ ");
+        details::show_on<std::tuple<Ts...>, sizeof...(Ts)>::apply(out,t, n ? "" : nullptr);
+        return details::header<std::tuple<Ts...>>(n) + out + "}";
+    }                                              
+
+    ////////////////////////////////////////////////////////
+    // show for chrono types... 
+
+    template <typename Rep, typename Period>
+    inline std::string
+    show(std::chrono::duration<Rep, Period> const &dur, const char *n)
+    {
+        std::string out(std::to_string(dur.count()));
+        return details::header<std::chrono::duration<Rep,Period>>(n) + out + std::string(details::_duration_traits<std::chrono::duration<Rep,Period>>::str);
+    }
+
+    template <typename Clock, typename Dur>
+    inline std::string
+    show(std::chrono::time_point<Clock, Dur> const &r, const char *n)
+    {    
+        return details::header<std::chrono::time_point<Clock,Dur>>(n) + show(r.time_since_epoch());
+    }
+
+    ///////////////////////////////////////
+    // show for generic containers...
+    //
+
+    template <typename T>
+    inline typename std::enable_if<
+        (!std::is_pointer<T>::value) && (
+        (ass::traits::is_container<T>::value && !std::is_same<typename std::string,T>::value) ||
+        (std::rank<T>::value > 0 && !std::is_same<char, typename std::remove_cv<typename std::remove_all_extents<T>::type>::type>::value)),
+    std::string>::type 
+    show(const T &v, const char * n)
+    {
+        std::string s("{ ");
+        for(auto & e : v)
+        {
+            s += show(e) + " ";
+        }
+        return details::header<T>(n) + s + "}";
+    };
+
+} // namespace ass_show
+
+
+namespace std 
+{
+    ////////////////////////////////////////////
+    // operator<< for types that can be shown...
+
+    template <typename CharT, typename Traits, typename T>
+    inline std::basic_ostream<CharT, Traits> &
+    operator<< (std::basic_ostream<CharT, Traits> &out, const T &value)
+    {
+        return out << show(value);
+    }
+
+} // namespace std
+
+
 ////////////////////////////////////////////////////////////// simple Oracle class
+
 
 struct O
 {

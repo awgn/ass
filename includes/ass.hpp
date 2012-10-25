@@ -242,14 +242,13 @@ namespace ass
     struct is_pair<std::pair<T,U>> : public std::integral_constant<bool, true>
     {};
 
-#if !defined(__clang__) 
 
     // has_insertion_operator: operator<<()
     
     template <typename T>
     class has_insertion_operator : public __sfinae_types
     {
-        template <typename C> static __one test(typename std::remove_reference<decltype(std::cout << std::declval<C>())>::type *);
+        template <typename C> static __one test(typename std::remove_reference<decltype((std::cout << std::declval<C>()))>::type *);
         template <typename C> static __two test(...);
     public:    
         enum { value = sizeof(test<T>(0)) == sizeof(__one) };
@@ -260,13 +259,11 @@ namespace ass
     template <typename T>
     class has_extraction_operator : public __sfinae_types
     {
-        template <typename C> static __one test(typename std::remove_reference<decltype(std::cin >> std::declval<C &>())>::type *);
+        template <typename C> static __one test(typename std::remove_reference<decltype((std::cin >> std::declval<C &>()))>::type *);
         template <typename C> static __two test(...);
     public:    
         enum { value = sizeof(test<T>(0)) == sizeof(__one) };
     };
-
-#endif
 
     } // namespace traits
 
@@ -582,8 +579,6 @@ inline namespace more_show {
 } // namespace more_show
 
 
-#if !defined(__clang__) 
-    
 namespace std 
 {
     ////////////////////////////////////////////
@@ -600,7 +595,6 @@ namespace std
 
 } // namespace std
 
-#endif
 
 ////////////////////////////////////////////////////////////// type utils 
 

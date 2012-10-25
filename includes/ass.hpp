@@ -853,25 +853,37 @@ void P(T &&arg)
 {
     std::cout << show(arg, none);
 }
-template <typename T, typename ...Ti>
-void P(T &&arg, Ti&&... args)
+
+template <typename T, typename ...Ts>
+void P(T &&arg, Ts&&... args)
 {
     std::cout << show(arg, none) << ' ';
-    P(std::forward<Ti>(args)...);
+    P(std::forward<Ts>(args)...);
 }
 
 ////////////////////////////////////////////////////////////// _(): build pairs and tuples 
 
 template <typename T1, typename T2>
-std::pair<T1,T2> _(T1 &&arg1, T2 &&arg2)
+auto _(T1 &&arg1, T2 &&arg2)
+    -> decltype(std::make_pair(std::forward<T1>(arg1), std::forward<T2>(arg2)))
 {
-    return std::make_pair(std::forward<T1>(arg1),
-                          std::forward<T2>(arg2));
+    return std::make_pair(std::forward<T1>(arg1), std::forward<T2>(arg2));
 }
-template <typename ... T>
-std::tuple<T...> _(T&& ...arg)
+
+template <typename ... Ts>
+auto _(Ts&& ...args) 
+    -> decltype(std::make_tuple(std::forward<Ts>(args)...))
 {
-    return std::make_tuple(std::forward<T>(arg) ...);
+    return std::make_tuple(std::forward<Ts>(args)...);
+}
+
+////////////////////////////////////////////////////////////// S(): stringfy arg with show()
+
+template <typename T>
+std::string
+S(const T & arg)
+{
+    return show(arg, none);
 }
 
 ////////////////////////////////////////////////////////////// _T(): return the type of an expression

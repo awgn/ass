@@ -73,12 +73,12 @@ compilerList = [
 
 getDefaultCompiler :: [Compiler] -> IO Compiler
 
-getDefaultCompiler [] = error "Compiler not found"
+getDefaultCompiler [] = error "C++ compiler not found!"
 getDefaultCompiler (x:xs) = do 
            r <- doesFileExist (getExec x)
            case r of 
                 True  -> return x
-                False -> getDefaultCompiler xs
+                False -> getDefaultCompiler xs                                                         
 
 
 getCompiler :: [Compiler] -> IO Compiler
@@ -110,18 +110,17 @@ main = do args <- getArgs
             _        -> getCompiler compilerList >>= mainFun args 
 
 printHelp :: IO ()
-printHelp =  putStrLn $ "Input: Expression | Command\n\n" ++
-                        "Expression    -- any C++ expression\n" ++
-                        "Commands:\n" ++
-                        "?             -- print this help\n" ++ 
-                        "q             -- quit"
+printHelp =  putStrLn $ "Commands available from the prompt:\n\n" ++
+                        "<statement>                 evaluate/run C++ <statement>\n\n" ++
+                        "  ?                         print this help\n" ++ 
+                        "  q                         quit"
 
 mainLoop :: [String] -> Compiler -> IO ()
 mainLoop args cxx = putStrLn (banner ++ "\nUsing " ++ getExec cxx ++ " compiler.") >> runInputT defaultSettings loop
    where
        loop :: InputT IO ()
        loop = do
-           minput <- getInputLine "\n> "
+           minput <- getInputLine "Ass> "
            case minput of
                Nothing -> return ()
                Just "q"    -> outputStrLn "Leaving ASSi." >> return ()

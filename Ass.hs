@@ -30,7 +30,11 @@ import System.Exit
 import System.FilePath
 import System.Directory(getCurrentDirectory)
 
+import System.Console.Haskeline
+
 import Control.Monad(liftM)
+import Control.Monad.Trans.Class
+
 import qualified Data.ByteString.Lazy.Char8 as C
 
 import qualified Cpp.Source as Cpp
@@ -57,28 +61,55 @@ instance Show CodeLine where
     show (CodeLine n xs) = "#line " ++ show n ++ "\n" ++ C.unpack xs  
 
 
-snippet, tmpDir :: String 
+banner, snippet, tmpDir :: String 
 
 snippet = "snippet" 
-tmpDir =  "/tmp" 
+tmpDir  =  "/tmp" 
+banner  = "ASSi, version 1.1"
+   
 
-main :: IO Int
+main :: IO ()
 main = do args <- getArgs
-          cwd' <- getCurrentDirectory
-          code <- C.hGetContents stdin
-          cxx  <- getCompiler
+          case args of 
+            ("-i":_) -> mainLoop $ tail args
+            [] -> mainFun []
+            _  -> mainFun args 
 
-          let args' = getCompilerArgs args
-          let mt    = isMultiThread code args'
-          let bin   = tmpDir </> snippet
-          let src   = bin <.> "cpp"
 
-          writeSource src (makeSourceCode code mt)
+mainLoop :: [String] -> IO ()
+mainLoop args = putStrLn banner >> runInputT defaultSettings { historyFile = Just "~/.ass" } loop
+   where 
+       loop :: InputT IO ()
+       loop = do
+           minput <- getInputLine "\n> "
+           case minput of
+               Nothing -> return ()
+               Just "quit" -> outputStrLn "Leaving ASSi." >> return ()
+               Just "q"    -> outputStrLn "Leaving ASSi." >> return ()
+               Just ""     -> loop
+               Just input  -> do 
+                              _ <- lift $ buildCompileRun (C.pack input) (Clang) (getCompilerArgs args) [] 
+                              loop
 
-          compileWith cxx src bin mt (["-I", cwd', "-I",  cwd' </> ".."] ++ args') 
-                >>= \ec -> if (ec == ExitSuccess)
-                           then system (bin ++ " " ++ (unwords $ getTestArgs args)) >>= exitWith
-                           else exitFailure
+mainFun :: [String] -> IO ()
+mainFun args = do
+    code <- C.hGetContents stdin
+    cxx  <- getCompiler
+    buildCompileRun code cxx (getCompilerArgs args) (getTestArgs args) >>= exitWith
+
+
+buildCompileRun :: Source -> Compiler -> [String] -> [String] -> IO ExitCode 
+-- buildCompileRun code cxx cargs targs | trace ("buildCompileRun") False = undefined
+buildCompileRun code cxx cargs targs = do 
+    cwd' <- getCurrentDirectory
+    let mt  = isMultiThread code cargs
+    let bin = tmpDir </> snippet
+    let src = bin <.> "cpp"
+    writeSource src (makeSourceCode code mt)
+    ec <- compileWith cxx src bin mt (["-I", cwd', "-I",  cwd' </> ".."] ++ cargs) 
+    if (ec == ExitSuccess) 
+       then system (bin ++ " " ++ (unwords $ targs)) 
+       else return ec
 
 
 writeSource :: FilePath -> [SourceCode] -> IO ()
@@ -166,10 +197,10 @@ getCompilerOpt Clang mt =  [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", "
 
 compileWith :: Compiler -> FilePath -> FilePath -> Bool -> [String] -> IO ExitCode
 compileWith cxx source binary mt user_opt 
-            = do -- print cmd 
-                 system $ unwords $ cmd
+            = do system $ unwords $ cmd
                     where cmd = [getCompilerExe cxx, source, "-o", binary] 
                                 ++ (getCompilerOpt cxx mt) 
                                 ++ user_opt 
                                 ++ if (mt) then ["-pthread"] else []
+
 

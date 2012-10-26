@@ -53,6 +53,15 @@ type ParserState     = (TranslationUnit, MainFunction)
 data Compiler = Gcc { getExec :: FilePath } | Clang { getExec :: FilePath }
                 deriving (Show, Eq)
 
+isClang :: Compiler -> Bool
+isClang (Gcc   _) = False
+isClang (Clang _) = True
+
+isGcc :: Compiler -> Bool
+isGcc (Gcc   _) = True
+isGcc (Clang _) = False
+
+
 compilerList :: [Compiler]
 
 compilerList = [ 
@@ -73,10 +82,10 @@ getDefaultCompiler (x:xs) = do
 
 
 getCompiler :: [Compiler] -> IO Compiler
-getCompiler list =  liftM (isSuffixOf "clang") getProgName >>= \wantClang ->
-                if wantClang  
-                    then getDefaultCompiler (filter (\cxx -> case cxx of (Clang _) -> True; _ -> False) list)  
-                    else getDefaultCompiler (filter (\cxx -> case cxx of (Gcc   _) -> True; _ -> False) list)
+getCompiler list =  liftM (isSuffixOf "clang") getProgName >>= \clang ->
+                    if clang  
+                    then getDefaultCompiler (filter isClang list)  
+                    else getDefaultCompiler (filter isGcc   list)
 
 
 data CodeLine = CodeLine Int SourceLine 
@@ -119,7 +128,8 @@ mainLoop args cxx = putStrLn (banner ++ "\nUsing " ++ getExec cxx ++ " compiler.
                Just "?"    -> lift printHelp >> loop
                Just ""     -> loop
                Just input  -> do 
-                              _ <- lift $ buildCompileRun (C.pack input) cxx (getCompilerArgs args) [] 
+                              e <- lift $ buildCompileRun (C.pack input) cxx (getCompilerArgs args) [] 
+                              outputStrLn $ show e
                               loop
 
 mainFun :: [String] -> Compiler -> IO ()

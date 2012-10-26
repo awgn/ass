@@ -28,7 +28,7 @@ import System.Process(system)
 import System.IO
 import System.Exit
 import System.FilePath
-import System.Directory(getCurrentDirectory)
+import System.Directory(getCurrentDirectory, doesFileExist)
 
 import System.Console.Haskeline
 
@@ -50,8 +50,32 @@ type MainFunction    = SourceCode
 type ParserState     = (TranslationUnit, MainFunction)
  
 
-data Compiler = Gcc | Clang 
-                deriving (Show, Eq, Ord)
+data Compiler = Gcc { getExec :: FilePath } | Clang { getExec :: FilePath }
+                deriving (Show, Eq)
+
+compilerList :: [Compiler]
+
+compilerList = [ 
+                 Clang "/usr/bin/clang++",
+                 Clang "/usr/local/bin/clang++",
+                 Gcc   "/usr/bin/g++",
+                 Gcc   "/usr/local/bin/g++"
+               ]
+
+getDefaultCompiler :: [Compiler] -> IO Compiler
+
+getDefaultCompiler [] = error "Compiler not found"
+getDefaultCompiler (x:xs) = do 
+           r <- doesFileExist (getExec x)
+           case r of 
+                True  -> return x
+                False -> getDefaultCompiler xs
+
+getCompiler :: [Compiler] -> IO Compiler
+getCompiler list =  liftM (isSuffixOf "clang") getProgName >>= \wantClang ->
+                if wantClang  
+                    then getDefaultCompiler (filter (\cxx -> case cxx of (Clang _) -> True; _ -> False) list)  
+                    else getDefaultCompiler (filter (\cxx -> case cxx of (Gcc   _) -> True; _ -> False) list)
 
 
 data CodeLine = CodeLine Int SourceLine 
@@ -63,22 +87,22 @@ instance Show CodeLine where
 
 banner, snippet, tmpDir :: String 
 
+banner  = "ASSi, version 1.1. ? for help"
 snippet = "snippet" 
 tmpDir  =  "/tmp" 
-banner  = "ASSi, version 1.1"
    
 
 main :: IO ()
 main = do args <- getArgs
           case args of 
-            ("-i":_) -> mainLoop $ tail args
-            [] -> mainFun []
-            _  -> mainFun args 
+            ("-i":_) -> getDefaultCompiler compilerList >>= mainLoop (tail args) 
+            []       -> getCompiler compilerList >>= mainFun [] 
+            _        -> getCompiler compilerList >>= mainFun args 
 
 
-mainLoop :: [String] -> IO ()
-mainLoop args = putStrLn banner >> runInputT defaultSettings { historyFile = Just "~/.ass" } loop
-   where 
+mainLoop :: [String] -> Compiler -> IO ()
+mainLoop args cxx = putStrLn (banner ++ "\nUsing " ++ getExec cxx ++ " compiler.") >> runInputT defaultSettings loop
+   where
        loop :: InputT IO ()
        loop = do
            minput <- getInputLine "\n> "
@@ -88,13 +112,12 @@ mainLoop args = putStrLn banner >> runInputT defaultSettings { historyFile = Jus
                Just "q"    -> outputStrLn "Leaving ASSi." >> return ()
                Just ""     -> loop
                Just input  -> do 
-                              _ <- lift $ buildCompileRun (C.pack input) (Clang) (getCompilerArgs args) [] 
+                              _ <- lift $ buildCompileRun (C.pack input) cxx (getCompilerArgs args) [] 
                               loop
 
-mainFun :: [String] -> IO ()
-mainFun args = do
+mainFun :: [String] -> Compiler -> IO ()
+mainFun args cxx = do
     code <- C.hGetContents stdin
-    cxx  <- getCompiler
     buildCompileRun code cxx (getCompilerArgs args) (getTestArgs args) >>= exitWith
 
 
@@ -178,19 +201,12 @@ toSourceCode :: Source -> SourceCode
 toSourceCode src = zipWith CodeLine [1..] (C.lines src)
 
 
-getCompiler :: IO Compiler
-getCompiler =  liftM (isSuffixOf "clang") getProgName >>= 
-                    (\b -> if b then return Clang else return Gcc)
-
-
-getCompilerExe :: Compiler -> String
-getCompilerExe Gcc   = "/usr/bin/g++"
-getCompilerExe Clang = "/usr/bin/clang++"
-
-
 getCompilerOpt :: Compiler -> Bool -> [String]
-getCompilerOpt Gcc   _  =  [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", "-Wextra", "-Wno-unused-parameter" ]
-getCompilerOpt Clang mt =  [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", "-include-pch", precomp_header, "-Wextra", "-Wno-unused-parameter" , "-Wno-unneeded-internal-declaration"]
+getCompilerOpt (Gcc _)   _  =  [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", 
+                                 "-Wextra", "-Wno-unused-parameter" ]
+getCompilerOpt (Clang _) mt =  [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", 
+                                 "-include-pch", precomp_header, "-Wextra", 
+                                 "-Wno-unused-parameter" , "-Wno-unneeded-internal-declaration"]
                             where precomp_header | mt = "/usr/local/include/ass-mt.hpp.pch"
                                                  | otherwise = "/usr/local/include/ass.hpp.pch" 
 
@@ -198,7 +214,7 @@ getCompilerOpt Clang mt =  [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", "
 compileWith :: Compiler -> FilePath -> FilePath -> Bool -> [String] -> IO ExitCode
 compileWith cxx source binary mt user_opt 
             = do system $ unwords $ cmd
-                    where cmd = [getCompilerExe cxx, source, "-o", binary] 
+                    where cmd = [getExec cxx, source, "-o", binary] 
                                 ++ (getCompilerOpt cxx mt) 
                                 ++ user_opt 
                                 ++ if (mt) then ["-pthread"] else []

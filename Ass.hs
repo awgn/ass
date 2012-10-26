@@ -71,6 +71,7 @@ getDefaultCompiler (x:xs) = do
                 True  -> return x
                 False -> getDefaultCompiler xs
 
+
 getCompiler :: [Compiler] -> IO Compiler
 getCompiler list =  liftM (isSuffixOf "clang") getProgName >>= \wantClang ->
                 if wantClang  
@@ -95,10 +96,16 @@ tmpDir  =  "/tmp"
 main :: IO ()
 main = do args <- getArgs
           case args of 
-            ("-i":_) -> getDefaultCompiler compilerList >>= mainLoop (tail args) 
+            ("-i":_) -> getDefaultCompiler compilerList >>= mainLoop (tail args)
             []       -> getCompiler compilerList >>= mainFun [] 
             _        -> getCompiler compilerList >>= mainFun args 
 
+printHelp :: IO ()
+printHelp =  putStrLn $ "Input: Expression | Command\n\n" ++
+                        "Expression    -- any C++ expression\n" ++
+                        "Commands:\n" ++
+                        "?             -- print this help\n" ++ 
+                        "q             -- quit"
 
 mainLoop :: [String] -> Compiler -> IO ()
 mainLoop args cxx = putStrLn (banner ++ "\nUsing " ++ getExec cxx ++ " compiler.") >> runInputT defaultSettings loop
@@ -108,8 +115,8 @@ mainLoop args cxx = putStrLn (banner ++ "\nUsing " ++ getExec cxx ++ " compiler.
            minput <- getInputLine "\n> "
            case minput of
                Nothing -> return ()
-               Just "quit" -> outputStrLn "Leaving ASSi." >> return ()
                Just "q"    -> outputStrLn "Leaving ASSi." >> return ()
+               Just "?"    -> lift printHelp >> loop
                Just ""     -> loop
                Just input  -> do 
                               _ <- lift $ buildCompileRun (C.pack input) cxx (getCompilerArgs args) [] 

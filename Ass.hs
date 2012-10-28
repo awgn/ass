@@ -132,7 +132,7 @@ mainLoop args cxx = putStrLn (banner ++ "\nUsing " ++ getExec cxx ++ " compiler.
                Just input | isPreprocessor (C.pack input) -> loop $ input : ppList 
                           | otherwise -> do 
                               e <- lift $ buildCompileRun (C.pack (unlines $ ppList ++ [input])) cxx (getCompilerArgs args) [] 
-                              outputStrLn $ show e
+                              outputStrLn $ " -> " ++ show e
                               loop ppList
 
 

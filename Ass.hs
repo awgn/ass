@@ -112,7 +112,7 @@ main = do args <- getArgs
 printHelp :: IO ()
 printHelp =  putStrLn $ "Commands available from the prompt:\n\n" ++
                         "<statement>                 evaluate/run C++ <statement>\n" ++
-                        "  c                         clear preprocessor list\n" ++ 
+                        "  c                         clear preprocessor directives\n" ++ 
                         "  q                         quit\n" ++
                         "  ?                         print this help\n"  
 
@@ -125,7 +125,7 @@ mainLoop args cxx = putStrLn (banner ++ "\nUsing " ++ getExec cxx ++ " compiler.
            minput <- getInputLine "Ass> "
            case minput of
                Nothing -> return ()
-               Just "c"    -> outputStrLn "Preprocessor directive clean." >> (loop [])
+               Just "c"    -> outputStrLn "Preprocessor directives clean" >> (loop [])
                Just "q"    -> outputStrLn "Leaving ASSi." >> return ()
                Just "?"    -> lift printHelp >> (loop ppList)
                Just ""     -> loop ppList

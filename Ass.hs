@@ -28,7 +28,7 @@ import System.Process(system)
 import System.IO
 import System.Exit
 import System.FilePath
-import System.Directory(getCurrentDirectory, doesFileExist)
+import System.Directory(getCurrentDirectory, getHomeDirectory, doesFileExist)
 
 import System.Console.Haskeline
 
@@ -113,27 +113,32 @@ printHelp :: IO ()
 printHelp =  putStrLn $ "Commands available from the prompt:\n\n" ++
                         "<statement>                 evaluate/run C++ <statement>\n" ++
                         "  c                         clear preprocessor directives\n" ++ 
+                        "  s                         show preprocessor directives\n" ++ 
                         "  q                         quit\n" ++
                         "  ?                         print this help\n"  
 
 
 mainLoop :: [String] -> Compiler -> IO ()
-mainLoop args cxx = putStrLn (banner ++ "\nUsing " ++ getExec cxx ++ " compiler.") >> runInputT defaultSettings (loop [])
-   where
-       loop :: [String] -> InputT IO ()
-       loop ppList = do
-           minput <- getInputLine "Ass> "
-           case minput of
-               Nothing -> return ()
-               Just "c"    -> outputStrLn "Preprocessor directives clean" >> (loop [])
-               Just "q"    -> outputStrLn "Leaving ASSi." >> return ()
-               Just "?"    -> lift printHelp >> (loop ppList)
-               Just ""     -> loop ppList
-               Just input | isPreprocessor (C.pack input) -> loop $ input : ppList 
-                          | otherwise -> do 
-                              e <- lift $ buildCompileRun (C.pack (unlines $ ppList ++ [input])) cxx (getCompilerArgs args) [] 
-                              outputStrLn $ " -> " ++ show e
-                              loop ppList
+mainLoop args cxx = do
+    putStrLn (banner ++ "\nUsing " ++ getExec cxx ++ " compiler.") 
+    home <- getHomeDirectory
+    runInputT defaultSettings { historyFile = Just $ home </> ".ass_history" } (loop [])
+    where
+    loop :: [String] -> InputT IO ()
+    loop ppList = do
+        minput <- getInputLine "Ass> "
+        case minput of
+             Nothing -> return ()
+             Just "c"    -> outputStrLn "Preprocessor directives clean" >> (loop [])
+             Just "s"    -> outputStrLn "Preprocessor directives:" >> mapM_ outputStrLn ppList >> (loop ppList)
+             Just "q"    -> outputStrLn "Leaving ASSi." >> return ()
+             Just "?"    -> lift printHelp >> (loop ppList)
+             Just ""     -> loop ppList
+             Just input | isPreprocessor (C.pack input) -> loop $ input : ppList 
+                        | otherwise -> do 
+             e <- lift $ buildCompileRun (C.pack (unlines $ ppList ++ [input])) cxx (getCompilerArgs args) [] 
+             outputStrLn $ " -> " ++ show e
+             loop ppList
 
 
 mainFun :: [String] -> Compiler -> IO ()

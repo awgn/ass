@@ -111,25 +111,30 @@ main = do args <- getArgs
 
 printHelp :: IO ()
 printHelp =  putStrLn $ "Commands available from the prompt:\n\n" ++
-                        "<statement>                 evaluate/run C++ <statement>\n\n" ++
-                        "  ?                         print this help\n" ++ 
-                        "  q                         quit"
+                        "<statement>                 evaluate/run C++ <statement>\n" ++
+                        "  c                         clear preprocessor list\n" ++ 
+                        "  q                         quit\n" ++
+                        "  ?                         print this help\n"  
+
 
 mainLoop :: [String] -> Compiler -> IO ()
-mainLoop args cxx = putStrLn (banner ++ "\nUsing " ++ getExec cxx ++ " compiler.") >> runInputT defaultSettings loop
+mainLoop args cxx = putStrLn (banner ++ "\nUsing " ++ getExec cxx ++ " compiler.") >> runInputT defaultSettings (loop [])
    where
-       loop :: InputT IO ()
-       loop = do
+       loop :: [String] -> InputT IO ()
+       loop ppList = do
            minput <- getInputLine "Ass> "
            case minput of
                Nothing -> return ()
+               Just "c"    -> outputStrLn "Preprocessor directive clean." >> (loop [])
                Just "q"    -> outputStrLn "Leaving ASSi." >> return ()
-               Just "?"    -> lift printHelp >> loop
-               Just ""     -> loop
-               Just input  -> do 
-                              e <- lift $ buildCompileRun (C.pack input) cxx (getCompilerArgs args) [] 
+               Just "?"    -> lift printHelp >> (loop ppList)
+               Just ""     -> loop ppList
+               Just input | isPreprocessor (C.pack input) -> loop $ input : ppList 
+                          | otherwise -> do 
+                              e <- lift $ buildCompileRun (C.pack (unlines $ ppList ++ [input])) cxx (getCompilerArgs args) [] 
                               outputStrLn $ show e
-                              loop
+                              loop ppList
+
 
 mainFun :: [String] -> Compiler -> IO ()
 mainFun args cxx = do

@@ -18,35 +18,42 @@
 
 set -e
 
-BOLD='\e[1m'
-NC='\e[0m'
+case `uname` in
+Linux)
+    ASS="\e[1m[ass]\e[0m"
+    CLANG_LIBC=
+    ;;
+Darwin)
+    ASS="[ass]"
+    CLANG_LIBC="-stdlib=libc++"
+    ;;
+esac
 
-ASS="${BOLD}[ass]${NC}"
-
-echo -e "${ASS} Installing C++11 assistant"
+echo -e "${ASS} Installing C++11 assistant."
 
 echo -e "${ASS} Compiling Haskell binaries..."
 
 /usr/bin/ghc -O -Wall Ass.hs -o /usr/local/bin/ass
 /usr/bin/ghc -O -Wall Gen.hs -o /usr/local/bin/gen
-/bin/ln -f -s /usr/local/bin/ass   /usr/local/bin/ass-clang
+/bin/ln -f -s /usr/local/bin/ass  /usr/local/bin/ass-clang
 
 /bin/cp includes/ass.hpp /usr/local/include/
 /bin/cp includes/ass-mt.hpp /usr/local/include/
 
-
-if [ -x /usr/bin/g++ ]; then
-    echo -e "${ASS} Precompiling headers for g++..."
-    /usr/bin/g++ includes/ass.hpp    -std=c++0x -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -o /usr/local/include/ass.hpp.gch
-    /usr/bin/g++ includes/ass-mt.hpp -std=c++0x -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -pthread -o /usr/local/include/ass-mt.hpp.gch
-fi
-
+case `uname` in
+Linux)
+    if [ -x /usr/bin/g++ ]; then
+        echo -e "${ASS} Precompiling headers for g++..."
+        /usr/bin/g++ includes/ass.hpp    -std=c++0x -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -o /usr/local/include/ass.hpp.gch
+        /usr/bin/g++ includes/ass-mt.hpp -std=c++0x -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -pthread -o /usr/local/include/ass-mt.hpp.gch
+    fi
+    ;;
+esac
 
 if [ -x /usr/bin/clang++ ]; then
     echo -e "${ASS} Precompiling headers for clang++..."
-    /usr/bin/clang++ includes/ass.hpp -std=c++0x -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -x c++-header -o /usr/local/include/ass.hpp.pch
-    /usr/bin/clang++ includes/ass-mt.hpp -std=c++0x -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -pthread -x c++-header -o /usr/local/include/ass-mt.hpp.pch
+    /usr/bin/clang++ includes/ass.hpp    -std=c++0x ${CLANG_LIBC} -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -x c++-header -o /usr/local/include/ass.hpp.pch
+    /usr/bin/clang++ includes/ass-mt.hpp -std=c++0x ${CLANG_LIBC} -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -pthread -x c++-header -o /usr/local/include/ass-mt.hpp.pch
 fi
 
 echo -e "${ASS} done."
-

@@ -26,6 +26,7 @@ import Data.Functor
 import System.Environment(getArgs, getProgName)
 import System.Process(system)
 import System.IO
+import System.Info
 import System.Exit
 import System.FilePath
 import System.Directory(getCurrentDirectory, getHomeDirectory, doesFileExist)
@@ -53,7 +54,6 @@ type ParserState     = (TranslationUnit, MainFunction)
 data CompilerType = Cxx | Gcc | Clang 
                     deriving (Show)
 
-
 instance Eq CompilerType where
     Gcc    == Gcc   =  True
     Clang  == Clang =  True
@@ -77,7 +77,6 @@ compilerList = [
                  Compiler Gcc   "/usr/bin/g++",
                  Compiler Gcc   "/usr/local/bin/g++"
                ]
-
 
 getCompiler :: CompilerType -> [Compiler] -> IO Compiler
 getCompiler _ [] = error "C++ compiler not found!"
@@ -242,15 +241,16 @@ toSourceCode src = zipWith CodeLine [1..] (C.lines src)
 
 
 getCompilerOpt :: CompilerType -> Bool -> [String]
-getCompilerOpt Cxx _  = undefined
-getCompilerOpt Gcc _  =  [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", 
-                           "-Wextra", "-Wno-unused-parameter" ]
-getCompilerOpt Clang mt =  [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", 
-                             "-include-pch", precomp_header, "-Wextra", 
-                             "-Wno-unused-parameter" , "-Wno-unneeded-internal-declaration"]
-                            where precomp_header | mt = "/usr/local/include/ass-mt.hpp.pch"
-                                                 | otherwise = "/usr/local/include/ass.hpp.pch" 
-
+getCompilerOpt Cxx _    = undefined
+getCompilerOpt Gcc _    =  [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", 
+                             "-Wextra", "-Wno-unused-parameter" ]
+getCompilerOpt Clang mt =  compilerLib ++ [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", 
+                             "-include-pch", precomp_header, "-Wextra", "-Wno-unused-parameter" , 
+                             "-Wno-unneeded-internal-declaration"]
+                           where precomp_header | mt             = "/usr/local/include/ass-mt.hpp.pch"
+                                                | otherwise      = "/usr/local/include/ass.hpp.pch" 
+                                 compilerLib    | os == "darwin" = [ "-stdlib=libc++" ]
+                                                | otherwise      = []
 
 compileWith :: Compiler -> FilePath -> FilePath -> Bool -> [String] -> IO ExitCode
 compileWith cxx source binary mt user_opt 

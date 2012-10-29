@@ -50,42 +50,50 @@ type MainFunction    = SourceCode
 type ParserState     = (TranslationUnit, MainFunction)
  
 
-data Compiler = Gcc { getExec :: FilePath } | Clang { getExec :: FilePath }
+data CompilerType = Cxx | Gcc | Clang 
+                    deriving (Show)
+
+
+instance Eq CompilerType where
+    Gcc    == Gcc   =  True
+    Clang  == Clang =  True
+    Cxx    == Gcc   =  True
+    Cxx    == Clang =  True
+    Gcc    == Cxx   =  True
+    Clang  == Cxx   =  True
+    _      == _     =  False
+
+
+data Compiler = Compiler { getCxxType :: CompilerType, 
+                           getCxxExec :: FilePath } 
                 deriving (Show, Eq)
-
-isClang :: Compiler -> Bool
-isClang (Gcc   _) = False
-isClang (Clang _) = True
-
-isGcc :: Compiler -> Bool
-isGcc (Gcc   _) = True
-isGcc (Clang _) = False
 
 
 compilerList :: [Compiler]
 
 compilerList = [ 
-                 Clang "/usr/bin/clang++",
-                 Clang "/usr/local/bin/clang++",
-                 Gcc   "/usr/bin/g++",
-                 Gcc   "/usr/local/bin/g++"
+                 Compiler Clang "/usr/bin/clang++",
+                 Compiler Clang "/usr/local/bin/clang++",
+                 Compiler Gcc   "/usr/bin/g++",
+                 Compiler Gcc   "/usr/local/bin/g++"
                ]
 
-getDefaultCompiler :: [Compiler] -> IO Compiler
 
-getDefaultCompiler [] = error "C++ compiler not found!"
-getDefaultCompiler (x:xs) = do 
-           r <- doesFileExist (getExec x)
-           case r of 
-                True  -> return x
-                False -> getDefaultCompiler xs                                                         
+getCompiler :: CompilerType -> [Compiler] -> IO Compiler
+getCompiler _ [] = error "C++ compiler not found!"
 
+getCompiler t (x:xs) 
+        |   t == (getCxxType x) = do
+            r <- doesFileExist (getCxxExec x)
+            case r of 
+                 True  -> return x
+                 False -> getCompiler t xs
+        |   otherwise = getCompiler t xs  
+   
 
-getCompiler :: [Compiler] -> IO Compiler
-getCompiler list =  liftM (isSuffixOf "clang") getProgName >>= \clang ->
-                    if clang  
-                    then getDefaultCompiler (filter isClang list)  
-                    else getDefaultCompiler (filter isGcc   list)
+getDefaultCompilerType :: IO CompilerType
+getDefaultCompilerType =  
+    liftM (isSuffixOf "clang") getProgName >>= \v -> if v then return Clang else return Gcc
 
 
 data CodeLine = CodeLine Int SourceLine 
@@ -104,41 +112,47 @@ tmpDir  =  "/tmp"
 
 main :: IO ()
 main = do args <- getArgs
+          def  <- getDefaultCompilerType
           case args of 
-            ("-i":_) -> getDefaultCompiler compilerList >>= mainLoop (tail args)
-            []       -> getCompiler compilerList >>= mainFun [] 
-            _        -> getCompiler compilerList >>= mainFun args 
+            ("-i":_) -> getCompiler Cxx compilerList >>= mainLoop (tail args)
+            []       -> getCompiler def compilerList >>= mainFun [] 
+            _        -> getCompiler def compilerList >>= mainFun args 
 
 printHelp :: IO ()
 printHelp =  putStrLn $ "Commands available from the prompt:\n\n" ++
                         "<statement>                 evaluate/run C++ <statement>\n" ++
                         "  c                         clear preprocessor directives\n" ++ 
                         "  s                         show preprocessor directives\n" ++ 
+                        "  x                         switch compiler\n" ++ 
                         "  q                         quit\n" ++
                         "  ?                         print this help\n"  
 
 
 mainLoop :: [String] -> Compiler -> IO ()
 mainLoop args cxx = do
-    putStrLn (banner ++ "\nUsing " ++ getExec cxx ++ " compiler.") 
+    putStrLn (banner ++ "\nUsing " ++ getCxxExec cxx ++ " compiler...") 
     home <- getHomeDirectory
-    runInputT defaultSettings { historyFile = Just $ home </> ".ass_history" } (loop [])
+    runInputT defaultSettings { historyFile = Just $ home </> ".ass_history" } (loop cxx [])
     where
-    loop :: [String] -> InputT IO ()
-    loop ppList = do
+    loop :: Compiler -> [String] -> InputT IO ()
+    loop cxx' ppList = do
         minput <- getInputLine "Ass> "
         case minput of
              Nothing -> return ()
-             Just "c"    -> outputStrLn "Preprocessor directives clean" >> (loop [])
-             Just "s"    -> outputStrLn "Preprocessor directives:" >> mapM_ outputStrLn ppList >> (loop ppList)
-             Just "q"    -> outputStrLn "Leaving ASSi." >> return ()
-             Just "?"    -> lift printHelp >> (loop ppList)
-             Just ""     -> loop ppList
-             Just input | isPreprocessor (C.pack input) -> loop $ input : ppList 
+             Just "c" -> outputStrLn "Preprocessor directives clean" >> (loop cxx' [])
+             Just "s" -> outputStrLn "Preprocessor directives:" >> mapM_ outputStrLn ppList >> (loop cxx' ppList)
+             Just "x" -> do 
+                         cxx'' <- lift $ getCompiler (if (getCxxType cxx') == Gcc then Clang else Gcc) compilerList 
+                         outputStrLn $ "Using " ++ getCxxExec cxx'' ++ " compiler..."
+                         loop cxx'' ppList   
+             Just "q" -> outputStrLn "Leaving ASSi." >> return ()
+             Just "?" -> lift printHelp >> (loop cxx' ppList)
+             Just ""  -> loop cxx' ppList
+             Just input | isPreprocessor (C.pack input) -> loop cxx' $ input : ppList 
                         | otherwise -> do 
-             e <- lift $ buildCompileRun (C.pack (unlines $ ppList ++ [input])) cxx (getCompilerArgs args) [] 
+             e <- lift $ buildCompileRun (C.pack (unlines $ ppList ++ [input])) cxx' (getCompilerArgs args) [] 
              outputStrLn $ " -> " ++ show e
-             loop ppList
+             loop cxx' ppList
 
 
 mainFun :: [String] -> Compiler -> IO ()
@@ -227,12 +241,13 @@ toSourceCode :: Source -> SourceCode
 toSourceCode src = zipWith CodeLine [1..] (C.lines src)
 
 
-getCompilerOpt :: Compiler -> Bool -> [String]
-getCompilerOpt (Gcc _)   _  =  [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", 
-                                 "-Wextra", "-Wno-unused-parameter" ]
-getCompilerOpt (Clang _) mt =  [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", 
-                                 "-include-pch", precomp_header, "-Wextra", 
-                                 "-Wno-unused-parameter" , "-Wno-unneeded-internal-declaration"]
+getCompilerOpt :: CompilerType -> Bool -> [String]
+getCompilerOpt Cxx _  = undefined
+getCompilerOpt Gcc _  =  [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", 
+                           "-Wextra", "-Wno-unused-parameter" ]
+getCompilerOpt Clang mt =  [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", 
+                             "-include-pch", precomp_header, "-Wextra", 
+                             "-Wno-unused-parameter" , "-Wno-unneeded-internal-declaration"]
                             where precomp_header | mt = "/usr/local/include/ass-mt.hpp.pch"
                                                  | otherwise = "/usr/local/include/ass.hpp.pch" 
 
@@ -240,8 +255,8 @@ getCompilerOpt (Clang _) mt =  [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEBUG", "-Wall
 compileWith :: Compiler -> FilePath -> FilePath -> Bool -> [String] -> IO ExitCode
 compileWith cxx source binary mt user_opt 
             = do system $ unwords $ cmd
-                    where cmd = [getExec cxx, source, "-o", binary] 
-                                ++ (getCompilerOpt cxx mt) 
+                    where cmd = [getCxxExec cxx, source, "-o", binary] 
+                                ++ (getCompilerOpt (getCxxType cxx) mt) 
                                 ++ user_opt 
                                 ++ if (mt) then ["-pthread"] else []
 

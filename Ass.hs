@@ -104,7 +104,7 @@ instance Show CodeLine where
 
 banner, snippet, tmpDir :: String 
 
-banner  = "ASSi, version 1.1. ? for help"
+banner  = "ASSi, version 1.2. ? for help"
 snippet = "snippet" 
 tmpDir  =  "/tmp" 
    
@@ -120,38 +120,49 @@ main = do args <- getArgs
 printHelp :: IO ()
 printHelp =  putStrLn $ "Commands available from the prompt:\n\n" ++
                         "<statement>                 evaluate/run C++ <statement>\n" ++
-                        "  c                         clear preprocessor directives\n" ++ 
-                        "  s                         show preprocessor directives\n" ++ 
+                        "  r                         reset preprocessor and code\n" ++ 
+                        "  s                         show preprocessor directives\n" ++
+                        "  g                         show global code\n" ++
                         "  x                         switch compiler\n" ++ 
                         "  q                         quit\n" ++
                         "  ?                         print this help\n"  
+
+
+data State = State { stateComp   :: Compiler,
+                     statePList  :: [String],
+                     stateGlobal :: [String]}
+                     deriving (Show, Eq)
 
 
 mainLoop :: [String] -> Compiler -> IO ()
 mainLoop args cxx = do
     putStrLn (banner ++ "\nUsing " ++ getCxxExec cxx ++ " compiler...") 
     home <- getHomeDirectory
-    runInputT defaultSettings { historyFile = Just $ home </> ".ass_history" } (loop cxx [])
+    runInputT defaultSettings { historyFile = Just $ home </> ".ass_history" } (loop $ State cxx [] [])
     where
-    loop :: Compiler -> [String] -> InputT IO ()
-    loop cxx' ppList = do
+    loop :: State -> InputT IO ()
+    loop state = do
         minput <- getInputLine "Ass> "
-        case minput of
+        case (words <$> minput) of
              Nothing -> return ()
-             Just "c" -> outputStrLn "Preprocessor directives clean" >> (loop cxx' [])
-             Just "s" -> outputStrLn "Preprocessor directives:" >> mapM_ outputStrLn ppList >> (loop cxx' ppList)
-             Just "x" -> do 
-                         cxx'' <- lift $ getCompiler (if (getCxxType cxx') == Gcc then Clang else Gcc) compilerList 
-                         outputStrLn $ "Using " ++ getCxxExec cxx'' ++ " compiler..."
-                         loop cxx'' ppList   
-             Just "q" -> outputStrLn "Leaving ASSi." >> return ()
-             Just "?" -> lift printHelp >> (loop cxx' ppList)
-             Just ""  -> loop cxx' ppList
-             Just input | isPreprocessor (C.pack input) -> loop cxx' $ ppList ++ [input] 
+             Just ("r":_) -> outputStrLn "Preprocessor and code clean." >> (loop state{ statePList = [], stateGlobal = [] } )
+             Just ("s":_) -> outputStrLn "Preprocessor directives:" >> mapM_ outputStrLn (statePList state) >> loop state
+             Just ("g":_) -> outputStrLn "Global code:" >> mapM_ outputStrLn (stateGlobal state) >> loop state
+             Just ("x":_) -> do 
+                         cxx' <- lift $ getCompiler (if (getCxxType $ stateComp state) == Gcc then Clang else Gcc) compilerList 
+                         outputStrLn $ "Using " ++ getCxxExec cxx' ++ " compiler..."
+                         loop state{ stateComp = cxx' }
+             Just ("q":_) -> outputStrLn "Leaving ASSi." >> return ()
+             Just ("?":_) -> lift printHelp >> loop state
+             Just ("///":xs) -> loop state{ stateGlobal = stateGlobal state ++ [unwords xs] } 
+             Just []      -> loop state
+             Just input | isPreprocessor (C.pack $ unwords input) -> loop state { statePList = statePList state ++ [unwords input] } 
                         | otherwise -> do 
-             e <- lift $ buildCompileRun (C.pack (unlines $ ppList ++ [input])) cxx' (getCompilerArgs args) [] 
-             outputStrLn $ " -> " ++ show e
-             loop cxx' ppList
+                        e <- lift $ buildCompileRun (C.pack (
+                            unlines (statePList state) ++ unlines (stateGlobal state) ++ unwords input))  
+                                (stateComp state) (getCompilerArgs args) [] 
+                        outputStrLn $ " -> " ++ show e
+                        loop state
 
 
 mainFun :: [String] -> Compiler -> IO ()
@@ -224,7 +235,7 @@ isPreprocessor = C.isPrefixOf (C.pack "#") . C.dropWhile isSpace
 
 getGlobalLine :: SourceLine -> Maybe SourceLine
 getGlobalLine xs 
-    | C.pack "|||" `C.isPrefixOf` xs' = Just $ snd $ C.splitAt 3 xs'
+    | C.pack "///" `C.isPrefixOf` xs' = Just $ snd $ C.splitAt 3 xs'
     | otherwise = Nothing
         where xs' = C.dropWhile isSpace xs
 

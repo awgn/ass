@@ -147,7 +147,7 @@ mainLoop args cxx = do
              Just "q" -> outputStrLn "Leaving ASSi." >> return ()
              Just "?" -> lift printHelp >> (loop cxx' ppList)
              Just ""  -> loop cxx' ppList
-             Just input | isPreprocessor (C.pack input) -> loop cxx' $ input : ppList 
+             Just input | isPreprocessor (C.pack input) -> loop cxx' $ ppList ++ [input] 
                         | otherwise -> do 
              e <- lift $ buildCompileRun (C.pack (unlines $ ppList ++ [input])) cxx' (getCompilerArgs args) [] 
              outputStrLn $ " -> " ++ show e

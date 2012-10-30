@@ -154,7 +154,7 @@ mainLoop args cxx = do
                          loop state{ stateComp = cxx' }
              Just ("q":_) -> outputStrLn "Leaving ASSi." >> return ()
              Just ("?":_) -> lift printHelp >> loop state
-             Just ("///":xs) -> loop state{ stateGlobal = stateGlobal state ++ [unwords xs] } 
+             Just ("///":xs) -> loop state{ stateGlobal = stateGlobal state ++ [unwords $ "///" : xs] } 
              Just []      -> loop state
              Just input | isPreprocessor (C.pack $ unwords input) -> loop state { statePList = statePList state ++ [unwords input] } 
                         | otherwise -> do 

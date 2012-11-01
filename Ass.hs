@@ -76,7 +76,7 @@ instance Eq CompilerType where
     _      == _     =  False
 
 
-data Compiler = Compiler { getCxxType :: CompilerType, 
+data Compiler = Compiler { getCType :: CompilerType, 
                            getCxxExec :: FilePath } 
                 deriving (Show, Eq)
 
@@ -101,7 +101,7 @@ getCompilerTypeByName =
 
 
 compFilter :: CompilerType -> [Compiler] -> [Compiler]
-compFilter t = filter (\n -> t == getCxxType n) 
+compFilter t = filter (\n -> t == getCType n) 
 
 
 banner, snippet, tmpDir :: String 
@@ -180,18 +180,19 @@ printHelp =  putStrLn $ "Commands available from the prompt:\n\n" ++
 
 buildCompileRun :: Source -> [Compiler] -> [String] -> [String] -> IO [ExitCode] 
 -- buildCompileRun code cxx cargs targs | trace ("buildCompileRun") False = undefined
-buildCompileRun code cs cargs targs = do 
+buildCompileRun code clist cargs targs = do 
     cwd' <- getCurrentDirectory
     let mt  = isMultiThread code cargs
     let bin = tmpDir </> snippet
     let src = bin <.> "cpp"
     writeSource src (makeSourceCode code mt)
-    ec <- forM cs $ \cxx -> 
-        compileWith cxx src bin mt (["-I", cwd', "-I",  cwd' </> ".."] ++ cargs) 
-    forM ec $ \e ->    
+    forM clist $ \cxx -> do
+        putStr (show (getCType cxx) ++ ":") >> hFlush stdout
+        e <- compileWith cxx src (binary bin cxx) mt (["-I", cwd', "-I",  cwd' </> ".."] ++ cargs) 
         if (e == ExitSuccess) 
-            then system (bin ++ " " ++ (unwords $ targs)) 
+            then system ((binary bin cxx) ++ " " ++ (unwords $ targs)) 
             else return e
+        where binary n c = n ++ "-" ++ show (getCType c)
 
 
 writeSource :: FilePath -> [SourceCode] -> IO ()
@@ -276,7 +277,7 @@ compileWith :: Compiler -> FilePath -> FilePath -> Bool -> [String] -> IO ExitCo
 compileWith cxx source binary mt user_opt 
             = do system $ unwords $ cmd
                     where cmd = [getCxxExec cxx, source, "-o", binary] 
-                                ++ (getCompilerOpt (getCxxType cxx) mt) 
+                                ++ (getCompilerOpt (getCType cxx) mt) 
                                 ++ user_opt 
                                 ++ if (mt) then ["-pthread"] else []
 

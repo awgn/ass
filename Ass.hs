@@ -144,7 +144,7 @@ mainLoop args clist = do
              Just (":s":_) -> outputStrLn "C++ Code:" >> 
                               mapM_ outputStrLn (statePList state) >> 
                               mapM_ outputStrLn (stateCode state) >> loop state
-             Just (":c":_) -> getCode >>= \xs -> loop state {stateCode = xs} 
+             Just (":c":_) -> getCode >>= \xs -> loop state {stateCode = xs ++ stateCode state } 
              Just (":q":_) -> outputStrLn "Leaving ASSi." >> return ()
              Just (":?":_) -> lift printHelp >> loop state
              Just (":x":_) -> do 

@@ -143,6 +143,7 @@ mainLoop args clist = do
              Just (":r":_) -> outputStrLn "Preprocessor/code clean." >> (loop state{ statePList = [], stateGlobal = [] } )
              Just (":s":_) -> outputStrLn "Preprocessor directives:" >> mapM_ outputStrLn (statePList state) >> loop state
              Just (":g":_) -> outputStrLn "Global code:" >> mapM_ outputStrLn (stateGlobal state) >> loop state
+             Just (":c":_) -> getCode >>= \xs -> loop state {stateCode = xs} 
              Just (":x":_) -> do 
                             let ctype = next $ stateCType state
                             outputStrLn $ "Using " ++ show (ctype) ++ " compiler..."
@@ -161,6 +162,15 @@ mainLoop args clist = do
                         loop state
 
 
+getCode :: InputT IO [String]
+getCode = do 
+    line <- getInputLine "code> "
+    case line of
+         Nothing    -> return []
+         Just []    -> getCode
+         Just input -> (input :) <$> getCode
+
+
 mainFun :: [String] -> Compiler -> IO ()
 mainFun args cxx = do
     code <- C.hGetContents stdin
@@ -170,6 +180,7 @@ mainFun args cxx = do
 printHelp :: IO ()
 printHelp =  putStrLn $ "Commands available from the prompt:\n\n" ++
                         "<statement>                 evaluate/run C++ <statement>\n" ++
+                        "  :c                        enter in C++ code mode\n" ++ 
                         "  :r                        reset preprocessor and code\n" ++ 
                         "  :s                        show preprocessor directives\n" ++
                         "  :g                        show global code\n" ++

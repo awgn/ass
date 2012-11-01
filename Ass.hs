@@ -33,7 +33,7 @@ import System.Directory(getCurrentDirectory, getHomeDirectory, doesFileExist)
 
 import System.Console.Haskeline
 
-import Control.Monad(liftM)
+import Control.Monad(forM,liftM,filterM)
 import Control.Monad.Trans.Class
 
 import qualified Data.ByteString.Lazy.Char8 as C
@@ -51,16 +51,28 @@ type MainFunction    = SourceCode
 type ParserState     = (TranslationUnit, MainFunction)
  
 
-data CompilerType = Cxx | Gcc | Clang 
-                    deriving (Show)
+data CodeLine = CodeLine Int SourceLine 
+
+instance Show CodeLine where
+    show (CodeLine n xs) = "#line " ++ show n ++ "\n" ++ C.unpack xs  
+
+
+data CompilerType = Clang | Gcc | Any 
+                    deriving (Show,Enum)
+
+
+next :: CompilerType -> CompilerType
+next Any = Clang
+next   x = succ x
+
 
 instance Eq CompilerType where
     Gcc    == Gcc   =  True
     Clang  == Clang =  True
-    Cxx    == Gcc   =  True
-    Cxx    == Clang =  True
-    Gcc    == Cxx   =  True
-    Clang  == Cxx   =  True
+    Any    == Gcc   =  True
+    Any    == Clang =  True
+    Gcc    == Any   =  True
+    Clang  == Any   =  True
     _      == _     =  False
 
 
@@ -70,7 +82,6 @@ data Compiler = Compiler { getCxxType :: CompilerType,
 
 
 compilerList :: [Compiler]
-
 compilerList = [ 
                  Compiler Clang "/usr/bin/clang++",
                  Compiler Clang "/usr/local/bin/clang++",
@@ -78,89 +89,74 @@ compilerList = [
                  Compiler Gcc   "/usr/local/bin/g++"
                ]
 
-getCompiler :: CompilerType -> [Compiler] -> IO Compiler
-getCompiler _ [] = error "C++ compiler not found!"
 
-getCompiler t (x:xs) 
-        |   t == (getCxxType x) = do
-            r <- doesFileExist (getCxxExec x)
-            case r of 
-                 True  -> return x
-                 False -> getCompiler t xs
-        |   otherwise = getCompiler t xs  
-   
-
-getDefaultCompilerType :: IO CompilerType
-getDefaultCompilerType =  
-    liftM (isSuffixOf "clang") getProgName >>= \v -> if v then return Clang else return Gcc
+getCompilers :: [Compiler] -> IO [Compiler]
+getCompilers = filterM (doesFileExist . getCxxExec) 
 
 
-data CodeLine = CodeLine Int SourceLine 
+getCompilerTypeByName :: IO CompilerType
+getCompilerTypeByName =  
+    liftM (isSuffixOf "clang") getProgName >>= \v -> 
+        if v then return Clang else return Gcc
 
 
-instance Show CodeLine where
-    show (CodeLine n xs) = "#line " ++ show n ++ "\n" ++ C.unpack xs  
+compFilter :: CompilerType -> [Compiler] -> [Compiler]
+compFilter t = filter (\n -> t == getCxxType n) 
 
 
 banner, snippet, tmpDir :: String 
 
-banner  = "ASSi, version 1.2. ? for help"
+banner  = "ASSi, version 1.2. :? for help"
 snippet = "snippet" 
 tmpDir  =  "/tmp" 
    
 
 main :: IO ()
-main = do args <- getArgs
-          def  <- getDefaultCompilerType
+main = do args  <- getArgs
+          ctype <- getCompilerTypeByName
           case args of 
-            ("-i":_) -> getCompiler Cxx compilerList >>= mainLoop (tail args)
-            []       -> getCompiler def compilerList >>= mainFun [] 
-            _        -> getCompiler def compilerList >>= mainFun args 
-
-printHelp :: IO ()
-printHelp =  putStrLn $ "Commands available from the prompt:\n\n" ++
-                        "<statement>                 evaluate/run C++ <statement>\n" ++
-                        "  r                         reset preprocessor and code\n" ++ 
-                        "  s                         show preprocessor directives\n" ++
-                        "  g                         show global code\n" ++
-                        "  x                         switch compiler\n" ++ 
-                        "  q                         quit\n" ++
-                        "  ?                         print this help\n"  
+            ("-i":_) -> getCompilers compilerList >>= mainLoop (tail args)
+            []       -> getCompilers compilerList >>= (\xs -> return (head $ compFilter ctype xs)) >>= mainFun []  
+            _        -> getCompilers compilerList >>= (\xs -> return (head $ compFilter ctype xs)) >>= mainFun args 
 
 
-data State = State { stateComp   :: Compiler,
-                     statePList  :: [String],
-                     stateGlobal :: [String]}
+data State = State { stateCType   :: CompilerType,
+                     statePList   :: [String],
+                     stateGlobal  :: [String]}
                      deriving (Show, Eq)
 
 
-mainLoop :: [String] -> Compiler -> IO ()
-mainLoop args cxx = do
-    putStrLn (banner ++ "\nUsing " ++ getCxxExec cxx ++ " compiler...") 
+mainLoop :: [String] -> [Compiler] -> IO ()
+mainLoop args clist = do
+    putStrLn banner
+    putStr "Compilers found: "
+    mapM_ (\c -> putStr (getCxxExec c ++ " ")) clist
+    putStrLn "..."
     home <- getHomeDirectory
-    runInputT defaultSettings { historyFile = Just $ home </> ".ass_history" } (loop $ State cxx [] [])
+    runInputT defaultSettings { historyFile = Just $ home </> ".ass_history" } (loop $ State Clang [] [])
     where
     loop :: State -> InputT IO ()
     loop state = do
         minput <- getInputLine "Ass> "
         case (words <$> minput) of
              Nothing -> return ()
-             Just ("r":_) -> outputStrLn "Preprocessor and code clean." >> (loop state{ statePList = [], stateGlobal = [] } )
-             Just ("s":_) -> outputStrLn "Preprocessor directives:" >> mapM_ outputStrLn (statePList state) >> loop state
-             Just ("g":_) -> outputStrLn "Global code:" >> mapM_ outputStrLn (stateGlobal state) >> loop state
-             Just ("x":_) -> do 
-                         cxx' <- lift $ getCompiler (if (getCxxType $ stateComp state) == Gcc then Clang else Gcc) compilerList 
-                         outputStrLn $ "Using " ++ getCxxExec cxx' ++ " compiler..."
-                         loop state{ stateComp = cxx' }
-             Just ("q":_) -> outputStrLn "Leaving ASSi." >> return ()
-             Just ("?":_) -> lift printHelp >> loop state
+             Just (":r":_) -> outputStrLn "Preprocessor/code clean." >> (loop state{ statePList = [], stateGlobal = [] } )
+             Just (":s":_) -> outputStrLn "Preprocessor directives:" >> mapM_ outputStrLn (statePList state) >> loop state
+             Just (":g":_) -> outputStrLn "Global code:" >> mapM_ outputStrLn (stateGlobal state) >> loop state
+             Just (":x":_) -> do 
+                            let ctype = next $ stateCType state
+                            outputStrLn $ "Using " ++ show (ctype) ++ " compiler..."
+                            loop state { stateCType = ctype }
+             
+             Just (":q":_)    -> outputStrLn "Leaving ASSi." >> return ()
+             Just (":?":_)    -> lift printHelp >> loop state
              Just ("///":xs) -> loop state{ stateGlobal = stateGlobal state ++ [unwords $ "///" : xs] } 
-             Just []      -> loop state
+             Just []         -> loop state
              Just input | isPreprocessor (C.pack $ unwords input) -> loop state { statePList = statePList state ++ [unwords input] } 
                         | otherwise -> do 
                         e <- lift $ buildCompileRun (C.pack (
                             unlines (statePList state) ++ unlines (stateGlobal state) ++ unwords input))  
-                                (stateComp state) (getCompilerArgs args) [] 
+                                (compFilter (stateCType state) clist) (getCompilerArgs args) [] 
                         outputStrLn $ " -> " ++ show e
                         loop state
 
@@ -168,21 +164,34 @@ mainLoop args cxx = do
 mainFun :: [String] -> Compiler -> IO ()
 mainFun args cxx = do
     code <- C.hGetContents stdin
-    buildCompileRun code cxx (getCompilerArgs args) (getTestArgs args) >>= exitWith
+    buildCompileRun code [cxx] (getCompilerArgs args) (getTestArgs args) >>= (\xs -> return $ head xs) >>= exitWith
 
 
-buildCompileRun :: Source -> Compiler -> [String] -> [String] -> IO ExitCode 
+printHelp :: IO ()
+printHelp =  putStrLn $ "Commands available from the prompt:\n\n" ++
+                        "<statement>                 evaluate/run C++ <statement>\n" ++
+                        "  :r                        reset preprocessor and code\n" ++ 
+                        "  :s                        show preprocessor directives\n" ++
+                        "  :g                        show global code\n" ++
+                        "  :x                        switch compiler\n" ++ 
+                        "  :q                        quit\n" ++
+                        "  :?                        print this help\n"  
+
+
+buildCompileRun :: Source -> [Compiler] -> [String] -> [String] -> IO [ExitCode] 
 -- buildCompileRun code cxx cargs targs | trace ("buildCompileRun") False = undefined
-buildCompileRun code cxx cargs targs = do 
+buildCompileRun code cs cargs targs = do 
     cwd' <- getCurrentDirectory
     let mt  = isMultiThread code cargs
     let bin = tmpDir </> snippet
     let src = bin <.> "cpp"
     writeSource src (makeSourceCode code mt)
-    ec <- compileWith cxx src bin mt (["-I", cwd', "-I",  cwd' </> ".."] ++ cargs) 
-    if (ec == ExitSuccess) 
-       then system (bin ++ " " ++ (unwords $ targs)) 
-       else return ec
+    ec <- forM cs $ \cxx -> 
+        compileWith cxx src bin mt (["-I", cwd', "-I",  cwd' </> ".."] ++ cargs) 
+    forM ec $ \e ->    
+        if (e == ExitSuccess) 
+            then system (bin ++ " " ++ (unwords $ targs)) 
+            else return e
 
 
 writeSource :: FilePath -> [SourceCode] -> IO ()
@@ -252,7 +261,7 @@ toSourceCode src = zipWith CodeLine [1..] (C.lines src)
 
 
 getCompilerOpt :: CompilerType -> Bool -> [String]
-getCompilerOpt Cxx _    = undefined
+getCompilerOpt Any _    = undefined
 getCompilerOpt Gcc _    =  [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", 
                              "-Wextra", "-Wno-unused-parameter" ]
 getCompilerOpt Clang mt =  compilerLib ++ [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", 

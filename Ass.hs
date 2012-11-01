@@ -84,9 +84,9 @@ data Compiler = Compiler { getType :: CompilerType,
 compilerList :: [Compiler]
 compilerList = [ 
                  Compiler Clang "/usr/bin/clang++",
-                 Compiler Clang "/usr/local/bin/clang++",
-                 Compiler Gcc   "/usr/bin/g++",
-                 Compiler Gcc   "/usr/local/bin/g++"
+                 Compiler Gcc   "/usr/bin/g++-4.8",
+                 Compiler Gcc   "/usr/bin/g++-4.7",
+                 Compiler Gcc   "/usr/bin/g++-4.6"
                ]
 
 
@@ -106,7 +106,7 @@ compFilter t = filter (\n -> t == getType n)
 
 banner, snippet, tmpDir :: String 
 
-banner  = "ASSi, version 1.2.1 :? for help"
+banner  = "ASSi, version 1.2.2 :? for help"
 snippet = "snippet" 
 tmpDir  =  "/tmp" 
    
@@ -270,24 +270,30 @@ toSourceCode :: Source -> SourceCode
 toSourceCode src = zipWith CodeLine [1..] (C.lines src)
 
 
-getCompilerOpt :: CompilerType -> Bool -> [String]
-getCompilerOpt Any _    = undefined
-getCompilerOpt Gcc _    =  [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", 
-                             "-Wextra", "-Wno-unused-parameter" ]
-getCompilerOpt Clang mt =  compilerLib ++ [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", 
-                             "-include-pch", precomp_header, "-Wextra", "-Wno-unused-parameter" , 
-                             "-Wno-unneeded-internal-declaration"]
-                           where precomp_header | mt             = "/usr/local/include/ass-mt.hpp.pch"
-                                                | otherwise      = "/usr/local/include/ass.hpp.pch" 
-                                 compilerLib    | os == "darwin" = [ "-stdlib=libc++" ]
-                                                | otherwise      = []
+getCompilerOpt :: Compiler -> Bool -> [String]
+getCompilerOpt (Compiler Any _)   _  = undefined
+getCompilerOpt (Compiler Gcc bin) mt =  [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", "-Wextra", "-Wno-unused-parameter" ] ++ pch ++ pth
+                                        where pch | "4.8" `isSuffixOf` bin = [ "-I/usr/local/include/4.8/" ]
+                                                  | "4.7" `isSuffixOf` bin = [ "-I/usr/local/include/4.7/" ]
+                                                  | "4.6" `isSuffixOf` bin = [ "-I/usr/local/include/4.6/" ]
+                                                  | otherwise              = [ "-I/usr/local/include" ]
+                                              pth | mt = ["-pthread"]
+                                                  | otherwise = []
+
+getCompilerOpt (Compiler Clang _) mt =  [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", "-include-pch", pch, 
+                                          "-Wextra", "-Wno-unused-parameter", "-Wno-unneeded-internal-declaration"] ++ stdlib ++ pth
+                                        where pch    | mt             = "/usr/local/include/clang/ass-mt.hpp.pch"
+                                                     | otherwise      = "/usr/local/include/clang/ass.hpp.pch" 
+                                              stdlib | os == "darwin" = [ "-stdlib=libc++" ]
+                                                     | otherwise      = []
+                                              pth    | mt = ["-pthread"]
+                                                     | otherwise = []
 
 compileWith :: Compiler -> FilePath -> FilePath -> Bool -> [String] -> IO ExitCode
 compileWith cxx source binary mt user_opt 
             = do system $ unwords $ cmd
                     where cmd = [getExec cxx, source, "-o", binary] 
-                                ++ (getCompilerOpt (getType cxx) mt) 
+                                ++ (getCompilerOpt cxx mt) 
                                 ++ user_opt 
-                                ++ if (mt) then ["-pthread"] else []
 
 

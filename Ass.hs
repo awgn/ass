@@ -33,7 +33,7 @@ import System.Directory(getCurrentDirectory, getHomeDirectory, doesFileExist)
 
 import System.Console.Haskeline
 
-import Control.Monad(forM,liftM,filterM)
+import Control.Monad(when,forM,liftM,filterM)
 import Control.Monad.Trans.Class
 
 import qualified Data.ByteString.Lazy.Char8 as C
@@ -76,8 +76,8 @@ instance Eq CompilerType where
     _      == _     =  False
 
 
-data Compiler = Compiler { getCType :: CompilerType, 
-                           getCxxExec :: FilePath } 
+data Compiler = Compiler { getType :: CompilerType, 
+                           getExec :: FilePath } 
                 deriving (Show, Eq)
 
 
@@ -91,7 +91,7 @@ compilerList = [
 
 
 getCompilers :: [Compiler] -> IO [Compiler]
-getCompilers = filterM (doesFileExist . getCxxExec) 
+getCompilers = filterM (doesFileExist . getExec) 
 
 
 getCompilerTypeByName :: IO CompilerType
@@ -101,12 +101,12 @@ getCompilerTypeByName =
 
 
 compFilter :: CompilerType -> [Compiler] -> [Compiler]
-compFilter t = filter (\n -> t == getCType n) 
+compFilter t = filter (\n -> t == getType n) 
 
 
 banner, snippet, tmpDir :: String 
 
-banner  = "ASSi, version 1.2. :? for help"
+banner  = "ASSi, version 1.2.1 :? for help"
 snippet = "snippet" 
 tmpDir  =  "/tmp" 
    
@@ -122,7 +122,7 @@ main = do args  <- getArgs
 
 data State = State { stateCType   :: CompilerType,
                      statePList   :: [String],
-                     stateGlobal  :: [String]}
+                     stateCode    :: [String]}
                      deriving (Show, Eq)
 
 
@@ -130,7 +130,7 @@ mainLoop :: [String] -> [Compiler] -> IO ()
 mainLoop args clist = do
     putStrLn banner
     putStr "Compilers found: "
-    mapM_ (\c -> putStr (getCxxExec c ++ " ")) clist
+    mapM_ (\c -> putStr (getExec c ++ " ")) clist
     putStrLn "..."
     home <- getHomeDirectory
     runInputT defaultSettings { historyFile = Just $ home </> ".ass_history" } (loop $ State Clang [] [])
@@ -140,23 +140,22 @@ mainLoop args clist = do
         minput <- getInputLine "Ass> "
         case (words <$> minput) of
              Nothing -> return ()
-             Just (":r":_) -> outputStrLn "Preprocessor/code clean." >> (loop state{ statePList = [], stateGlobal = [] } )
-             Just (":s":_) -> outputStrLn "Preprocessor directives:" >> mapM_ outputStrLn (statePList state) >> loop state
-             Just (":g":_) -> outputStrLn "Global code:" >> mapM_ outputStrLn (stateGlobal state) >> loop state
+             Just (":r":_) -> outputStrLn "Preprocessor/code clean" >> (loop state{ statePList = [], stateCode = [] } )
+             Just (":s":_) -> outputStrLn "C++ Code:" >> 
+                              mapM_ outputStrLn (statePList state) >> 
+                              mapM_ outputStrLn (stateCode state) >> loop state
              Just (":c":_) -> getCode >>= \xs -> loop state {stateCode = xs} 
+             Just (":q":_) -> outputStrLn "Leaving ASSi." >> return ()
+             Just (":?":_) -> lift printHelp >> loop state
              Just (":x":_) -> do 
-                            let ctype = next $ stateCType state
-                            outputStrLn $ "Using " ++ show (ctype) ++ " compiler..."
-                            loop state { stateCType = ctype }
-             
-             Just (":q":_)    -> outputStrLn "Leaving ASSi." >> return ()
-             Just (":?":_)    -> lift printHelp >> loop state
-             Just ("///":xs) -> loop state{ stateGlobal = stateGlobal state ++ [unwords $ "///" : xs] } 
+                              let ctype = next $ stateCType state
+                              outputStrLn $ "Using " ++ show (ctype) ++ " compiler..." 
+                              loop state { stateCType = ctype }
              Just []         -> loop state
              Just input | isPreprocessor (C.pack $ unwords input) -> loop state { statePList = statePList state ++ [unwords input] } 
                         | otherwise -> do 
                         e <- lift $ buildCompileRun (C.pack (
-                            unlines (statePList state) ++ unlines (stateGlobal state) ++ unwords input))  
+                            unlines (statePList state) ++ unlines (stateCode state) ++ unwords input))  
                                 (compFilter (stateCType state) clist) (getCompilerArgs args) [] 
                         outputStrLn $ " -> " ++ show e
                         loop state
@@ -181,10 +180,9 @@ printHelp :: IO ()
 printHelp =  putStrLn $ "Commands available from the prompt:\n\n" ++
                         "<statement>                 evaluate/run C++ <statement>\n" ++
                         "  :c                        enter in C++ code mode\n" ++ 
-                        "  :r                        reset preprocessor and code\n" ++ 
-                        "  :s                        show preprocessor directives\n" ++
-                        "  :g                        show global code\n" ++
-                        "  :x                        switch compiler\n" ++ 
+                        "  :s                        show code\n" ++
+                        "  :r                        reset preprocessor/code\n" ++ 
+                        "  :x                        switch compiler(s)\n" ++ 
                         "  :q                        quit\n" ++
                         "  :?                        print this help\n"  
 
@@ -198,12 +196,12 @@ buildCompileRun code clist cargs targs = do
     let src = bin <.> "cpp"
     writeSource src (makeSourceCode code mt)
     forM clist $ \cxx -> do
-        putStr (show (getCType cxx) ++ ":") >> hFlush stdout
+        when (length clist > 1) $ print cxx >> hFlush stdout
         e <- compileWith cxx src (binary bin cxx) mt (["-I", cwd', "-I",  cwd' </> ".."] ++ cargs) 
         if (e == ExitSuccess) 
             then system ((binary bin cxx) ++ " " ++ (unwords $ targs)) 
             else return e
-        where binary n c = n ++ "-" ++ show (getCType c)
+        where binary n c = n ++ "-" ++ show (getType c)
 
 
 writeSource :: FilePath -> [SourceCode] -> IO ()
@@ -287,8 +285,8 @@ getCompilerOpt Clang mt =  compilerLib ++ [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEB
 compileWith :: Compiler -> FilePath -> FilePath -> Bool -> [String] -> IO ExitCode
 compileWith cxx source binary mt user_opt 
             = do system $ unwords $ cmd
-                    where cmd = [getCxxExec cxx, source, "-o", binary] 
-                                ++ (getCompilerOpt (getCType cxx) mt) 
+                    where cmd = [getExec cxx, source, "-o", binary] 
+                                ++ (getCompilerOpt (getType cxx) mt) 
                                 ++ user_opt 
                                 ++ if (mt) then ["-pthread"] else []
 

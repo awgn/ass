@@ -131,7 +131,7 @@ mainLoop args clist = do
     putStrLn banner
     putStr "Compilers found: "
     mapM_ (\c -> putStr (getExec c ++ " ")) clist
-    putStrLn "..."
+    putChar '\n'
     home <- getHomeDirectory
     runInputT defaultSettings { historyFile = Just $ home </> ".ass_history" } (loop $ State Clang [] [])
     where
@@ -140,7 +140,7 @@ mainLoop args clist = do
         minput <- getInputLine "Ass> "
         case (words <$> minput) of
              Nothing -> return ()
-             Just (":r":_) -> outputStrLn "Preprocessor/code clean" >> (loop state{ statePList = [], stateCode = [] } )
+             Just (":r":_) -> outputStrLn "Code clean." >> (loop state{ statePList = [], stateCode = [] } )
              Just (":s":_) -> outputStrLn "C++ Code:" >> 
                               mapM_ outputStrLn (statePList state) >> 
                               mapM_ outputStrLn (stateCode state) >> loop state
@@ -151,7 +151,7 @@ mainLoop args clist = do
                               let ctype = next $ stateCType state
                               outputStrLn $ "Using " ++ show (ctype) ++ " compiler..." 
                               loop state { stateCType = ctype }
-             Just []         -> loop state
+             Just []       -> loop state
              Just input | isPreprocessor (C.pack $ unwords input) -> loop state { statePList = statePList state ++ [unwords input] } 
                         | otherwise -> do 
                         e <- lift $ buildCompileRun (C.pack (
@@ -191,7 +191,7 @@ buildCompileRun :: Source -> [Compiler] -> [String] -> [String] -> IO [ExitCode]
 -- buildCompileRun code cxx cargs targs | trace ("buildCompileRun") False = undefined
 buildCompileRun code clist cargs targs = do 
     cwd' <- getCurrentDirectory
-    let mt  = isMultiThread code cargs
+    let mt = isMultiThread code cargs
     let bin = tmpDir </> snippet
     let src = bin <.> "cpp"
     writeSource src (makeSourceCode code mt)
@@ -219,13 +219,15 @@ useThreadOrAsync src =  "thread" `elem` identifiers || "async" `elem` identifier
 
 
 makeSourceCode :: Source -> Bool -> [SourceCode]
-makeSourceCode src mt | hasMain src = [ headers, toSourceCode src ]
-                      | otherwise   = [ headers, global, mainHeader, body, mainFooter ]
-                        where (global, body) = foldl parseCodeLine ([], []) (toSourceCode src) 
-                              headers    = [ CodeLine 1 (C.pack $ "#include " ++ if mt then "<ass-mt.hpp>" else "<ass.hpp>")]
-                              mainHeader = [ CodeLine 1 (C.pack "int main(int argc, char *argv[]) { cout << boolalpha;") ]
-                              mainFooter = [ CodeLine 1 (C.pack "}") ]
-
+makeSourceCode src mt 
+    | hasMain src = [ headers, toSourceCode src ]
+    | otherwise   = [ headers, global, mainHeader, body, mainFooter ]
+      where (global, body) = foldl parseCodeLine ([], []) (toSourceCode src) 
+            headers    = [ CodeLine 1 (C.pack $ "#include " ++ include)]
+            mainHeader = [ CodeLine 1 (C.pack "int main(int argc, char *argv[]) { cout << boolalpha;") ]
+            mainFooter = [ CodeLine 1 (C.pack "}") ]
+            include | mt = "<ass-mt.hpp>"
+                    | otherwise = "<ass.hpp>"
 
 hasMain :: Source -> Bool
 hasMain src 

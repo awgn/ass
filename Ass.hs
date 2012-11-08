@@ -254,18 +254,12 @@ isPreprocessor :: SourceLine -> Bool
 isPreprocessor = C.isPrefixOf (C.pack "#") . C.dropWhile isSpace 
 
 
-getGlobalLine :: SourceLine -> Maybe SourceLine
-getGlobalLine xs 
-    | C.pack "///" `C.isPrefixOf` xs' = Just $ snd $ C.splitAt 3 xs'
-    | otherwise = Nothing
-        where xs' = C.dropWhile isSpace xs
-
-
 parseCodeLine :: ParserState -> CodeLine -> ParserState
 parseCodeLine (t,m) (CodeLine n x)  
     | isPreprocessor x = (t ++ [CodeLine n x], m)
-    | Just x' <- getGlobalLine x = (t ++ [CodeLine n x'], m)
-    | otherwise  =  (t, m ++ [CodeLine n x])
+    | isSwitchLine x   = (m ++ [CodeLine n x], t)
+    | otherwise        = (t, m ++ [CodeLine n x])
+        where isSwitchLine = (C.pack "///" `C.isPrefixOf`)
 
 
 toSourceCode :: Source -> SourceCode

@@ -173,7 +173,8 @@ getCode = do
 mainFun :: [String] -> Compiler -> IO ()
 mainFun args cxx = do
     code <- C.hGetContents stdin
-    buildCompileRun code [cxx] (getCompilerArgs args) (getTestArgs args) >>= (\xs -> return $ head xs) >>= exitWith
+    buildCompileRun code [cxx] (getCompilerArgs args) (getTestArgs args) >>= (\xs -> 
+        return $ head xs) >>= exitWith
 
 
 printHelp :: IO ()
@@ -230,10 +231,8 @@ makeSourceCode src mt
                     | otherwise = "<ass.hpp>"
 
 hasMain :: Source -> Bool
-hasMain src 
-    | ["int", "main", "("] `isInfixOf` (Cpp.toString <$> ts) = True
-    | otherwise = False
-        where ts = Cpp.tokens $ sourceFilter src
+hasMain src =  ["int", "main", "("] `isInfixOf` (Cpp.toString <$> ts) 
+                where ts = Cpp.tokens $ sourceFilter src
 
 
 sourceFilter :: Source -> Source
@@ -268,22 +267,24 @@ toSourceCode src = zipWith CodeLine [1..] (C.lines src)
 
 getCompilerOpt :: Compiler -> Bool -> [String]
 getCompilerOpt (Compiler Any _)   _  = undefined
-getCompilerOpt (Compiler Gcc bin) mt =  [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", "-Wextra", "-Wno-unused-parameter" ] ++ pch ++ pth
-                                        where pch | "4.8" `isSuffixOf` bin = [ "-I/usr/local/include/4.8/" ]
-                                                  | "4.7" `isSuffixOf` bin = [ "-I/usr/local/include/4.7/" ]
-                                                  | "4.6" `isSuffixOf` bin = [ "-I/usr/local/include/4.6/" ]
-                                                  | otherwise              = [ "-I/usr/local/include" ]
-                                              pth | mt = ["-pthread"]
-                                                  | otherwise = []
+getCompilerOpt (Compiler Gcc bin) mt =  
+        [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", "-Wextra", "-Wno-unused-parameter" ] ++ pch ++ pth
+                where pch | "4.8" `isSuffixOf` bin = [ "-I/usr/local/include/4.8/" ]
+                          | "4.7" `isSuffixOf` bin = [ "-I/usr/local/include/4.7/" ]
+                          | "4.6" `isSuffixOf` bin = [ "-I/usr/local/include/4.6/" ]
+                          | otherwise              = [ "-I/usr/local/include" ]
+                      pth | mt = ["-pthread"]
+                          | otherwise = []
 
-getCompilerOpt (Compiler Clang _) mt =  [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", "-include-pch", pch, 
-                                          "-Wextra", "-Wno-unused-parameter", "-Wno-unneeded-internal-declaration"] ++ stdlib ++ pth
-                                        where pch    | mt             = "/usr/local/include/clang/ass-mt.hpp.pch"
-                                                     | otherwise      = "/usr/local/include/clang/ass.hpp.pch" 
-                                              stdlib | os == "darwin" = [ "-stdlib=libc++" ]
-                                                     | otherwise      = []
-                                              pth    | mt = ["-pthread"]
-                                                     | otherwise = []
+getCompilerOpt (Compiler Clang _) mt =  
+        [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", "-include-pch", pch, 
+          "-Wextra", "-Wno-unused-parameter", "-Wno-unneeded-internal-declaration"] ++ stdlib ++ pth
+                where pch    | mt             = "/usr/local/include/clang/ass-mt.hpp.pch"
+                             | otherwise      = "/usr/local/include/clang/ass.hpp.pch" 
+                      stdlib | os == "darwin" = [ "-stdlib=libc++" ]
+                             | otherwise      = []
+                      pth    | mt = ["-pthread"]
+                             | otherwise = []
 
 compileWith :: Compiler -> FilePath -> FilePath -> Bool -> [String] -> IO ExitCode
 compileWith cxx source binary mt user_opt 

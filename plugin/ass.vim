@@ -23,6 +23,7 @@ endfunction
 " compile snippet and run:
 "
 function! s:ass_compile_and_run(comp)
+        cclose
         call inputsave() 
         let l:cmd = inputdialog("[" . a:comp . " ass]: ")
         call inputrestore()  

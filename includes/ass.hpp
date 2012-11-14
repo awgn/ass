@@ -19,7 +19,7 @@
 //
 
 #ifndef __ASS_HPP__
-#define __ASS_HPP__ 
+#define __ASS_HPP__
 
 #include <cxxabi.h>
 
@@ -602,8 +602,7 @@ namespace std
 
 ////////////////////////////////////////////////////////////// type utils 
 
-
-namespace ass {
+inline namespace ass_inline {
 
     static inline 
     std::string
@@ -613,7 +612,7 @@ namespace ass {
     }
 
     template <bool is_ref, typename Tp>
-    std::string type_name(Tp &&x)
+    std::string type_of(Tp &&x)
     {
         typedef decltype(std::forward<Tp>(x)) decl_type;
         
@@ -632,145 +631,152 @@ namespace ass {
         return name;
     }
     
-} // namespace ass
-
-
-////////////////////////////////////////////////////////////// simple Oracle class
-
-
-struct O
-{
-    template <typename T, typename CharT, typename Traits>
-    static void print(std::basic_ostream<CharT,Traits> &out, T elem)
+    template <typename Tp>
+    std::string type_name()
     {
-         static std::string last_token;
- 
-         std::ostringstream ss; ss << elem;
-         std::string token = ss.str();
- 
-         if ( last_token != token ) {
-             out << token; last_token = std::move(token);
-         }
-         else {
-             out << '.';
-         }
+        return demangle(typeid(Tp).name());
     }
 
-    template <typename T>
-    static void print_type(std::ostringstream &out, T&& arg)
+    ////////////////////////////////////////////////////////////// simple Oracle class
+
+    struct O
     {
-        out << ass::type_name<std::is_reference<T>::value>(std::forward<T>(arg));
-    }
-    template <typename T, typename ...Ti>
-    static void print_type(std::ostringstream &out, T&& arg, Ti&&...args)
+        template <typename T, typename CharT, typename Traits>
+        static void print(std::basic_ostream<CharT,Traits> &out, T elem)
+        {
+            static std::string last_token;
+
+            std::ostringstream ss; ss << elem;
+            std::string token = ss.str();
+
+            if ( last_token != token ) {
+                out << token; last_token = std::move(token);
+            }
+            else {
+                out << '.';
+            }
+        }
+
+        template <typename T>
+        static void print_type(std::ostringstream &out, T&& arg)
+        {
+            out << type_of<std::is_reference<T>::value>(std::forward<T>(arg));
+        }
+        template <typename T, typename ...Ti>
+        static void print_type(std::ostringstream &out, T&& arg, Ti&&...args)
+        {
+            out << type_of<std::is_reference<T>::value>(std::forward<T>(arg)) << ',';
+            print_type(out, std::forward<Ti>(args)...);
+        }
+
+        std::intptr_t value;
+
+        O() : 
+        value(reinterpret_cast<std::intptr_t>(this)) 
+        { 
+            print(std::cout," O()"); 
+        } 
+
+        O(O &other) :
+        value(other.value) 
+        { 
+            print(std::cout," O(O&)"); 
+        } 
+
+        O(const O &other) :
+        value(other.value) 
+        { 
+            print(std::cout," O(const O&)"); 
+        } 
+
+        O &operator=(const O &other) 
+        { 
+            value = other.value;
+            print(std::cout," op=(const O&)"); return *this; 
+        } 
+
+        ~O() 
+        { 
+            print(std::cout," ~O()"); 
+        }
+
+        O(O &&other) :
+        value(other.value)    
+        { 
+            other.value = 0xdeadbeef;
+            print(std::cout," O(O&&)"); 
+        } 
+
+        O &operator=(O &&other) 
+        { 
+            value = other.value;
+            other.value = 0xdeadbeef;        
+            print(std::cout," op=(O&&)"); 
+            return *this; 
+        } 
+
+        template <typename ...Ti> 
+        explicit O(Ti&& ...arg) :
+        value(reinterpret_cast<std::intptr_t>(this)) 
+        {
+            std::ostringstream ss; ss << " O(";
+            print_type(ss, std::forward<Ti>(arg)...);
+            ss << ")";
+            print(std::cout,ss.str().c_str()); 
+        } 
+
+        void swap(O &rhs) 
+        { 
+            std::swap(value, rhs.value);
+            print(std::cout," swap(O,O)"); 
+        }
+
+        bool operator<(const O &rhs) const
+        {
+            print(std::cout," <");
+            return value < rhs.value;
+        }
+        bool operator>=(const O &rhs) const
+        {
+            print(std::cout," >=");
+            return !(*this < rhs);   
+        }
+        bool operator>(const O &rhs) const
+        {
+            print(std::cout," >");
+            return rhs < *this;
+        }
+        bool operator<=(const O &rhs) const
+        {
+            print(std::cout," <=");
+            return !(rhs < *this);   
+        }
+
+        bool operator==(const O &rhs) const
+        {
+            print(std::cout," ==");
+            return value == rhs.value;
+        }
+        bool operator!=(const O &rhs) const
+        {
+            print(std::cout," !=");
+            return !(*this == rhs);
+        }
+    };  
+
+    template <typename CharT, typename Traits>
+    typename std::basic_ostream<CharT, Traits> &
+    operator<<(std::basic_ostream<CharT,Traits> &out, const O & rhs)
     {
-        out << ass::type_name<std::is_reference<T>::value>(std::forward<T>(arg)) << ',';
-        print_type(out, std::forward<Ti>(args)...);
+        std::ostringstream ss; ss << " O@" << (void *)rhs.value;
+        O::print(out, ss.str().c_str());
+        return out;
     }
 
-    std::intptr_t value;
-    
-    O() : 
-    value(reinterpret_cast<std::intptr_t>(this)) 
-    { 
-        print(std::cout," O()"); 
-    } 
-   
-    O(O &other) :
-    value(other.value) 
-    { 
-        print(std::cout," O(O&)"); 
-    } 
 
-    O(const O &other) :
-    value(other.value) 
-    { 
-        print(std::cout," O(const O&)"); 
-    } 
+} // namespace ass_inline
 
-    O &operator=(const O &other) 
-    { 
-        value = other.value;
-        print(std::cout," op=(const O&)"); return *this; 
-    } 
 
-    ~O() 
-    { 
-        print(std::cout," ~O()"); 
-    }
-
-    O(O &&other) :
-    value(other.value)    
-    { 
-        other.value = 0xdeadbeef;
-        print(std::cout," O(O&&)"); 
-    } 
-
-    O &operator=(O &&other) 
-    { 
-        value = other.value;
-        other.value = 0xdeadbeef;        
-        print(std::cout," op=(O&&)"); 
-        return *this; 
-    } 
-    
-    template <typename ...Ti> 
-    explicit O(Ti&& ...arg) :
-    value(reinterpret_cast<std::intptr_t>(this)) 
-    {
-        std::ostringstream ss; ss << " O(";
-        print_type(ss, std::forward<Ti>(arg)...);
-        ss << ")";
-        print(std::cout,ss.str().c_str()); 
-    } 
-
-    void swap(O &rhs) 
-    { 
-        std::swap(value, rhs.value);
-        print(std::cout," swap(O,O)"); 
-    }
-
-    bool operator<(const O &rhs) const
-    {
-         print(std::cout," <");
-         return value < rhs.value;
-    }
-    bool operator>=(const O &rhs) const
-    {
-         print(std::cout," >=");
-         return !(*this < rhs);   
-    }
-    bool operator>(const O &rhs) const
-    {
-         print(std::cout," >");
-         return rhs < *this;
-    }
-    bool operator<=(const O &rhs) const
-    {
-         print(std::cout," <=");
-         return !(rhs < *this);   
-    }
-
-    bool operator==(const O &rhs) const
-    {
-         print(std::cout," ==");
-         return value == rhs.value;
-    }
-    bool operator!=(const O &rhs) const
-    {
-         print(std::cout," !=");
-         return !(*this == rhs);
-    }
-};  
-
-template <typename CharT, typename Traits>
-typename std::basic_ostream<CharT, Traits> &
-operator<<(std::basic_ostream<CharT,Traits> &out, const O & rhs)
-{
-    std::ostringstream ss; ss << " O@" << (void *)rhs.value;
-    O::print(out, ss.str().c_str());
-    return out;
-}
 
 ////////////////////////////////////////////////////////////// R(): Ranges ala Haskell 
 
@@ -820,75 +826,90 @@ namespace ass {
     static_assert(sizeof(initializer_list<int>) == sizeof(std::initializer_list<int>), "ass::initializer_list<_E>");
 }
 
-template <typename Tp = int>
-std::initializer_list<Tp> 
-R(int a0, int a1, int b)
-{                                 
-    int step = a1 - a0;
-    int size = (b - a0 + (step < 0 ? -1 : 1))/step; 
-    size = (size > 0 ? size : 0);
-    
-    Tp * leak = nullptr;   // leak! a per-thread static should be a viable option...
-    if (size) {
-        leak = static_cast<Tp *>(realloc(leak, size * sizeof(Tp)));
-        for(int n = 0; (step > 0  ? a0 <= b : a0 >= b); a0 += step, n++)
-            new (leak+n) Tp(a0);  
+
+inline namespace ass_inline {
+
+    template <typename Tp = int>
+    std::initializer_list<Tp> 
+    R(int a0, int a1, int b)
+    {                                 
+        int step = a1 - a0;
+        int size = (b - a0 + (step < 0 ? -1 : 1))/step; 
+        size = (size > 0 ? size : 0);
+
+        Tp * leak = nullptr;   // leak! a per-thread static should be a viable option...
+        if (size) {
+            leak = static_cast<Tp *>(realloc(leak, size * sizeof(Tp)));
+            for(int n = 0; (step > 0  ? a0 <= b : a0 >= b); a0 += step, n++)
+                new (leak+n) Tp(a0);  
+        }
+        ass::initializer_list<Tp> ret(leak,size);
+        return reinterpret_cast<std::initializer_list<Tp> &>(ret);
     }
-    ass::initializer_list<Tp> ret(leak,size);
-    return reinterpret_cast<std::initializer_list<Tp> &>(ret);
-}
 
-template <typename Tp = int>
-std::initializer_list<Tp> 
-R(int a, int b)
-{
-    return R<Tp>(a,a+1,b);
-}
+    template <typename Tp = int>
+    std::initializer_list<Tp> 
+    R(int a, int b)
+    {
+        return R<Tp>(a,a+1,b);
+    }
 
-////////////////////////////////////////////////////////////// P(): generic variadic print
+    ////////////////////////////////////////////////////////////// P(): generic variadic print
 
-template <typename T>
-void P(T &&arg)
-{
-    std::cout << show(arg);
-}
+    template <typename T>
+    void P(T &&arg)
+    {
+        std::cout << show(arg);
+    }
 
-template <typename T, typename ...Ts>
-void P(T &&arg, Ts&&... args)
-{
-    std::cout << show(arg) << ' ';
-    P(std::forward<Ts>(args)...);
-}
+    template <typename T, typename ...Ts>
+    void P(T &&arg, Ts&&... args)
+    {
+        std::cout << show(arg) << ' ';
+        P(std::forward<Ts>(args)...);
+    }
 
-////////////////////////////////////////////////////////////// _(): build pairs and tuples 
+    ////////////////////////////////////////////////////////////// _(): build pairs and tuples 
 
-template <typename T1, typename T2>
-auto _(T1 &&arg1, T2 &&arg2)
+    template <typename T1, typename T2>
+    auto _(T1 &&arg1, T2 &&arg2)
     -> decltype(std::make_pair(std::forward<T1>(arg1), std::forward<T2>(arg2)))
-{
-    return std::make_pair(std::forward<T1>(arg1), std::forward<T2>(arg2));
-}
+    {
+        return std::make_pair(std::forward<T1>(arg1), std::forward<T2>(arg2));
+    }
 
-template <typename ... Ts>
-auto _(Ts&& ...args) 
+    template <typename ... Ts>
+    auto _(Ts&& ...args) 
     -> decltype(std::make_tuple(std::forward<Ts>(args)...))
-{
-    return std::make_tuple(std::forward<Ts>(args)...);
-}
+    {
+        return std::make_tuple(std::forward<Ts>(args)...);
+    }
 
-////////////////////////////////////////////////////////////// S(): stringfy arg with show()
+    ////////////////////////////////////////////////////////////// S(): stringfy arg with show()
 
-template <typename T>
-std::string
-S(const T & arg)
-{
-    return show(arg);
-}
+    template <typename T>
+    std::string
+    S(const T & arg)
+    {
+        return show(arg);
+    }
+    
+    ////////////////////////////////////////////////////////////// T<>(): get a demanged type name
 
-////////////////////////////////////////////////////////////// _T(): return the type of an expression
-//
+    template <typename Tp>
+    std::string 
+    T()
+    {
+        return type_name<Tp>();
+    }
 
-#define _T(x)   ass::type_name<is_reference<decltype(x)>::value>(x)
+    ////////////////////////////////////////////////////////////// TYPE_OF(): return the type of an expression
+
+
+    #define TYPE_OF(x)   type_of<is_reference<decltype(x)>::value>(x)
+
+
+} // namespace ass_inline
 
 
 using namespace std;
@@ -896,3 +917,4 @@ using namespace std::chrono;
 using namespace std::placeholders;
 
 #endif /* __ASS_HPP__ */
+

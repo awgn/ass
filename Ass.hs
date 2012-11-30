@@ -133,7 +133,7 @@ mainLoop args clist = do
     mapM_ (\c -> putStr (getExec c ++ " ")) clist
     putChar '\n'
     home <- getHomeDirectory
-    runInputT defaultSettings { historyFile = Just $ home </> ".ass_history" } (loop $ State Clang [] [])
+    runInputT defaultSettings { historyFile = Just $ home </> ".ass_history" } (loop $ State (getType $ head clist) [] [])
     where
     loop :: State -> InputT IO ()
     loop state = do

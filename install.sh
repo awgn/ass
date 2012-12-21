@@ -44,7 +44,6 @@ echo -e "${ASS} Installing headers..."
 /bin/cp includes/ass-mt.hpp /usr/local/include/
 
 
-
 case `uname` in
 Linux)
 
@@ -77,6 +76,12 @@ if [ -x /usr/bin/clang++ ]; then
     mkdir -p /usr/local/include/clang
     /usr/bin/clang++ includes/ass.hpp    -std=c++11 ${CLANG_LIBC} -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -x          c++-header -o /usr/local/include/clang/ass.hpp.pch
     /usr/bin/clang++ includes/ass-mt.hpp -std=c++11 ${CLANG_LIBC} -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -pthread -x c++-header -o /usr/local/include/clang/ass-mt.hpp.pch
+fi
+
+if [ -d $HOME/.vim/bundle/ ]; then
+    echo -e "${ASS} Installing vim-ass plug-in (pathogen detected)..."
+    /bin/mkdir -p ${HOME}/.vim/bundle/vim-ass/
+    cp -r plugin  ${HOME}/.vim/bundle/vim-ass/ 
 fi
 
 echo -e "${ASS} done."

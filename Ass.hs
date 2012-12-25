@@ -120,10 +120,9 @@ main = do args  <- getArgs
             _        -> getCompilers compilerList >>= (\xs -> return (head $ compFilter ctype xs)) >>= mainFun args 
 
 
-data State = State { stateCType   :: CompilerType,
-                     statePList   :: [String],
-                     stateCode    :: [String]}
-                     deriving (Show, Eq)
+data CliState = CliState { stateCType   :: CompilerType,
+                           statePList   :: [String],
+                           stateCode    :: [String]} deriving (Show, Eq)
 
 
 mainLoop :: [String] -> [Compiler] -> IO ()
@@ -133,9 +132,9 @@ mainLoop args clist = do
     mapM_ (\c -> putStr (getExec c ++ " ")) clist
     putChar '\n'
     home <- getHomeDirectory
-    runInputT defaultSettings { historyFile = Just $ home </> ".ass_history" } (loop $ State (getType $ head clist) [] [])
+    runInputT defaultSettings { historyFile = Just $ home </> ".ass_history" } (loop $ CliState (getType $ head clist) [] [])
     where
-    loop :: State -> InputT IO ()
+    loop :: CliState -> InputT IO ()
     loop state = do
         minput <- getInputLine "Ass> "
         case (words <$> minput) of

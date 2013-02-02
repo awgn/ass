@@ -23,6 +23,7 @@ module Main where
 import Data.Char
 import Data.List
 import Data.Functor
+import Safe (tailSafe)
 import System.Environment(getArgs, getProgName)
 import System.Process(system)
 import System.IO
@@ -243,9 +244,7 @@ getCompilerArgs = takeWhile ( /= "--" )
 
 
 getTestArgs :: [String] -> [String]
-getTestArgs = tail' . dropWhile ( /= "--" ) 
-                where tail' [] = []
-                      tail' (_:xs) = xs
+getTestArgs = tailSafe . dropWhile ( /= "--" ) 
 
 
 isPreprocessor :: SourceLine -> Bool

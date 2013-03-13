@@ -70,7 +70,7 @@ helpString = "     c -> simple class\n" ++
              "     m -> moavable class\n" ++
              "     t -> template class\n" ++
              "     v -> value class\n" ++
-             "     s -> singletom class\n" ++
+             "     s -> singleton class\n" ++
              "     n -> namespace\n" ++
              "     r -> crtp idiom\n" ++
              "     y -> yats test"    

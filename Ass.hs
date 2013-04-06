@@ -52,14 +52,36 @@ type MainFunction    = SourceCode
 type ParserState     = (TranslationUnit, MainFunction)
  
 
+-- default compiler list (overridden by ~/.assrc)
+--
+
+compilerList :: [Compiler]
+compilerList = [ 
+                 Compiler Gcc   "/usr/bin/g++-4.8",
+                 Compiler Gcc   "/usr/bin/g++-4.7",
+                 Compiler Gcc   "/usr/bin/g++-4.6",
+                 Compiler Clang "/usr/bin/clang++"
+               ]
+
+
+banner, snippet, tmpDir,assrc, ass_history :: String 
+
+banner  = "ASSi, version 1.2.3 :? for help"
+snippet     = "snippet" 
+tmpDir      =  "/tmp" 
+assrc       =  ".assrc"
+ass_history = ".ass_history"
+
+
 data CodeLine = CodeLine Int SourceLine 
+
 
 instance Show CodeLine where
     show (CodeLine n xs) = "#line " ++ show n ++ "\n" ++ C.unpack xs  
 
 
 data CompilerType = Clang | Gcc | Any 
-                    deriving (Show,Enum)
+                    deriving (Show,Read,Enum)
 
 
 next :: CompilerType -> CompilerType
@@ -77,18 +99,14 @@ instance Eq CompilerType where
     _      == _     =  False
 
 
-data Compiler = Compiler { getType :: CompilerType, 
-                           getExec :: FilePath } 
-                deriving (Show, Eq)
+data Compiler = Compiler CompilerType FilePath  
+                deriving (Show, Read, Eq)
 
+getType :: Compiler -> CompilerType 
+getType (Compiler t _) = t
 
-compilerList :: [Compiler]
-compilerList = [ 
-                 Compiler Clang "/usr/bin/clang++",
-                 Compiler Gcc   "/usr/bin/g++-4.8",
-                 Compiler Gcc   "/usr/bin/g++-4.7",
-                 Compiler Gcc   "/usr/bin/g++-4.6"
-               ]
+getExec :: Compiler -> FilePath
+getExec (Compiler _ e) = e
 
 
 getCompilers :: [Compiler] -> IO [Compiler]
@@ -105,20 +123,20 @@ compFilter :: CompilerType -> [Compiler] -> [Compiler]
 compFilter t = filter (\n -> t == getType n) 
 
 
-banner, snippet, tmpDir :: String 
-
-banner  = "ASSi, version 1.2.2 :? for help"
-snippet = "snippet" 
-tmpDir  =  "/tmp" 
-   
+getCompilerConf :: FilePath -> IO [Compiler]
+getCompilerConf conf = 
+    doesFileExist conf >>= \b -> if b then liftM read $ readFile conf
+                                      else return compilerList
 
 main :: IO ()
 main = do args  <- getArgs
+          home  <- getHomeDirectory
           ctype <- getCompilerTypeByName
+          clist <- getCompilerConf (home </> assrc)
           case args of 
-            ("-i":_) -> getCompilers compilerList >>= mainLoop (tail args)
-            []       -> getCompilers compilerList >>= (\xs -> return (head $ compFilter ctype xs)) >>= mainFun []  
-            _        -> getCompilers compilerList >>= (\xs -> return (head $ compFilter ctype xs)) >>= mainFun args 
+            ("-i":_) -> getCompilers clist >>= mainLoop (tail args)
+            []       -> getCompilers clist >>= (\xs -> return (head $ compFilter ctype xs)) >>= mainFun []  
+            _        -> getCompilers clist >>= (\xs -> return (head $ compFilter ctype xs)) >>= mainFun args 
 
 
 data CliState = CliState { stateCType   :: CompilerType,

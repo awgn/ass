@@ -165,7 +165,7 @@ mainLoop args clist = do
              Just (":c":_) -> getCode >>= \xs -> loop state {stateCode = xs ++ stateCode state } 
              Just (":q":_) -> outputStrLn "Leaving ASSi." >> return ()
              Just (":?":_) -> lift printHelp >> loop state
-             Just (":x":_) -> do 
+             Just (":n":_) -> do 
                               let ctype = next $ stateCType state
                               outputStrLn $ "Using " ++ show (ctype) ++ " compiler..." 
                               loop state { stateCType = ctype }
@@ -201,7 +201,7 @@ printHelp =  putStrLn $ "Commands available from the prompt:\n\n" ++
                         "  :c                        enter in C++ code mode\n" ++ 
                         "  :s                        show code\n" ++
                         "  :r                        reset preprocessor/code\n" ++ 
-                        "  :x                        switch compiler(s)\n" ++ 
+                        "  :n                        switch to next compiler(s)\n" ++ 
                         "  :q                        quit\n" ++
                         "  :?                        print this help\n"  
 
@@ -283,14 +283,15 @@ toSourceCode src = zipWith CodeLine [1..] (C.lines src)
 
 getCompilerOpt :: Compiler -> Bool -> [String]
 getCompilerOpt (Compiler Any _)   _  = undefined
-getCompilerOpt (Compiler Gcc bin) mt =  
-        [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", "-Wextra", "-Wno-unused-parameter" ] ++ pch ++ pth
-                where pch | "4.8" `isSuffixOf` bin = [ "-I/usr/local/include/4.8/" ]
-                          | "4.7" `isSuffixOf` bin = [ "-I/usr/local/include/4.7/" ]
-                          | "4.6" `isSuffixOf` bin = [ "-I/usr/local/include/4.6/" ]
-                          | otherwise              = [ "-I/usr/local/include" ]
-                      pth | mt = ["-pthread"]
-                          | otherwise = []
+getCompilerOpt (Compiler Gcc bin) mt   
+    | "4.8" `isSuffixOf` bin = args ++ ["-std=c++11"] ++ pth ++ [ "-I/usr/local/include/4.8" ]  
+    | "4.7" `isSuffixOf` bin = args ++ ["-std=c++11"] ++ pth ++ [ "-I/usr/local/include/4.7" ]
+    | "4.6" `isSuffixOf` bin = args ++ ["-std=c++0x"] ++ pth ++ [ "-I/usr/local/include/4.6" ]
+    | otherwise              = args ++ ["-std=c++0x"] ++ pth 
+        where args = [ "-O0", "-D_GLIBCXX_DEBUG", "-Wall", "-Wextra", "-Wno-unused-parameter" ]
+              pth | mt = ["-pthread"]
+                  | otherwise = []
+
 
 getCompilerOpt (Compiler Clang _) mt =  
         [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", "-include-pch", pch, 
@@ -303,10 +304,11 @@ getCompilerOpt (Compiler Clang _) mt =
                              | otherwise = []
 
 compileWith :: Compiler -> FilePath -> FilePath -> Bool -> [String] -> IO ExitCode
-compileWith cxx source binary mt user_opt 
-            = do system $ unwords $ cmd
-                    where cmd = [getExec cxx, source, "-o", binary] 
-                                ++ (getCompilerOpt cxx mt) 
-                                ++ user_opt 
+compileWith cxx source binary mt user_opt = do
+    -- print $ cmd
+    system $ unwords $ cmd
+        where cmd = [getExec cxx, source, "-o", binary] 
+                    ++ (getCompilerOpt cxx mt) 
+                    ++ user_opt 
 
 

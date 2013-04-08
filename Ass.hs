@@ -57,16 +57,16 @@ type ParserState     = (TranslationUnit, MainFunction)
 
 compilerList :: [Compiler]
 compilerList = [ 
-                 Compiler Gcc   "/usr/bin/g++-4.8",
-                 Compiler Gcc   "/usr/bin/g++-4.7",
-                 Compiler Gcc   "/usr/bin/g++-4.6",
-                 Compiler Clang "/usr/bin/clang++"
+                 Compiler Gcc   "/usr/bin/g++-4.8" "g++-4.8",
+                 Compiler Gcc   "/usr/bin/g++-4.7" "g++-4.7",
+                 Compiler Gcc   "/usr/bin/g++-4.6" "g++-4.6",
+                 Compiler Clang "/usr/bin/clang++" "clang++"
                ]
 
 
 banner, snippet, tmpDir,assrc, ass_history :: String 
 
-banner  = "ASSi, version 1.2.3 :? for help"
+banner  = "ASSi, version 1.2.4 :? for help"
 snippet     = "snippet" 
 tmpDir      =  "/tmp" 
 assrc       =  ".assrc"
@@ -99,18 +99,27 @@ instance Eq CompilerType where
     _      == _     =  False
 
 
-data Compiler = Compiler CompilerType FilePath  
-                deriving (Show, Read, Eq)
+data Compiler = Compiler CompilerType FilePath String  
+                deriving (Read, Eq)
 
-getType :: Compiler -> CompilerType 
-getType (Compiler t _) = t
+instance Show Compiler where
+    show (Compiler _ _ name) = name
 
-getExec :: Compiler -> FilePath
-getExec (Compiler _ e) = e
+
+getCompilerType :: Compiler -> CompilerType 
+getCompilerType (Compiler t _ _) = t
+
+
+getCompilerExec :: Compiler -> FilePath
+getCompilerExec (Compiler _ e _) = e
+
+
+getCompilerName :: Compiler -> FilePath
+getCompilerName (Compiler _ _ n) = n
 
 
 getCompilers :: [Compiler] -> IO [Compiler]
-getCompilers = filterM (doesFileExist . getExec) 
+getCompilers = filterM (doesFileExist . getCompilerExec) 
 
 
 getCompilerTypeByName :: IO CompilerType
@@ -120,7 +129,7 @@ getCompilerTypeByName =
 
 
 compFilter :: CompilerType -> [Compiler] -> [Compiler]
-compFilter t = filter (\n -> t == getType n) 
+compFilter t = filter (\n -> t == getCompilerType n) 
 
 
 getCompilerConf :: FilePath -> IO [Compiler]
@@ -148,10 +157,10 @@ mainLoop :: [String] -> [Compiler] -> IO ()
 mainLoop args clist = do
     putStrLn banner
     putStr "Compilers found: "
-    mapM_ (\c -> putStr (getExec c ++ " ")) clist
+    mapM_ (\c -> putStr (getCompilerExec c ++ " ")) clist
     putChar '\n'
     home <- getHomeDirectory
-    runInputT defaultSettings { historyFile = Just $ home </> ".ass_history" } (loop $ CliState (getType $ head clist) [] [])
+    runInputT defaultSettings { historyFile = Just $ home </> ".ass_history" } (loop $ CliState (getCompilerType $ head clist) [] [])
     where
     loop :: CliState -> InputT IO ()
     loop state = do
@@ -175,7 +184,7 @@ mainLoop args clist = do
                         e <- lift $ buildCompileRun (C.pack (
                             unlines (statePList state) ++ unlines (stateCode state) ++ unwords input))  
                                 (compFilter (stateCType state) clist) (getCompilerArgs args) [] 
-                        outputStrLn $ " -> " ++ show e
+                        outputStrLn $ show e
                         loop state
 
 
@@ -215,12 +224,12 @@ buildCompileRun code clist cargs targs = do
     let src = bin <.> "cpp"
     writeSource src (makeSourceCode code mt)
     forM clist $ \cxx -> do
-        when (length clist > 1) $ print cxx >> hFlush stdout
+        when (length clist > 1) $ (putStr $ show cxx ++ " -> ")  >> hFlush stdout
         e <- compileWith cxx src (binary bin cxx) mt (["-I", cwd', "-I",  cwd' </> ".."] ++ cargs) 
         if (e == ExitSuccess) 
-            then system ((binary bin cxx) ++ " " ++ (unwords $ targs)) 
+            then system ((binary bin cxx) ++ " " ++ (unwords $ targs)) >>= (\ret -> putChar '\n' >> return ret)
             else return e
-        where binary n c = n ++ "-" ++ show (getType c)
+        where binary n c = n ++ "-" ++ show (getCompilerType c)
 
 
 writeSource :: FilePath -> [SourceCode] -> IO ()
@@ -282,8 +291,8 @@ toSourceCode src = zipWith CodeLine [1..] (C.lines src)
 
 
 getCompilerOpt :: Compiler -> Bool -> [String]
-getCompilerOpt (Compiler Any _)   _  = undefined
-getCompilerOpt (Compiler Gcc bin) mt   
+getCompilerOpt (Compiler Any _ _)   _  = undefined
+getCompilerOpt (Compiler Gcc bin _) mt   
     | "4.8" `isSuffixOf` bin = args ++ ["-std=c++11"] ++ pth ++ [ "-I/usr/local/include/4.8" ]  
     | "4.7" `isSuffixOf` bin = args ++ ["-std=c++11"] ++ pth ++ [ "-I/usr/local/include/4.7" ]
     | "4.6" `isSuffixOf` bin = args ++ ["-std=c++0x"] ++ pth ++ [ "-I/usr/local/include/4.6" ]
@@ -293,7 +302,7 @@ getCompilerOpt (Compiler Gcc bin) mt
                   | otherwise = []
 
 
-getCompilerOpt (Compiler Clang _) mt =  
+getCompilerOpt (Compiler Clang _ _) mt =  
         [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", "-include-pch", pch, 
           "-Wextra", "-Wno-unused-parameter", "-Wno-unneeded-internal-declaration"] ++ stdlib ++ pth
                 where pch    | mt             = "/usr/local/include/clang/ass-mt.hpp.pch"
@@ -307,7 +316,7 @@ compileWith :: Compiler -> FilePath -> FilePath -> Bool -> [String] -> IO ExitCo
 compileWith cxx source binary mt user_opt = do
     -- print $ cmd
     system $ unwords $ cmd
-        where cmd = [getExec cxx, source, "-o", binary] 
+        where cmd = [getCompilerExec cxx, source, "-o", binary] 
                     ++ (getCompilerOpt cxx mt) 
                     ++ user_opt 
 

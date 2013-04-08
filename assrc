@@ -1,6 +1,6 @@
 [ 
-    Compiler Clang "/usr/bin/clang++",
-    Compiler Gcc   "/usr/bin/g++-4.8",
-    Compiler Gcc   "/usr/bin/g++-4.7",
-    Compiler Gcc   "/usr/bin/g++-4.6"
+    Compiler Gcc   "/usr/bin/g++-4.8" "g++ 4.8",
+    Compiler Gcc   "/usr/bin/g++-4.7" "g++ 4.7",
+    Compiler Gcc   "/usr/bin/g++-4.6" "g++ 4.6",
+    Compiler Clang "/usr/bin/clang++" "clang++"
 ]

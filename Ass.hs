@@ -66,7 +66,7 @@ compilerList = [
 
 banner, snippet, tmpDir,assrc, ass_history :: String 
 
-banner  = "ASSi, version 1.2.4 :? for help"
+banner  = "ASSi, version 1.2.5 :? for help"
 snippet     = "snippet" 
 tmpDir      =  "/tmp" 
 assrc       =  ".assrc"

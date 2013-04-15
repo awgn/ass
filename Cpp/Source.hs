@@ -15,10 +15,9 @@
 -- along with this program; if not, write to the Free Software
 -- Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 --
--- ass: C++11 code ass'istant 
 
 
-module Cpp.Source(Source, SourceLine) where 
+module Cpp.Source (Source, SourceLine) where 
 
 import qualified Data.ByteString.Lazy.Char8 as C
 

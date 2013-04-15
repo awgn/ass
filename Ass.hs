@@ -34,7 +34,7 @@ import System.Directory(getCurrentDirectory, getHomeDirectory, doesFileExist)
 
 import System.Console.Haskeline
 
-import Control.Monad(when,forM,liftM,filterM)
+import Control.Monad(when,void,forM,liftM,filterM)
 import Control.Monad.Trans.Class
 
 import qualified Data.ByteString.Lazy.Char8 as C
@@ -165,18 +165,18 @@ mainLoop args clist = do
     loop :: CliState -> InputT IO ()
     loop state = do
         minput <- getInputLine "Ass> "
-        case (words <$> minput) of
+        case words <$> minput of
              Nothing -> return ()
-             Just (":r":_) -> outputStrLn "Code clean." >> (loop state{ statePList = [], stateCode = [] } )
+             Just (":r":_) -> outputStrLn "Code clean." >> loop state{ statePList = [], stateCode = [] } 
              Just (":s":_) -> outputStrLn "C++ Code:" >> 
                               mapM_ outputStrLn (statePList state) >> 
                               mapM_ outputStrLn (stateCode state) >> loop state
              Just (":c":_) -> getCode >>= \xs -> loop state {stateCode = xs ++ stateCode state } 
-             Just (":q":_) -> outputStrLn "Leaving ASSi." >> return ()
+             Just (":q":_) -> void (outputStrLn "Leaving ASSi.")
              Just (":?":_) -> lift printHelp >> loop state
              Just (":n":_) -> do 
                               let ctype = next $ stateCType state
-                              outputStrLn $ "Using " ++ show (ctype) ++ " compiler..." 
+                              outputStrLn $ "Using " ++ show ctype ++ " compiler..." 
                               loop state { stateCType = ctype }
              Just []       -> loop state
              Just input | isPreprocessor (C.pack $ unwords input) -> loop state { statePList = statePList state ++ [unwords input] } 
@@ -200,8 +200,8 @@ getCode = do
 mainFun :: [String] -> Compiler -> IO ()
 mainFun args cxx = do
     code <- C.hGetContents stdin
-    buildCompileRun code [cxx] (getCompilerArgs args) (getTestArgs args) >>= (\xs -> 
-        return $ head xs) >>= exitWith
+    liftM head
+        (buildCompileRun code [cxx] (getCompilerArgs args) (getTestArgs args)) >>= exitWith
 
 
 printHelp :: IO ()
@@ -224,10 +224,10 @@ buildCompileRun code clist cargs targs = do
     let src = bin <.> "cpp"
     writeSource src (makeSourceCode code mt)
     forM clist $ \cxx -> do
-        when (length clist > 1) $ (putStr $ show cxx ++ " -> ")  >> hFlush stdout
+        when (length clist > 1) $ putStr (show cxx ++ " -> ") >> hFlush stdout
         e <- compileWith cxx src (binary bin cxx) mt (["-I", cwd', "-I",  cwd' </> ".."] ++ cargs) 
-        if (e == ExitSuccess) 
-            then system ((binary bin cxx) ++ " " ++ (unwords $ targs)) >>= (\ret -> putChar '\n' >> return ret)
+        if e == ExitSuccess 
+            then system (binary bin cxx ++ " " ++ unwords targs) >>= (\ret -> putChar '\n' >> return ret)
             else return e
         where binary n c = n ++ "-" ++ show (getCompilerType c)
 
@@ -313,11 +313,11 @@ getCompilerOpt (Compiler Clang _ _) mt =
                              | otherwise = []
 
 compileWith :: Compiler -> FilePath -> FilePath -> Bool -> [String] -> IO ExitCode
-compileWith cxx source binary mt user_opt = do
+compileWith cxx source binary mt user_opt = 
     -- print $ cmd
-    system $ unwords $ cmd
+    system $ unwords cmd
         where cmd = [getCompilerExec cxx, source, "-o", binary] 
-                    ++ (getCompilerOpt cxx mt) 
+                    ++ getCompilerOpt cxx mt 
                     ++ user_opt 
 
 

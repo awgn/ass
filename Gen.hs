@@ -43,12 +43,12 @@ runRender :: [String] -> IO ()
 runRender [] = return ()
 runRender ("":_) = return ()
 runRender (es:as) = do
-                    let (e, (as')) = renderCode (head es) as
+                    let (e, as') = renderCode (head es) as
                     putStrLn $ render (model e)
                     runRender (tail es : as') 
 
 renderCode :: Code -> [String] -> (Entity, [String])
-renderCode x args = factoryEntity x args
+renderCode = factoryEntity 
 
 -- Generator entities
 --
@@ -85,7 +85,7 @@ factoryEntity 'r' (x:y:xs)  = (CRTPClass x y, xs)
 factoryEntity 'y' (x:xs)    = (YatsTest x, xs)
 
 factoryEntity  c  _ | c `elem` "cmtvsrny" = error $ "Missing argument(s) for entity '" ++ [c] ++ "'"
-factoryEntity  c  _ | otherwise = error $ "Unknown entity '" ++ [c] ++ "'. Usage [code] ARG... \n" ++ helpString
+factoryEntity  c  _ = error $ "Unknown entity '" ++ [c] ++ "'. Usage [code] ARG... \n" ++ helpString
 
 ---------------------------------------------------------
 -- Cpp Class Models:                             
@@ -336,7 +336,7 @@ newtype Type = Type String
                 deriving (Eq, Show)
 
 instance CppShow Type where
-    render t  = getType t
+    render = getType 
 
 instance CppType Type where
     getType (Type xs) = xs
@@ -353,7 +353,7 @@ data ArgType = Unnamed Type | Named Type Identifier
 
 instance CppShow ArgType where
     render (Unnamed t)  = render t
-    render (Named t ns) = (render t) ++ " " ++ ns
+    render (Named t ns) = render t ++ " " ++ ns
 
 instance CppType ArgType where
     getType              (Unnamed t) = getType t
@@ -387,7 +387,7 @@ ctor spec ns qual = function
 
 dtor :: [Specifier] -> Identifier -> Qualifier -> Function
 dtor spec ns qual = function 
-                    (FuncDecl spec Nothing ("~" ++ ns) (CommaSep [])) 
+                    (FuncDecl spec Nothing ('~' : ns) (CommaSep [])) 
                     (MembFuncBody [] qual)
 
 
@@ -427,43 +427,43 @@ _main impl =  function
                     (CommaSep [Named (Type "int") "argc", Named (Type "char *") "argv[]" ]))
                 (FuncBody impl )
 
-operEq :: (Maybe Template) -> Identifier -> Function
+operEq :: Maybe Template -> Identifier -> Function
 operEq tp xs  = Function tp (FuncDecl [Inline] (Just (Type "bool")) "operator==" 
                                 (CommaSep [add_const_lvalue_reference(Named (Type xs) "lhs"), 
                                 add_const_lvalue_reference(Named (Type xs) "rhs")])) 
                             (FuncBody ["/* implementation */" ])        
 
-operNotEq :: (Maybe Template) -> Identifier -> Function
+operNotEq :: Maybe Template -> Identifier -> Function
 operNotEq tp xs = Function tp (FuncDecl [Inline] (Just (Type "bool")) "operator!=" 
                                 (CommaSep [add_const_lvalue_reference(Named (Type xs) "lhs"), 
                                 add_const_lvalue_reference(Named (Type xs) "rhs")])) 
                               (FuncBody ["return !(lhs == rhs);"])
 
-operLt :: (Maybe Template) -> Identifier -> Function
+operLt :: Maybe Template -> Identifier -> Function
 operLt tp xs = Function tp (FuncDecl [Inline] (Just (Type "bool")) "operator<"  
                                 (CommaSep [add_const_lvalue_reference(Named (Type xs) "lhs"), 
                                 add_const_lvalue_reference(Named (Type xs) "rhs")])) 
                            (FuncBody ["/* implementation */"])
 
-operLtEq :: (Maybe Template) -> Identifier -> Function
+operLtEq :: Maybe Template -> Identifier -> Function
 operLtEq tp xs = Function tp (FuncDecl [Inline] (Just (Type "bool")) "operator<=" 
                                 (CommaSep [add_const_lvalue_reference(Named (Type xs) "lhs"), 
                                 add_const_lvalue_reference(Named (Type xs) "rhs")])) 
                              (FuncBody ["return !(rhs < lhs);"])
 
-operGt :: (Maybe Template) -> Identifier -> Function
+operGt :: Maybe Template -> Identifier -> Function
 operGt tp xs = Function tp (FuncDecl [Inline] (Just (Type "bool")) "operator>"  
                                 (CommaSep [add_const_lvalue_reference(Named (Type xs) "lhs"), 
                                 add_const_lvalue_reference(Named (Type xs) "rhs")])) 
                             (FuncBody ["return rhs < lhs;"])
 
-operGtEq :: (Maybe Template) -> Identifier -> Function
+operGtEq :: Maybe Template -> Identifier -> Function
 operGtEq tp xs = Function tp (FuncDecl [Inline] (Just (Type "bool")) "operator>=" 
                                 (CommaSep [add_const_lvalue_reference(Named (Type xs) "lhs"), 
                                 add_const_lvalue_reference(Named (Type xs) "rhs")])) 
                              (FuncBody ["return !(lsh < rhs);"])
 
-operInsrt :: (Maybe Template) -> Identifier -> Function
+operInsrt :: Maybe Template -> Identifier -> Function
 operInsrt tp xs = Function tapp 
                            (FuncDecl [] (Just (Type "typename std::basic_ostream<CharT, Traits> &")) "operator<<" 
                                 (CommaSep [Named (Type "std::basic_ostream<CharT,Traits>&") "out", 
@@ -471,7 +471,7 @@ operInsrt tp xs = Function tapp
                            (FuncBody ["return out;"])
                                 where tapp =  mappend (Just (Template[Typename "CharT", Typename "Traits"])) tp 
 
-operExtrc :: (Maybe Template) -> Identifier -> Function
+operExtrc :: Maybe Template -> Identifier -> Function
 operExtrc tp xs = Function tapp 
                            (FuncDecl [] (Just (Type "typename std::basic_istream<CharT, Traits> &")) "operator>>" 
                                 (CommaSep [Named (Type "std::basic_istream<CharT,Traits>&") "in", 
@@ -489,7 +489,7 @@ data Namespace = Namespace Identifier [CppEntity]
 
 instance CppShow Namespace where
     render (Namespace ns es)   = "namespace " ++ ns ++ " {\n" ++ 
-                                    (render es) ++ 
+                                    render es ++ 
                                     "\n} // namespace " ++ ns 
 
 ---------------------------------------------------------
@@ -502,15 +502,15 @@ data Class = Class Identifier BaseSpecifierList [ClassAccessSpecifier] |
 
 
 instance CppShow Class where
-    render (Class ns base es) =  "class " ++ ns ++ render base ++ " {\n" ++ (intercalate "\n" $ map render es) ++ "\n\n};\n" 
-    render (TClass tp ns base es) =  template ++ (if (null template) then "" else "\n")  ++ "class " ++ ns ++ render base ++ " {\n" ++
-                                 (intercalate "\n" $ map render es) ++ "\n\n};\n" 
+    render (Class ns base es) =  "class " ++ ns ++ render base ++ " {\n" ++ intercalate "\n" (map render es) ++ "\n\n};\n" 
+    render (TClass tp ns base es) =  template ++ (if null template then "" else "\n")  ++ "class " ++ ns ++ render base ++ " {\n" ++
+                                 intercalate "\n" (map render es) ++ "\n\n};\n" 
                                    where template = render tp
 
 
 instance CppTemplate Class where
     template +++ (Class name base ns) = TClass template name base ns
-    _ +++ (TClass _ _ _ _)  = error "Template Syntax error"
+    _ +++ (TClass {})  = error "Template Syntax error"
 
 
 data BaseSpecifierList = NoBaseSpec | BaseSpecList [BaseAccessSpecifier] 
@@ -548,29 +548,29 @@ instance AccessSpecifier R BaseAccessSpecifier where
 instance CppShow BaseSpecifierList where
     render (NoBaseSpec)       = ""
     render (BaseSpecList [])  = ""
-    render (BaseSpecList xs)  = " : " ++ (intercalate ", " $ map render xs)
+    render (BaseSpecList xs)  = " : " ++ intercalate ", " (map render xs)
 
 
 instance CppShow BaseAccessSpecifier where
     render (BasePublic [])    = ""
-    render (BasePublic xs)    = "public "    ++ (intercalate ", " xs)
+    render (BasePublic xs)    = "public "    ++ intercalate ", " xs
     render (BaseProtected []) = ""
-    render (BaseProtected xs) = "protected " ++ (intercalate ", " xs)
+    render (BaseProtected xs) = "protected " ++ intercalate ", " xs
     render (BasePrivate [])   = ""
-    render (BasePrivate xs)   = "private "   ++ (intercalate ", " xs)
+    render (BasePrivate xs)   = "private "   ++ intercalate ", " xs
 
 
 instance CppShow ClassAccessSpecifier where
-    render (Public xs)    = "\npublic:\n"    ++ (intercalate "\n" $ map render xs)
-    render (Protected xs) = "\nprotected:\n" ++ (intercalate "\n" $ map render xs)
-    render (Private xs)   = "\nprivate:\n"   ++ (intercalate "\n" $ map render xs) 
+    render (Public xs)    = "\npublic:\n"    ++ intercalate "\n" (map render xs)
+    render (Protected xs) = "\nprotected:\n" ++ intercalate "\n" (map render xs)
+    render (Private xs)   = "\nprivate:\n"   ++ intercalate "\n" (map render xs) 
 
 
 data CppEntities = CppEntities [CppEntity]
                         deriving (Show)
 
 instance CppShow CppEntities where
-    render (CppEntities xs) =  intercalate "\n" $ map render xs                      
+    render (CppEntities xs) =  intercalate "\n" (map render xs)                      
             
 
 ---------------------------------------------------------
@@ -607,7 +607,7 @@ instance Monoid Template where
 
 getFullySpecializedName :: Maybe Template -> String -> String
 getFullySpecializedName Nothing ns = ns
-getFullySpecializedName (Just (Template xs)) ns = ns ++ "<" ++ (intercalate ", " (map getTname xs) ) ++ ">"
+getFullySpecializedName (Just (Template xs)) ns = ns ++ "<" ++ intercalate ", " (map getTname xs) ++ ">"
 
 
 ---------------------------------------------------------
@@ -625,7 +625,7 @@ instance CppShow Function where
     render (Function templ decl body) = render templ ++ render decl ++ render body 
 
 instance CppTemplate Function where
-    t +++ (Function t' decl body) = Function ((Just t) `mappend` t') decl body
+    t +++ (Function t' decl body) = Function (Just t `mappend` t') decl body
 
 ---------------------------------------------------------
 -- Cpp Function Declaration
@@ -635,9 +635,9 @@ data FuncDecl = FuncDecl [Specifier] (Maybe Type) Identifier (CommaSep ArgType)
                     deriving (Show)
 
 instance CppShow FuncDecl where
-    render (FuncDecl sp ret ns args) = "\n" ++ spec ++ ( if (null spec) then "" else " ") ++ render ret ++ 
-                                        ( if (null spec && isNothing ret) then "" else "\n" ) ++
-                                        ns ++ "("  ++ render(args) ++ ")" 
+    render (FuncDecl sp ret ns args) = "\n" ++ spec ++ (if null spec then "" else " ") ++ render ret ++ 
+                                        ( if null spec && isNothing ret then "" else "\n" ) ++
+                                        ns ++ "("  ++ render args ++ ")" 
                                             where spec = render sp
 
 ---------------------------------------------------------
@@ -653,8 +653,8 @@ instance CppShow FuncBody where
                                         where bodyToString [] = []
                                               bodyToString ys = intercalate "\n    " ( "" :ys) ++ "\n"
     render (MembFuncBody xs Unqualified)= render $ FuncBody xs
-    render (MembFuncBody xs Constant)   = " const" ++ (render $ FuncBody xs)
-    render (MembFuncBody xs Volatile)   = " volatile" ++ (render $ FuncBody xs)
+    render (MembFuncBody xs Constant)   = " const" ++ render (FuncBody xs)
+    render (MembFuncBody xs Volatile)   = " volatile" ++ render (FuncBody xs)
     render (MembFuncBody _  Delete)     = " = delete;"
     render (MembFuncBody _  Default)    = " = default;" 
     render (MembFuncBody _  Pure)       = " = 0;"

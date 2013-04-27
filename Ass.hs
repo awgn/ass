@@ -17,6 +17,7 @@
 --
 -- ass: C++11 code ass'istant for vim
 
+{-# LANGUAGE OverloadedStrings #-} 
 
 module Main where
 
@@ -251,11 +252,11 @@ makeSourceCode src mt
     | hasMain src = [ headers, toSourceCode src ]
     | otherwise   = [ headers, global, mainHeader, body, mainFooter ]
       where (global, body) = foldl parseCodeLine ([], []) (toSourceCode src) 
-            headers    = [ CodeLine 1 (C.pack $ "#include " ++ include)]
-            mainHeader = [ CodeLine 1 (C.pack "int main(int argc, char *argv[]) { cout << boolalpha;") ]
-            mainFooter = [ CodeLine 1 (C.pack "}") ]
-            include | mt = "<ass-mt.hpp>"
-                    | otherwise = "<ass.hpp>"
+            headers    = [ CodeLine 1 include]
+            mainHeader = [ CodeLine 1 "int main(int argc, char *argv[]) { cout << boolalpha;" ]
+            mainFooter = [ CodeLine 1 "}" ]
+            include    = C.pack $ "#include" ++ if mt then "<ass-mt.hpp>" else "<ass.hpp>"  
+
 
 hasMain :: Source -> Bool
 hasMain src =  ["int", "main", "("] `isInfixOf` (Cpp.toString <$> ts) 
@@ -275,7 +276,7 @@ getTestArgs = tailSafe . dropWhile ( /= "--" )
 
 
 isPreprocessor :: SourceLine -> Bool
-isPreprocessor = C.isPrefixOf (C.pack "#") . C.dropWhile isSpace 
+isPreprocessor = C.isPrefixOf "#" . C.dropWhile isSpace 
 
 
 parseCodeLine :: ParserState -> CodeLine -> ParserState
@@ -283,7 +284,7 @@ parseCodeLine (t,m) (CodeLine n x)
     | isPreprocessor x = (t ++ [CodeLine n x], m)
     | isSwitchLine x   = (m ++ [CodeLine n x], t)
     | otherwise        = (t, m ++ [CodeLine n x])
-        where isSwitchLine = (C.pack "///" `C.isPrefixOf`)
+        where isSwitchLine = ("///" `C.isPrefixOf`)
 
 
 toSourceCode :: Source -> SourceCode

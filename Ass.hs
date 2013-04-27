@@ -175,10 +175,8 @@ mainLoop args clist = do
              Just (":c":_) -> getCode >>= \xs -> loop state {stateCode = xs ++ stateCode state } 
              Just (":q":_) -> void (outputStrLn "Leaving ASSi.")
              Just (":?":_) -> lift printHelp >> loop state
-             Just (":n":_) -> do 
-                              let ctype = next $ stateCType state
-                              outputStrLn $ "Using " ++ show ctype ++ " compiler..." 
-                              loop state { stateCType = ctype }
+             Just (":n":_) -> let ctype = next (stateCType state) 
+                              in outputStrLn ("Using " ++ show ctype ++ " compiler...") >> loop state { stateCType = ctype }
              Just []       -> loop state
              Just input | isPreprocessor (C.pack $ unwords input) -> loop state { statePList = statePList state ++ [unwords input] } 
                         | otherwise -> do 

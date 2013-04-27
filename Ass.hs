@@ -125,7 +125,7 @@ getCompilers = filterM (doesFileExist . getCompilerExec)
 getCompilerTypeByName :: IO CompilerType
 getCompilerTypeByName =  
     liftM (isSuffixOf "clang") getProgName >>= \v -> 
-        if v then return Clang else return Gcc
+        return $ if v then Clang else Gcc
 
 
 compFilter :: CompilerType -> [Compiler] -> [Compiler]

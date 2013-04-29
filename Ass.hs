@@ -135,8 +135,9 @@ compFilter t = filter (\n -> t == getCompilerType n)
 
 getCompilerConf :: FilePath -> IO [Compiler]
 getCompilerConf conf = 
-    doesFileExist conf >>= \b -> if b then liftM read $ readFile conf
-                                      else return compilerList
+    doesFileExist conf >>= \b -> 
+        if b then liftM read $ readFile conf
+             else return compilerList
 
 main :: IO ()
 main = do args  <- getArgs
@@ -145,8 +146,8 @@ main = do args  <- getArgs
           clist <- getCompilerConf (home </> assrc)
           case args of 
             ("-i":_) -> getCompilers clist >>= mainLoop (tail args)
-            []       -> getCompilers clist >>= (\xs -> return (head $ compFilter ctype xs)) >>= mainFun []  
-            _        -> getCompilers clist >>= (\xs -> return (head $ compFilter ctype xs)) >>= mainFun args 
+            []       -> liftM (head . compFilter ctype) (getCompilers clist) >>= mainFun []  
+            _        -> liftM (head . compFilter ctype) (getCompilers clist) >>= mainFun args 
 
 
 data CliState = CliState { stateCType   :: CompilerType,

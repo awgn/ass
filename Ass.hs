@@ -257,6 +257,16 @@ makeSourceCode src mt
             include    = C.pack $ "#include" ++ if mt then "<ass-mt.hpp>" else "<ass.hpp>"  
 
 
+makeCmdLineCode :: Source -> Source -> Bool -> [SourceCode]
+makeCmdLineCode src' src mt  
+    | hasMain src = [ headers, toSourceCode src', toSourceCode src ]
+    | otherwise   = [ headers, global, toSourceCode src', mainHeader, body, mainFooter ]
+      where (global, body) = foldl parseCodeLine ([], []) (toSourceCode src) 
+            headers    = [ CodeLine 1 include]
+            mainHeader = [ CodeLine 1 "int main(int argc, char *argv[]) { cout << boolalpha; ass::cmdline([] {" ]
+            mainFooter = [ CodeLine 1 "}); }" ]
+            include    = C.pack $ "#include" ++ if mt then "<ass-mt.hpp>" else "<ass.hpp>"  
+
 hasMain :: Source -> Bool
 hasMain src =  ["int", "main", "("] `isInfixOf` (Cpp.toString <$> ts) 
                 where ts = Cpp.tokens $ sourceFilter src

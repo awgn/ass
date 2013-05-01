@@ -181,8 +181,8 @@ mainLoop args clist = do
              Just []       -> loop state
              Just input | isPreprocessor (C.pack $ unwords input) -> loop state { statePList = statePList state ++ [unwords input] } 
                         | otherwise -> do 
-                        e <- lift $ buildCompileRun (C.pack (
-                            unlines (statePList state) ++ unlines (stateCode state) ++ unwords input))  
+                        e <- lift $ buildCompileAndRun (C.pack(
+                            unlines (statePList state) ++ unlines (stateCode state))) (C.pack (unwords input)) True  
                                 (compFilter (stateCType state) clist) (getCompilerArgs args) [] 
                         outputStrLn $ show e
                         loop state
@@ -201,7 +201,7 @@ mainFun :: [String] -> Compiler -> IO ()
 mainFun args cxx = do
     code <- C.hGetContents stdin
     liftM head
-        (buildCompileRun code [cxx] (getCompilerArgs args) (getTestArgs args)) >>= exitWith
+        (buildCompileAndRun "" code False [cxx] (getCompilerArgs args) (getTestArgs args)) >>= exitWith
 
 
 printHelp :: IO ()
@@ -215,14 +215,14 @@ printHelp =  putStrLn $ "Commands available from the prompt:\n\n" ++
                         "  :?                        print this help\n"  
 
 
-buildCompileRun :: Source -> [Compiler] -> [String] -> [String] -> IO [ExitCode] 
--- buildCompileRun code cxx cargs targs | trace ("buildCompileRun") False = undefined
-buildCompileRun code clist cargs targs = do 
+buildCompileAndRun :: Source -> Source -> Bool -> [Compiler] -> [String] -> [String] -> IO [ExitCode] 
+-- buildCompileRun code' code inter cxx cargs targs | trace ("buildCompileRun") False = undefined
+buildCompileAndRun code' code inter clist cargs targs = do 
     cwd' <- getCurrentDirectory
     let mt = isMultiThread code cargs
     let bin = tmpDir </> snippet
     let src = bin <.> "cpp"
-    writeSource src (makeSourceCode code mt)
+    writeSource src ((if inter then makeCmdLineCode else makeSourceCode) code' code mt)
     forM clist $ \cxx -> do
         when (length clist > 1) $ putStr (show cxx ++ " -> ") >> hFlush stdout
         e <- compileWith cxx src (binary bin cxx) mt (["-I", cwd', "-I",  cwd' </> ".."] ++ cargs) 
@@ -246,8 +246,8 @@ useThreadOrAsync src =  "thread" `elem` identifiers || "async" `elem` identifier
                                   identifiers = Cpp.toString <$> tokens
 
 
-makeSourceCode :: Source -> Bool -> [SourceCode]
-makeSourceCode src mt 
+makeSourceCode :: Source -> Source -> Bool -> [SourceCode]
+makeSourceCode _ src mt 
     | hasMain src = [ headers, toSourceCode src ]
     | otherwise   = [ headers, global, mainHeader, body, mainFooter ]
       where (global, body) = foldl parseCodeLine ([], []) (toSourceCode src) 
@@ -266,6 +266,7 @@ makeCmdLineCode src' src mt
             mainHeader = [ CodeLine 1 "int main(int argc, char *argv[]) { cout << boolalpha; ass::cmdline([] {" ]
             mainFooter = [ CodeLine 1 "}); }" ]
             include    = C.pack $ "#include" ++ if mt then "<ass-mt.hpp>" else "<ass.hpp>"  
+
 
 hasMain :: Source -> Bool
 hasMain src =  ["int", "main", "("] `isInfixOf` (Cpp.toString <$> ts) 

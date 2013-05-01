@@ -905,12 +905,40 @@ inline namespace ass_inline {
 
     ////////////////////////////////////////////////////////////// TYPE_OF(): return the type of an expression
 
-
     #define TYPE_OF(x)   type_of<is_reference<decltype(x)>::value>(x)
+
 
 
 } // namespace ass_inline
 
+
+namespace ass {
+
+    ////////////////////////////////////////////////////////////// interactive: run a command line
+
+    template <typename T>
+    struct _cmdline
+    {
+        template <typename F>
+        static void run(F f) 
+        { auto ret = f(); std::cout << '[' << ret << ']'; }
+    };
+
+    template <>
+    struct _cmdline<void>
+    {
+        template <typename F>
+        static void run(F f) 
+        { f(); std::cout << "[void]"; }
+    };
+
+    template <typename Fun>
+    inline void cmdline(Fun fun)
+    {   
+        _cmdline<decltype(fun())>::run(fun);
+    }
+
+} // namespace ass
 
 using namespace std;
 using namespace std::chrono;

@@ -316,11 +316,15 @@ inline namespace more_show {
     inline std::string 
     show(std::string const &s, const char * = nullptr);
 
+    // numeric like...
+    
     template <typename T> 
     inline 
     typename std::enable_if<std::is_arithmetic<T>::value || std::is_enum<T>::value, std::string>::type 
     show(T const &value, const char * = nullptr);
 
+    // manipulators...
+   
     template <typename T>
     inline typename std::enable_if<std::is_integral<T>::value, std::string>::type
     show(_hex<T> const &value, const char * = nullptr);
@@ -328,24 +332,45 @@ inline namespace more_show {
     template <typename T>
     inline typename std::enable_if<std::is_integral<T>::value, std::string>::type
     show(_oct<T> const &value, const char * = nullptr);
+
+    // pointers...
+   
+    template <typename T>
+    inline std::string 
+    show(T const *p, const char * = nullptr);
+
+    template <typename T>
+    inline std::string 
+    show(std::unique_ptr<T> const &, const char * = nullptr);
     
     template <typename T>
-    inline  
-    typename std::enable_if<std::is_pointer<T>::value, std::string>::type 
-    show(T const &p, const char * = nullptr);
+    inline std::string 
+    show(std::shared_ptr<T> const &, const char * = nullptr);
 
+    // pair<>
+    
     template <typename U, typename V>
     inline std::string
     show(std::pair<U,V> const &r, const char * = nullptr);
+
+    // array...
+    
+    template <typename T, std::size_t N>
+    inline std::string
+    show(const T(&)[N], const char * = nullptr);
 
     template <typename T, std::size_t N>
     inline std::string
     show(std::array<T,N> const &a, const char * = nullptr);
 
+    // tuple<>
+    
     template <typename ...Ts>
     inline std::string
     show(std::tuple<Ts...> const &t, const char * = nullptr);
 
+    // chrono types
+   
     template <typename Rep, typename Period>
     inline std::string
     show(std::chrono::duration<Rep, Period> const &dur, const char * = nullptr);
@@ -354,6 +379,8 @@ inline namespace more_show {
     inline std::string
     show(std::chrono::time_point<Clock, Dur> const &r, const char * = nullptr);
 
+    // containers
+   
     template <typename T>
     inline typename std::enable_if<
     (!std::is_pointer<T>::value) && (
@@ -497,11 +524,35 @@ inline namespace more_show {
     // show for pointers *
 
     template <typename T> 
-    inline typename std::enable_if<std::is_pointer<T>::value, std::string>::type
-    show(T const &p, const char * n)
+    inline std::string
+    show(T const *p, const char * n)
     {
         std::ostringstream out;
-        out << static_cast<void *>(p);
+        out << static_cast<const void *>(p);
+        return show_helper::header<T>(n) + out.str();
+    }
+    
+    ///////////////////////////////////////
+    // show for unique_ptr
+
+    template <typename T> 
+    inline std::string
+    show(std::unique_ptr<T> const &p, const char * n)
+    {
+        std::ostringstream out;
+        out << static_cast<const void *>(p.get()) << "_up";
+        return show_helper::header<T>(n) + out.str();
+    }
+
+    ///////////////////////////////////////
+    // show for shared_ptr
+
+    template <typename T> 
+    inline std::string
+    show(std::shared_ptr<T> const &p, const char * n)
+    {
+        std::ostringstream out;
+        out << static_cast<const void *>(p.get()) << "_sp" << p.use_count();
         return show_helper::header<T>(n) + out.str();
     }
 
@@ -522,9 +573,21 @@ inline namespace more_show {
 
     template <typename T, std::size_t N>
     inline std::string
-    show(std::array<T,N> const &a, const char * n)
+    show(const T(&vec)[N], const char * n) 
     {
         std::string out("[ ");
+        for(auto const &v : vec)
+        {
+            out = std::move(out) + show(v) + ' ';
+        }
+        return show_helper::header<T[N]>(n) + out + ']';
+    }
+
+    template <typename T, std::size_t N>
+    inline std::string
+    show(std::array<T,N> const &a, const char * n)
+    {
+        std::string out("[");
         show_helper::show_on<std::array<T,N>, N>::apply(out,a, n);
         return show_helper::header<std::array<T,N>>(n) + out + ']';
     }
@@ -572,12 +635,12 @@ inline namespace more_show {
     show(const T &v, const char * n)
     {
         std::string out("{ ");
-        for(auto & e : v)
+        for(auto const & e : v)
         {
             out += show(e) + ' ';
         }
         return show_helper::header<T>(n) + out + '}';
-    };
+    }
 
 } // namespace more_show
 

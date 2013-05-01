@@ -297,7 +297,7 @@ getCompilerOpt (Compiler Gcc bin _) mt
     | "4.7" `isSuffixOf` bin = args ++ ["-std=c++11"] ++ pth ++ [ "-I/usr/local/include/4.7" ]
     | "4.6" `isSuffixOf` bin = args ++ ["-std=c++0x"] ++ pth ++ [ "-I/usr/local/include/4.6" ]
     | otherwise              = args ++ ["-std=c++0x"] ++ pth 
-        where args = [ "-O0", "-D_GLIBCXX_DEBUG", "-Wall", "-Wextra", "-Wno-unused-parameter" ]
+        where args = [ "-O0", "-D_GLIBCXX_DEBUG", "-Wall", "-Wextra", "-Wno-unused-parameter", "-Wno-unused-value" ]
               pth | mt = ["-pthread"]
                   | otherwise = []
 

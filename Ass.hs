@@ -222,7 +222,7 @@ buildCompileAndRun code' code inter clist cargs targs = do
     let mt = isMultiThread code cargs
     let bin = tmpDir </> snippet
     let src = bin <.> "cpp"
-    writeSource src ((if inter then makeCmdLineCode else makeSourceCode) code' code mt)
+    writeSource src (makeSourceCode code' code inter mt)
     forM clist $ \cxx -> do
         when (length clist > 1) $ putStr (show cxx ++ " -> ") >> hFlush stdout
         e <- compileWith cxx src (binary bin cxx) mt (["-I", cwd', "-I",  cwd' </> ".."] ++ cargs) 
@@ -246,25 +246,18 @@ useThreadOrAsync src =  "thread" `elem` identifiers || "async" `elem` identifier
                                   identifiers = Cpp.toString <$> tokens
 
 
-makeSourceCode :: Source -> Source -> Bool -> [SourceCode]
-makeSourceCode _ src mt 
-    | hasMain src = [ headers, toSourceCode src ]
-    | otherwise   = [ headers, global, mainHeader, body, mainFooter ]
-      where (global, body) = foldl parseCodeLine ([], []) (toSourceCode src) 
-            headers    = [ CodeLine 1 include]
-            mainHeader = [ CodeLine 1 "int main(int argc, char *argv[]) { cout << boolalpha;" ]
-            mainFooter = [ CodeLine 1 "}" ]
-            include    = C.pack $ "#include" ++ if mt then "<ass-mt.hpp>" else "<ass.hpp>"  
-
-
-makeCmdLineCode :: Source -> Source -> Bool -> [SourceCode]
-makeCmdLineCode src' src mt  
+makeSourceCode :: Source -> Source -> Bool -> Bool -> [SourceCode]
+makeSourceCode src' src lambda mt 
     | hasMain src = [ headers, toSourceCode src', toSourceCode src ]
-    | otherwise   = [ headers, global, toSourceCode src', mainHeader, body, mainFooter ]
+    | otherwise   = [ headers, toSourceCode src', global, mainHeader, body, mainFooter ]
       where (global, body) = foldl parseCodeLine ([], []) (toSourceCode src) 
             headers    = [ CodeLine 1 include]
-            mainHeader = [ CodeLine 1 "int main(int argc, char *argv[]) { cout << boolalpha; ass::cmdline([] {" ]
-            mainFooter = [ CodeLine 1 "}); }" ]
+            mainHeader = if lambda 
+                            then [ CodeLine 1 "int main(int argc, char *argv[]) { cout << boolalpha; ass::cmdline([] {" ] 
+                            else [ CodeLine 1 "int main(int argc, char *argv[]) { cout << boolalpha;" ]
+            mainFooter = if lambda 
+                            then [ CodeLine 1 "; }); }" ] 
+                            else [ CodeLine 1 ";}" ]
             include    = C.pack $ "#include" ++ if mt then "<ass-mt.hpp>" else "<ass.hpp>"  
 
 

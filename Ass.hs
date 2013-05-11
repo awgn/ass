@@ -58,10 +58,10 @@ type ParserState     = (TranslationUnit, MainFunction)
 
 compilerList :: [Compiler]
 compilerList = [ 
-                 Compiler Gcc   "/usr/bin/g++-4.8" "g++-4.8",
-                 Compiler Gcc   "/usr/bin/g++-4.7" "g++-4.7",
-                 Compiler Gcc   "/usr/bin/g++-4.6" "g++-4.6",
-                 Compiler Clang "/usr/bin/clang++" "clang++"
+                 Compiler Gcc48   "/usr/bin/g++-4.8" "g++-4.8",
+                 Compiler Gcc47   "/usr/bin/g++-4.7" "g++-4.7",
+                 Compiler Gcc46   "/usr/bin/g++-4.6" "g++-4.6",
+                 Compiler Clang32 "/usr/bin/clang++" "clang++"
                ]
 
 
@@ -80,24 +80,18 @@ data CodeLine = CodeLine Int SourceLine
 instance Show CodeLine where
     show (CodeLine n xs) = "#line " ++ show n ++ "\n" ++ C.unpack xs  
 
+-- Compiler:
 
-data CompilerType = Clang | Gcc | Any 
-                    deriving (Show,Read,Enum)
-
+data CompilerType = Gcc46 | Gcc47 | Gcc48 | Clang31 | Clang32 
+                    deriving (Eq,Show,Read,Enum)
 
 next :: CompilerType -> CompilerType
-next Any = Clang
+next Clang32 = Gcc46
 next   x = succ x
 
 
-instance Eq CompilerType where
-    Gcc    == Gcc   =  True
-    Clang  == Clang =  True
-    Any    == Gcc   =  True
-    Any    == Clang =  True
-    Gcc    == Any   =  True
-    Clang  == Any   =  True
-    _      == _     =  False
+data CompilerFamily = Gcc | Clang 
+                    deriving (Eq,Show,Read,Enum)
 
 
 data Compiler = Compiler CompilerType FilePath String  
@@ -109,6 +103,12 @@ instance Show Compiler where
 
 getCompilerType :: Compiler -> CompilerType 
 getCompilerType (Compiler t _ _) = t
+
+
+getCompilerFamily :: Compiler -> CompilerFamily
+getCompilerFamily (Compiler Clang31 _ _) = Clang
+getCompilerFamily (Compiler Clang32 _ _) = Clang
+getCompilerFamily _ = Gcc
 
 
 getCompilerExec :: Compiler -> FilePath
@@ -123,14 +123,17 @@ getCompilers :: [Compiler] -> IO [Compiler]
 getCompilers = filterM (doesFileExist . getCompilerExec) 
 
 
-getCompilerTypeByName :: IO CompilerType
-getCompilerTypeByName =  
+getCompilerFamilyByName :: IO CompilerFamily
+getCompilerFamilyByName =  
     liftM (isSuffixOf "clang") getProgName >>= \v -> 
         return $ if v then Clang else Gcc
 
 
-compFilter :: CompilerType -> [Compiler] -> [Compiler]
-compFilter t = filter (\n -> t == getCompilerType n) 
+compFilter :: CompilerFamily -> [Compiler] -> [Compiler]
+compFilter t = filter (\c -> t == getCompilerFamily c) 
+
+compFilterType :: CompilerType -> [Compiler] -> [Compiler]
+compFilterType t = filter (\c -> t == getCompilerType c) 
 
 
 getCompilerConf :: FilePath -> IO [Compiler]
@@ -142,12 +145,12 @@ getCompilerConf conf =
 main :: IO ()
 main = do args  <- getArgs
           home  <- getHomeDirectory
-          ctype <- getCompilerTypeByName
+          cfamily <- getCompilerFamilyByName
           clist <- getCompilerConf (home </> assrc)
           case args of 
             ("-i":_) -> getCompilers clist >>= mainLoop (tail args)
-            []       -> liftM (head . compFilter ctype) (getCompilers clist) >>= mainFun []  
-            _        -> liftM (head . compFilter ctype) (getCompilers clist) >>= mainFun args 
+            []       -> liftM (head . compFilter cfamily) (getCompilers clist) >>= mainFun []  
+            _        -> liftM (head . compFilter cfamily) (getCompilers clist) >>= mainFun args 
 
 
 data CliState = CliState { stateCType   :: CompilerType,
@@ -162,30 +165,34 @@ mainLoop args clist = do
     mapM_ (\c -> putStr (getCompilerExec c ++ " ")) clist
     putChar '\n'
     home <- getHomeDirectory
-    runInputT defaultSettings { historyFile = Just $ home </> ".ass_history" } (loop $ CliState (getCompilerType $ head clist) [] [])
+    runInputT defaultSettings { historyFile = Just $ home </> ".ass_history" } (loop True $ CliState (getCompilerType $ head clist) [] [])
     where
-    loop :: CliState -> InputT IO ()
-    loop state = do
-        minput <- getInputLine "Ass> "
-        case words <$> minput of
-             Nothing -> return ()
-             Just (":r":_) -> outputStrLn "Code clean." >> loop state{ statePList = [], stateCode = [] } 
-             Just (":s":_) -> outputStrLn "C++ Code:" >> 
-                              mapM_ outputStrLn (statePList state) >> 
-                              mapM_ outputStrLn (stateCode state) >> loop state
-             Just (":c":_) -> getCode >>= \xs -> loop state {stateCode = xs ++ stateCode state } 
-             Just (":q":_) -> void (outputStrLn "Leaving ASSi.")
-             Just (":?":_) -> lift printHelp >> loop state
-             Just (":n":_) -> let ctype = next (stateCType state) 
-                              in outputStrLn ("Using " ++ show ctype ++ " compiler...") >> loop state { stateCType = ctype }
-             Just []       -> loop state
-             Just input | isPreprocessor (C.pack $ unwords input) -> loop state { statePList = statePList state ++ [unwords input] } 
-                        | otherwise -> do 
-                        e <- lift $ buildCompileAndRun (C.pack(
-                            unlines (statePList state) ++ unlines (stateCode state))) (C.pack (unwords input)) True  
-                                (compFilter (stateCType state) clist) (getCompilerArgs args) [] 
-                        outputStrLn $ show e
-                        loop state
+    loop :: Bool -> CliState -> InputT IO ()
+    loop ban state = 
+        
+        if null $ compFilterType (stateCType state) clist 
+        then loop ban state { stateCType = next (stateCType state) }  
+        else do 
+            when ban $ outputStrLn $ "Using " ++ show (stateCType state) ++ " compiler..."
+            minput <- getInputLine "Ass> "
+            case words <$> minput of
+                 Nothing -> return ()
+                 Just (":r":_) -> outputStrLn "Code clean." >> loop True state{ statePList = [], stateCode = [] } 
+                 Just (":s":_) -> outputStrLn "C++ Code:" >> 
+                                  mapM_ outputStrLn (statePList state) >> 
+                                  mapM_ outputStrLn (stateCode state) >> loop False state
+                 Just (":c":_) -> getCode >>= \xs -> loop False state {stateCode = xs ++ stateCode state } 
+                 Just (":q":_) -> void (outputStrLn "Leaving ASSi.")
+                 Just (":?":_) -> lift printHelp >> loop True state
+                 Just (":n":_) -> loop True state { stateCType = next (stateCType state) }
+                 Just []       -> loop False state
+                 Just input | isPreprocessor (C.pack $ unwords input) -> loop False state { statePList = statePList state ++ [unwords input] } 
+                            | otherwise -> do 
+                            e <- lift $ buildCompileAndRun (C.pack(
+                                unlines (statePList state) ++ unlines (stateCode state))) (C.pack (unwords input)) True  
+                                    (compFilterType (stateCType state) clist) (getCompilerArgs args) [] 
+                            outputStrLn $ show e
+                            loop False state
 
 
 getCode :: InputT IO [String]
@@ -295,18 +302,18 @@ toSourceCode src = zipWith CodeLine [1..] (C.lines src)
 
 
 getCompilerOpt :: Compiler -> Bool -> [String]
-getCompilerOpt (Compiler Any _ _)   _  = undefined
-getCompilerOpt (Compiler Gcc bin _) mt   
-    | "4.8" `isSuffixOf` bin = args ++ ["-std=c++11"] ++ pth ++ [ "-I/usr/local/include/4.8" ]  
-    | "4.7" `isSuffixOf` bin = args ++ ["-std=c++11"] ++ pth ++ [ "-I/usr/local/include/4.7" ]
-    | "4.6" `isSuffixOf` bin = args ++ ["-std=c++0x"] ++ pth ++ [ "-I/usr/local/include/4.6" ]
-    | otherwise              = args ++ ["-std=c++0x"] ++ pth 
-        where args = [ "-O0", "-D_GLIBCXX_DEBUG", "-Wall", "-Wextra", "-Wno-unused-parameter", "-Wno-unused-value" ]
-              pth | mt = ["-pthread"]
-                  | otherwise = []
+getCompilerOpt comp@(Compiler _ bin _) mt  
+    | getCompilerFamily comp == Gcc =  
+        case () of 
+        _ | "4.8" `isSuffixOf` bin -> args ++ ["-std=c++11"] ++ pth ++ [ "-I/usr/local/include/4.8" ]  
+          | "4.7" `isSuffixOf` bin -> args ++ ["-std=c++11"] ++ pth ++ [ "-I/usr/local/include/4.7" ]
+          | "4.6" `isSuffixOf` bin -> args ++ ["-std=c++0x"] ++ pth ++ [ "-I/usr/local/include/4.6" ]
+          | otherwise              -> args ++ ["-std=c++0x"] ++ pth 
+            where args = [ "-O0", "-D_GLIBCXX_DEBUG", "-Wall", "-Wextra", "-Wno-unused-parameter", "-Wno-unused-value" ]
+                  pth | mt = ["-pthread"]
+                      | otherwise = []
 
-
-getCompilerOpt (Compiler Clang _ _) mt =  
+getCompilerOpt (Compiler {}) mt =   
         [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", "-include-pch", pch, 
           "-Wextra", "-Wno-unused-parameter", "-Wno-unneeded-internal-declaration"] ++ stdlib ++ pth
                 where pch    | mt             = "/usr/local/include/clang/ass-mt.hpp.pch"

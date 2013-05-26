@@ -1,4 +1,5 @@
--- Copyright (c) 2012 Bonelli Nicola <bonelli@antifork.org>
+--
+-- Copyright (c) 2012-2013 Bonelli Nicola <bonelli@antifork.org>
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -14,65 +15,74 @@
 -- along with this program; if not, write to the Free Software
 -- Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 --
--- ass: C++11 code ass'istant 
 
 {-# LANGUAGE ViewPatterns #-}
 
-module Cpp.Token(Token(..), isIdentifier, isKeyword, isDirective, isLiteralNumber, 
-                            isHeaderName, isString, isChar, isOperOrPunct, 
-                            tokens, tokenFilter)  where
-import Data.Int                                                             
+module Cpp.Token(Token(..), TokenFilter(..), tokenizer, tokenFilter, 
+                            isIdentifier, isKeyword, isDirective, isLiteralNumber, 
+                            isHeaderName, isString, isChar, isOperOrPunct 
+                            )  where
+-- import Data.Int
+
 import Data.Char 
 import Data.Maybe
 import Data.Set as S
 import Data.Array 
 import Control.Monad
  
-import qualified Cpp.Source as Cpp
-
-import qualified Data.ByteString.Lazy.Char8 as C
+import qualified Data.ByteString.Char8 as C
 
 type TokenizerState = (Source, Offset, Lineno, State)
 
-type Source = Cpp.Source
-type Offset = Int64
-type Lineno = Int64
+type Source = C.ByteString
+
+type Offset = Int
+type Lineno = Int
 
 
--- Tokenize the source code in a list 
+-- Tokenize the source code in a list of Token 
 -- Precondition: the c++ source code must be well-formed
 --
 
-tokens :: Source -> [Token]
-tokens xs = runGetToken (ys, n, l, Null)  
-            where
-                (ys,n, l) = dropWhite xs
+tokenizer :: Source -> [Token]
+tokenizer xs = runGetToken (ys, n, l, Null)  
+            where (ys,n, l) = dropWhite xs
 
 
-tokenFilter :: [String] -> Token -> Bool
-tokenFilter [] _     =  False
-tokenFilter (x:xs) t =  mkTokenFilter x t || tokenFilter xs t
-    
+data TokenFilter = TokenFilter 
+                   {
+                        filtIdentifier :: Bool,     
+                        filtDirective  :: Bool,
+                        filtKeyword    :: Bool,
+                        filtHeader     :: Bool,
+                        filtString     :: Bool,
+                        filtNumber     :: Bool,
+                        filtChar       :: Bool,
+                        filtOper       :: Bool
 
-mkTokenFilter :: String -> Token -> Bool
-mkTokenFilter "identifier" = isIdentifier
-mkTokenFilter "directive"  = isDirective
-mkTokenFilter "keyword"    = isKeyword
-mkTokenFilter "header"     = isHeaderName
-mkTokenFilter "string"     = isString
-mkTokenFilter "char"       = isChar
-mkTokenFilter "oper"       = isOperOrPunct
-mkTokenFilter xs           = error $ "Cpp.Token: '" ++ xs ++ "' unknown token type"
+                   } deriving (Show,Read,Eq)
 
 
-data Token = TIdentifier  { toString :: String, offset :: Int64 , lineno :: Int64 } |
-             TDirective   { toString :: String, offset :: Int64 , lineno :: Int64 } |
-             TKeyword     { toString :: String, offset :: Int64 , lineno :: Int64 } |
-             TNumber      { toString :: String, offset :: Int64 , lineno :: Int64 } |
-             THeaderName  { toString :: String, offset :: Int64 , lineno :: Int64 } |
-             TString      { toString :: String, offset :: Int64 , lineno :: Int64 } |
-             TChar        { toString :: String, offset :: Int64 , lineno :: Int64 } |
-             TOperOrPunct { toString :: String, offset :: Int64 , lineno :: Int64 }
+tokenFilter :: TokenFilter -> Token -> Bool
+
+tokenFilter filt (TIdentifier{})  = filtIdentifier filt
+tokenFilter filt (TDirective{})   = filtDirective  filt
+tokenFilter filt (TKeyword{})     = filtKeyword    filt
+tokenFilter filt (THeaderName{})  = filtHeader     filt
+tokenFilter filt (TNumber{})      = filtNumber     filt
+tokenFilter filt (TString{})      = filtString     filt
+tokenFilter filt (TChar{})        = filtChar       filt
+tokenFilter filt (TOperOrPunct{}) = filtOper       filt 
+
+
+data Token = TIdentifier  { toString :: String, offset :: Int , lineno :: Int } |
+             TDirective   { toString :: String, offset :: Int , lineno :: Int } |
+             TKeyword     { toString :: String, offset :: Int , lineno :: Int } |
+             TNumber      { toString :: String, offset :: Int , lineno :: Int } |
+             THeaderName  { toString :: String, offset :: Int , lineno :: Int } |
+             TString      { toString :: String, offset :: Int , lineno :: Int } |
+             TChar        { toString :: String, offset :: Int , lineno :: Int } |
+             TOperOrPunct { toString :: String, offset :: Int , lineno :: Int }
                 deriving (Show, Eq)  
 
 

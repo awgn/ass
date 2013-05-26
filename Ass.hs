@@ -38,7 +38,7 @@ import System.Console.Haskeline
 import Control.Monad(when,void,forM,liftM,filterM)
 import Control.Monad.Trans.Class
 
-import qualified Data.ByteString.Lazy.Char8 as C
+import qualified Data.ByteString.Char8 as C
 
 import qualified Cpp.Source as Cpp
 import qualified Cpp.Filter as Cpp
@@ -249,7 +249,7 @@ isMultiThread src xs = "-pthread" `elem` xs  || useThreadOrAsync src
 
 useThreadOrAsync :: Source -> Bool
 useThreadOrAsync src =  "thread" `elem` identifiers || "async" `elem` identifiers   
-                            where tokens = filter Cpp.isIdentifier $ Cpp.tokens $ sourceFilter src
+                            where tokens = filter Cpp.isIdentifier $ Cpp.tokenizer $ sourceFilter src
                                   identifiers = Cpp.toString <$> tokens
 
 
@@ -270,11 +270,11 @@ makeSourceCode src' src lambda mt
 
 hasMain :: Source -> Bool
 hasMain src =  ["int", "main", "("] `isInfixOf` (Cpp.toString <$> ts) 
-                where ts = Cpp.tokens $ sourceFilter src
+                where ts = Cpp.tokenizer $ sourceFilter src
 
 
 sourceFilter :: Source -> Source
-sourceFilter = Cpp.filter Cpp.ContextFilter { Cpp.getCode = True, Cpp.getComment = False, Cpp.getLiteral = False }   
+sourceFilter = Cpp.filter Cpp.ContextFilter { Cpp.cppCode = True, Cpp.cppLiteral = True, Cpp.cppComment = False }   
 
 
 getCompilerArgs :: [String] -> [String]

@@ -15,15 +15,14 @@
 -- along with this program; if not, write to the Free Software
 -- Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 --
--- ass: C++11 code ass'istant 
+-- C++11 code assistant library 
 
-{-# LANGUAGE ViewPatterns #-} 
+-- {-# LANGUAGE ViewPatterns #-} 
 
 
 module Cpp.Filter (Context(..), ContextFilter(..), Cpp.Filter.filter)  where
 
 import qualified Cpp.Source as Cpp
-import qualified Data.ByteString.Lazy.Char8 as C
 
 
 type Source = Cpp.Source
@@ -33,23 +32,27 @@ data Context = Code | Comment | Literal
                 deriving (Eq, Show)
 
 
-data ContextFilter = ContextFilter { getCode    :: Bool,
-                                     getComment :: Bool,
-                                     getLiteral :: Bool 
+data ContextFilter = ContextFilter 
+                     { 
+                        cppCode    :: Bool,
+                        cppLiteral :: Bool, 
+                        cppComment :: Bool
+
                      } deriving (Eq, Show)
 
 
 filter :: ContextFilter -> Source -> Source
-filter filt src =  snd $ C.mapAccumL runFilter (FiltState CodeState filt ' ') src 
+filter filt src =  snd $ Cpp.mapAccumL runFilter (FiltState CodeState filt ' ') src 
 
+-- Filter State:
 
--- States:
-
-data FiltState = FiltState {
+data FiltState = FiltState 
+                 {
                     cstate  :: ContextState,
                     cfilter :: ContextFilter,
                     pchar   :: Char
-                } deriving (Eq, Show)
+
+                 } deriving (Eq, Show)
 
 
 
@@ -63,7 +66,7 @@ data ContextState = CodeState       |
 
 runFilter :: FiltState -> Char -> (FiltState, Char) 
 runFilter filtstate c = (state', charFilter (cxtFilter cxt (cfilter filtstate)) c)
-                        where (cxt, state') = charParser (pchar filtstate, c) filtstate
+    where (cxt, state') = charParser (pchar filtstate, c) filtstate
 
 
 charFilter :: Bool -> Char -> Char
@@ -74,9 +77,9 @@ charFilter  cond c
 
 
 cxtFilter :: Context -> ContextFilter -> Bool
-cxtFilter Code    = getCode 
-cxtFilter Comment = getComment 
-cxtFilter Literal = getLiteral 
+cxtFilter Code    = cppCode 
+cxtFilter Comment = cppComment 
+cxtFilter Literal = cppLiteral 
 
 
 charParser :: (Char,Char) -> FiltState -> (Context, FiltState)

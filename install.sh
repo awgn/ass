@@ -17,12 +17,13 @@
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 set -e
+set -x 
 
 case `uname` in
 
 Linux)
     ASS="\e[1m[ass]\e[0m"
-    CLANG_LIBC=
+    CLANG_LIBC=""
     ;;
 Darwin)
     ASS="[ass]"
@@ -86,7 +87,7 @@ if [ -x /usr/bin/clang++ ]; then
     echo -e "${ASS} Precompiling headers for clang++..."
 
     mkdir -p /usr/local/include/clang
-    sudo /usr/bin/clang++ includes/ass.hpp    -std=c++11 ${CLANG_LIBC} -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -x          c++-header -o /usr/local/include/clang/ass.hpp.pch
+    sudo /usr/bin/clang++ includes/ass.hpp    -std=c++11 ${CLANG_LIBC} -O0 -D_GLIBCXX_DEBUG -Wall -Wextra          -x c++-header -o /usr/local/include/clang/ass.hpp.pch
     sudo /usr/bin/clang++ includes/ass-mt.hpp -std=c++11 ${CLANG_LIBC} -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -pthread -x c++-header -o /usr/local/include/clang/ass-mt.hpp.pch
 fi
 

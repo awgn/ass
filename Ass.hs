@@ -314,10 +314,10 @@ getCompilerOpt comp@(Compiler _ bin _) mt
                       | otherwise = []
 
 getCompilerOpt (Compiler {}) mt =   
-        [ "-std=c++0x", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", "-include-pch", pch, 
+        [ "-std=c++11", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", "-include", pch, 
           "-Wextra", "-Wno-unused-parameter", "-Wno-unneeded-internal-declaration"] ++ stdlib ++ pth
-                where pch    | mt             = "/usr/local/include/clang/ass-mt.hpp.pch"
-                             | otherwise      = "/usr/local/include/clang/ass.hpp.pch" 
+                where pch    | mt             = "/usr/local/include/clang/ass-mt.hpp"
+                             | otherwise      = "/usr/local/include/clang/ass.hpp" 
                       stdlib | os == "darwin" = [ "-stdlib=libc++" ]
                              | otherwise      = []
                       pth    | mt = ["-pthread"]
@@ -325,10 +325,8 @@ getCompilerOpt (Compiler {}) mt =
 
 compileWith :: Compiler -> FilePath -> FilePath -> Bool -> [String] -> IO ExitCode
 compileWith cxx source binary mt user_opt = 
-    -- print $ cmd
-    system $ unwords cmd
-        where cmd = [getCompilerExec cxx, source, "-o", binary] 
-                    ++ getCompilerOpt cxx mt 
-                    ++ user_opt 
+    -- print cmd >>
+    system cmd
+        where cmd = unwords . concat $ [[getCompilerExec cxx], getCompilerOpt cxx mt, user_opt, [source], ["-o"], [binary]] 
 
 

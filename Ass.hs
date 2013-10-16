@@ -182,7 +182,8 @@ mainLoop args clist = do
                  Just (":s":_) -> outputStrLn "C++ Code:" >> 
                                   mapM_ outputStrLn (statePList state) >> 
                                   mapM_ outputStrLn (stateCode state) >> loop False state
-                 Just (":c":_) -> getCode >>= \xs -> loop False state {stateCode = xs ++ stateCode state } 
+                 Just (":c":_)    -> getCode    >>= \xs -> loop False state {stateCode = xs ++ stateCode state } 
+                 Just (":l":f:[]) -> loadCode f >>= \xs -> loop False state {stateCode = xs ++ stateCode state }
                  Just (":q":_) -> void (outputStrLn "Leaving ASSi.")
                  Just (":?":_) -> lift printHelp >> loop True state
                  Just (":n":_) -> loop True state { stateCType = next (stateCType state) }
@@ -205,6 +206,9 @@ getCode = do
          Just input -> (input :) <$> getCode
 
 
+loadCode :: FilePath -> InputT IO [String]
+loadCode f = lift $ lines <$> readFile f
+
 mainFun :: [String] -> Compiler -> IO ()
 mainFun args cxx = do
     code <- C.hGetContents stdin
@@ -216,6 +220,7 @@ printHelp :: IO ()
 printHelp =  putStrLn $ "Commands available from the prompt:\n\n" ++
                         "<statement>                 evaluate/run C++ <statement>\n" ++
                         "  :c                        enter in C++ code mode\n" ++ 
+                        "  :l file                   load file in C++ code mode\n" ++ 
                         "  :s                        show code\n" ++
                         "  :r                        reset preprocessor/code\n" ++ 
                         "  :n                        switch to next compiler(s)\n" ++ 

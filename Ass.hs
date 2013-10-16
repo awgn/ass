@@ -61,7 +61,7 @@ compilerList = [
                  Compiler Gcc48   "/usr/bin/g++-4.8" "g++-4.8",
                  Compiler Gcc47   "/usr/bin/g++-4.7" "g++-4.7",
                  Compiler Gcc46   "/usr/bin/g++-4.6" "g++-4.6",
-                 Compiler Clang32 "/usr/bin/clang++" "clang++"
+                 Compiler Clang33 "/usr/bin/clang++" "clang++"
                ]
 
 
@@ -82,11 +82,11 @@ instance Show CodeLine where
 
 -- Compiler:
 
-data CompilerType = Gcc46 | Gcc47 | Gcc48 | Clang31 | Clang32 
+data CompilerType = Gcc46 | Gcc47 | Gcc48 | Clang31 | Clang32 | Clang33 
                     deriving (Eq,Show,Read,Enum)
 
 next :: CompilerType -> CompilerType
-next Clang32 = Gcc46
+next Clang33 = Gcc46
 next   x = succ x
 
 
@@ -108,6 +108,7 @@ getCompilerType (Compiler t _ _) = t
 getCompilerFamily :: Compiler -> CompilerFamily
 getCompilerFamily (Compiler Clang31 _ _) = Clang
 getCompilerFamily (Compiler Clang32 _ _) = Clang
+getCompilerFamily (Compiler Clang33 _ _) = Clang
 getCompilerFamily _ = Gcc
 
 

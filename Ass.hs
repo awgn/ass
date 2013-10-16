@@ -182,8 +182,8 @@ mainLoop args clist = do
                  Just (":s":_) -> outputStrLn "C++ Code:" >> 
                                   mapM_ outputStrLn (statePList state) >> 
                                   mapM_ outputStrLn (stateCode state) >> loop False state
-                 Just (":c":_)    -> getCode    >>= \xs -> loop False state {stateCode = xs ++ stateCode state } 
-                 Just (":l":f:[]) -> loadCode f >>= \xs -> loop False state {stateCode = xs ++ stateCode state }
+                 Just (":c":_)    -> getCode    >>= \xs -> loop False state {stateCode = stateCode state ++ xs } 
+                 Just (":l":f:[]) -> loadCode f >>= \xs -> loop False state {stateCode = xs }
                  Just (":q":_) -> void (outputStrLn "Leaving ASSi.")
                  Just (":?":_) -> lift printHelp >> loop True state
                  Just (":n":_) -> loop True state { stateCType = next (stateCType state) }

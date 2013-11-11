@@ -66,11 +66,14 @@ compilerList = [
                ]
 
 
-banner, snippet, tmpDir,assrc, ass_history :: String 
+banner, snippet, assrc, ass_history :: String 
+tmpDir, includeDir :: FilePath
 
-banner  = "ASSi, version 1.2.5 :? for help"
+banner      = "ASSi, version 1.2.6 :? for help"
 snippet     = "snippet" 
 tmpDir      =  "/tmp" 
+includeDir  =  "/usr/local/include"
+
 assrc       =  ".assrc"
 ass_history = ".ass_history"
 
@@ -242,13 +245,13 @@ buildCompileAndRun code' code inter clist cargs targs = do
     uid  <- getRealUserID 
     let mt = isMultiThread code cargs
     let bin = tmpDir </> snippet ++ "-" ++ show uid
-    let src = bin ++ "-" ++ show uid <.> "cpp"
+    let src = bin <.> "cpp"
     writeSource src (makeSourceCode code' code inter mt)
     forM clist $ \cxx -> do
         when (length clist > 1) $ putStr (show cxx ++ " -> ") >> hFlush stdout
         e <- compileWith cxx src (binary bin cxx) mt (["-I", cwd', "-I",  cwd' </> ".."] ++ cargs) 
         if e == ExitSuccess 
-            then system (binary bin cxx ++ " " ++ unwords targs) >>= (\ret -> putChar '\n' >> return ret)
+            then system (binary bin cxx ++ " " ++ unwords targs) 
             else return e
         where binary n c = n ++ "-" ++ show (getCompilerType c)
 
@@ -319,24 +322,27 @@ getCompilerOpt :: Compiler -> Bool -> [String]
 getCompilerOpt comp@(Compiler _ bin _ opts) mt  
     | getCompilerFamily comp == Gcc =  
         case () of 
-        _ | "4.8" `isSuffixOf` bin -> opt ++ opts ++ ["-std=c++11"] ++ pth ++ [ "-I/usr/local/include/4.8" ]  
-          | "4.7" `isSuffixOf` bin -> opt ++ opts ++ ["-std=c++11"] ++ pth ++ [ "-I/usr/local/include/4.7" ] 
-          | "4.6" `isSuffixOf` bin -> opt ++ opts ++ ["-std=c++0x"] ++ pth ++ [ "-I/usr/local/include/4.6" ] 
+        _ | "4.8" `isSuffixOf` bin -> opt ++ opts ++ ["-std=c++11"] ++ pth ++ [ "-I" ++ includeDir </> "4.8" ]  
+          | "4.7" `isSuffixOf` bin -> opt ++ opts ++ ["-std=c++11"] ++ pth ++ [ "-I" ++ includeDir </> "4.7" ] 
+          | "4.6" `isSuffixOf` bin -> opt ++ opts ++ ["-std=c++0x"] ++ pth ++ [ "-I" ++ includeDir </> "4.6" ] 
           | otherwise              -> opt ++ opts ++ ["-std=c++0x"] ++ pth 
             where opt = [ "-O0", "-D_GLIBCXX_DEBUG", "-Wall", "-Wextra", "-Wno-unused-parameter", "-Wno-unused-value" ]
                   pth | mt = ["-pthread"]
                       | otherwise = []
 
+
 getCompilerOpt (Compiler _ _ _ opts) mt =   
         [ "-std=c++11", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", "-include", pch, "-Wextra", "-Wno-unused-parameter", "-Wno-unneeded-internal-declaration"] ++ opts ++ pth
-                where pch    | mt             = getCompilerPchPath opts ++ "ass-mt.hpp"
-                             | otherwise      = getCompilerPchPath opts ++ "ass.hpp" 
+                where pch    | mt             = getCompilerPchPath opts </> "ass-mt.hpp"
+                             | otherwise      = getCompilerPchPath opts </> "ass.hpp" 
                       pth    | mt = ["-pthread"]
                              | otherwise = []
 
+
 getCompilerPchPath :: [String] -> String
-getCompilerPchPath opts |  "-stdlib=libc++" `elem` opts = "/usr/local/include/clang-libc++/"
-                    |  otherwise                        = "/usr/local/include/clang/"
+getCompilerPchPath opts |  "-stdlib=libc++" `elem` opts = includeDir </> "clang-libc++"
+                        |  otherwise                    = includeDir </> "clang"
+
 
 compileWith :: Compiler -> FilePath -> FilePath -> Bool -> [String] -> IO ExitCode
 compileWith cxx source binary mt user_opt = 

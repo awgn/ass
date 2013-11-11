@@ -984,7 +984,7 @@ namespace ass {
     {
         template <typename F>
         static void run(F f) 
-        { auto ret = f(); std::cout << '[' << ret << ']'; }
+        { auto ret = f(); std::cout << '(' << ret << ") "; }
     };
 
     template <>
@@ -992,7 +992,7 @@ namespace ass {
     {
         template <typename F>
         static void run(F f) 
-        { f(); std::cout << "[void]"; }
+        { f(); std::cout << "(void) "; }
     };
 
     template <typename Fun>

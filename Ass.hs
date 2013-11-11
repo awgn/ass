@@ -32,6 +32,7 @@ import System.IO
 import System.Exit
 import System.FilePath
 import System.Directory(getCurrentDirectory, getHomeDirectory, doesFileExist)
+import System.Posix.User(getRealUserID)
 
 import System.Console.Haskeline
 
@@ -238,9 +239,10 @@ buildCompileAndRun :: Source -> Source -> Bool -> [Compiler] -> [String] -> [Str
 -- buildCompileRun code' code inter cxx cargs targs | trace ("buildCompileRun") False = undefined
 buildCompileAndRun code' code inter clist cargs targs = do 
     cwd' <- getCurrentDirectory
+    uid  <- getRealUserID 
     let mt = isMultiThread code cargs
-    let bin = tmpDir </> snippet
-    let src = bin <.> "cpp"
+    let bin = tmpDir </> snippet ++ "-" ++ show uid
+    let src = bin ++ "-" ++ show uid <.> "cpp"
     writeSource src (makeSourceCode code' code inter mt)
     forM clist $ \cxx -> do
         when (length clist > 1) $ putStr (show cxx ++ " -> ") >> hFlush stdout

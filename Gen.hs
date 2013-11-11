@@ -60,7 +60,8 @@ data Entity = ENamespace     Identifier |
               ValueClass     Identifier |   
               SingletonClass Identifier |
               CRTPClass      Identifier Identifier |
-              YatsTest       String
+              YatsTest       String     |
+              Streamable     Identifier
                 deriving (Show)
            
 factoryEntity :: Code -> [String] -> (Entity, [String])
@@ -73,7 +74,8 @@ helpString = "     c -> simple class\n" ++
              "     s -> singleton class\n" ++
              "     n -> namespace\n" ++
              "     r -> crtp idiom\n" ++
-             "     y -> yats test"    
+             "     y -> yats test\n" ++
+             "     x -> streamable type"
 
 factoryEntity 'c' (x:xs)    = (SimpleClass x, xs)
 factoryEntity 'm' (x:xs)    = (MoveableClass x, xs)
@@ -83,6 +85,7 @@ factoryEntity 's' (x:xs)    = (SingletonClass x, xs)
 factoryEntity 'n' (x:xs)    = (ENamespace x, xs)
 factoryEntity 'r' (x:y:xs)  = (CRTPClass x y, xs)
 factoryEntity 'y' (x:xs)    = (YatsTest x, xs)
+factoryEntity 'x' (x:xs)    = (Streamable x, xs)
 
 factoryEntity  c  _ | c `elem` "cmtvsrny" = error $ "Missing argument(s) for entity '" ++ [c] ++ "'"
 factoryEntity  c  _ = error $ "Unknown entity '" ++ [c] ++ "'. Usage [code] ARG... \n" ++ helpString
@@ -177,7 +180,8 @@ model (TemplateClass name) = cpp [ Template [Typename "T"] +++
                                         ]
                                    ]
                              ] ++
-                             cpp [   
+                             cpp 
+                             [   
                                  operInsrt (Just $ Template [Typename "T"]) name, 
                                  operExtrc (Just $ Template [Typename "T"]) name 
                              ]
@@ -213,6 +217,12 @@ model (YatsTest name) = cpp [ Include "yats.hpp" ] ++
                         ] ++
                         cpp [ _main [ "return yats::run(argc, argv);" ] ]
 
+
+model (Streamable name) = cpp 
+                        [   
+                            operInsrt Nothing name, 
+                            operExtrc Nothing name 
+                        ]
 
 ---------------------------------------------------------
 -- CppShow type class

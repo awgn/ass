@@ -56,39 +56,49 @@ sudo /bin/cp includes/ass.hpp    /usr/local/include/
 sudo /bin/cp includes/ass-mt.hpp /usr/local/include/
 
 
-case `uname` in
-Linux)
+# case `uname` in
+# Linux)
 
-    if [ -x /usr/bin/g++-4.8 ]; then
-        echo -e "${ASS} Precompiling headers for g++-4.8..."
-        mkdir -p /usr/local/include/4.8
-        sudo /usr/bin/g++-4.8 includes/ass.hpp    -std=c++11 -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -o           /usr/local/include/4.8/ass.hpp.gch
-        sudo /usr/bin/g++-4.8 includes/ass-mt.hpp -std=c++11 -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -pthread -o  /usr/local/include/4.8/ass-mt.hpp.gch
-    fi
+#     if [ -x /usr/bin/g++-4.8 ]; then
+#         echo -e "${ASS} Precompiling headers for g++-4.8..."
+#         mkdir -p /usr/local/include/4.8
+#         sudo /usr/bin/g++-4.8 includes/ass.hpp    -std=c++11 -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -o           /usr/local/include/4.8/ass.hpp.gch
+#         sudo /usr/bin/g++-4.8 includes/ass-mt.hpp -std=c++11 -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -pthread -o  /usr/local/include/4.8/ass-mt.hpp.gch
+#     fi
 
-    if [ -x /usr/bin/g++-4.7 ]; then
-        echo -e "${ASS} Precompiling headers for g++-4.7..."
-        mkdir -p /usr/local/include/4.7
-        sudo /usr/bin/g++-4.7 includes/ass.hpp    -std=c++11 -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -o           /usr/local/include/4.7/ass.hpp.gch
-        sudo /usr/bin/g++-4.7 includes/ass-mt.hpp -std=c++11 -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -pthread -o  /usr/local/include/4.7/ass-mt.hpp.gch
-    fi
+#     if [ -x /usr/bin/g++-4.7 ]; then
+#         echo -e "${ASS} Precompiling headers for g++-4.7..."
+#         mkdir -p /usr/local/include/4.7
+#         sudo /usr/bin/g++-4.7 includes/ass.hpp    -std=c++11 -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -o           /usr/local/include/4.7/ass.hpp.gch
+#         sudo /usr/bin/g++-4.7 includes/ass-mt.hpp -std=c++11 -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -pthread -o  /usr/local/include/4.7/ass-mt.hpp.gch
+#     fi
 
-    if [ -x /usr/bin/g++-4.6 ]; then
-        echo -e "${ASS} Precompiling headers for g++-4.6..."
-        mkdir -p /usr/local/include/4.6
-        sudo /usr/bin/g++-4.6 includes/ass.hpp    -std=c++0x -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -o           /usr/local/include/4.6/ass.hpp.gch
-        sudo /usr/bin/g++-4.6 includes/ass-mt.hpp -std=c++0x -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -pthread -o  /usr/local/include/4.6/ass-mt.hpp.gch
-    fi
-    ;;
-esac
+#     if [ -x /usr/bin/g++-4.6 ]; then
+#         echo -e "${ASS} Precompiling headers for g++-4.6..."
+#         mkdir -p /usr/local/include/4.6
+#         sudo /usr/bin/g++-4.6 includes/ass.hpp    -std=c++0x -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -o           /usr/local/include/4.6/ass.hpp.gch
+#         sudo /usr/bin/g++-4.6 includes/ass-mt.hpp -std=c++0x -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -pthread -o  /usr/local/include/4.6/ass-mt.hpp.gch
+#     fi
+#     ;;
+# esac
 
 if [ -x /usr/bin/clang++ ]; then
-    echo -e "${ASS} Precompiling headers for clang++..."
 
-    mkdir -p /usr/local/include/clang
-    sudo /usr/bin/clang++ includes/ass.hpp    -std=c++11 ${CLANG_LIBC} -O0 -D_GLIBCXX_DEBUG -Wall -Wextra          -x c++-header -o /usr/local/include/clang/ass.hpp.pch
-    sudo /usr/bin/clang++ includes/ass-mt.hpp -std=c++11 ${CLANG_LIBC} -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -pthread -x c++-header -o /usr/local/include/clang/ass-mt.hpp.pch
+    if [ ! -z "$CLANG_LIBC" ] || [ -d "/usr/include/c++/v1" ]; then
+        echo -e "${ASS} Precompiling headers for clang++... (libc++)"
+        mkdir -p /usr/local/include/clang-libc++
+        sudo /usr/bin/clang++ includes/ass.hpp    -std=c++11 -stdlib=libc++ -O0 -D_GLIBCXX_DEBUG -Wall -Wextra          -x c++-header -o /usr/local/include/clang-libc++/ass.hpp.pch
+        sudo /usr/bin/clang++ includes/ass-mt.hpp -std=c++11 -stdlib=libc++ -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -pthread -x c++-header -o /usr/local/include/clang-libc++/ass-mt.hpp.pch
+    fi 
+
+    if [ -z "$CLANG_LIBC"]; then
+        echo -e "${ASS} Precompiling headers for clang++... (glibcxx)"
+        mkdir -p /usr/local/include/clang
+        sudo /usr/bin/clang++ includes/ass.hpp    -std=c++11 -O0 -D_GLIBCXX_DEBUG -Wall -Wextra          -x c++-header -o /usr/local/include/clang/ass.hpp.pch
+        sudo /usr/bin/clang++ includes/ass-mt.hpp -std=c++11 -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -pthread -x c++-header -o /usr/local/include/clang/ass-mt.hpp.pch
+    fi
 fi
+
 
 
 echo -e "${ASS} done."

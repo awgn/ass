@@ -1,6 +1,6 @@
 [ 
-    Compiler Gcc48   "/usr/bin/g++-4.8" "g++ 4.8",
-    Compiler Gcc47   "/usr/bin/g++-4.7" "g++ 4.7",
-    Compiler Gcc46   "/usr/bin/g++-4.6" "g++ 4.6",
-    Compiler Clang32 "/usr/bin/clang++" "clang++"
+    Compiler Gcc48   "/usr/bin/g++-4.8" "g++ 4.8" [],
+    Compiler Gcc47   "/usr/bin/g++-4.7" "g++ 4.7" [],
+    Compiler Gcc46   "/usr/bin/g++-4.6" "g++ 4.6" [],
+    Compiler Clang32 "/usr/bin/clang++" "clang++" ["-stdlib=libc++"]
 ]

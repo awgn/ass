@@ -28,7 +28,7 @@ import Safe (tailSafe)
 import System.Environment(getArgs, getProgName)
 import System.Process(system)
 import System.IO
-import System.Info
+-- import System.Info
 import System.Exit
 import System.FilePath
 import System.Directory(getCurrentDirectory, getHomeDirectory, doesFileExist)
@@ -58,10 +58,10 @@ type ParserState     = (TranslationUnit, MainFunction)
 
 compilerList :: [Compiler]
 compilerList = [ 
-                 Compiler Gcc48   "/usr/bin/g++-4.8" "g++-4.8",
-                 Compiler Gcc47   "/usr/bin/g++-4.7" "g++-4.7",
-                 Compiler Gcc46   "/usr/bin/g++-4.6" "g++-4.6",
-                 Compiler Clang33 "/usr/bin/clang++" "clang++"
+                 Compiler Gcc48   "/usr/bin/g++-4.8" "g++-4.8" [],
+                 Compiler Gcc47   "/usr/bin/g++-4.7" "g++-4.7" [],
+                 Compiler Gcc46   "/usr/bin/g++-4.6" "g++-4.6" [],
+                 Compiler Clang33 "/usr/bin/clang++" "clang++" []
                ]
 
 
@@ -94,30 +94,35 @@ data CompilerFamily = Gcc | Clang
                     deriving (Eq,Show,Read,Enum)
 
 
-data Compiler = Compiler CompilerType FilePath String  
+data Compiler = Compiler CompilerType FilePath String [String] 
                 deriving (Read, Eq)
 
+
 instance Show Compiler where
-    show (Compiler _ _ name) = name
+    show (Compiler _ _ name opt) = name ++ " (" ++ show opt ++ ")"
 
 
 getCompilerType :: Compiler -> CompilerType 
-getCompilerType (Compiler t _ _) = t
+getCompilerType (Compiler t _ _ _) = t
 
 
 getCompilerFamily :: Compiler -> CompilerFamily
-getCompilerFamily (Compiler Clang31 _ _) = Clang
-getCompilerFamily (Compiler Clang32 _ _) = Clang
-getCompilerFamily (Compiler Clang33 _ _) = Clang
+getCompilerFamily (Compiler Clang31 _ _ _) = Clang
+getCompilerFamily (Compiler Clang32 _ _ _) = Clang
+getCompilerFamily (Compiler Clang33 _ _ _) = Clang
 getCompilerFamily _ = Gcc
 
 
 getCompilerExec :: Compiler -> FilePath
-getCompilerExec (Compiler _ e _) = e
+getCompilerExec (Compiler _ e _ _) = e
 
 
 getCompilerName :: Compiler -> FilePath
-getCompilerName (Compiler _ _ n) = n
+getCompilerName (Compiler _ _ n _) = n
+
+
+getCompilerExtraOpt :: Compiler -> [String]
+getCompilerExtraOpt (Compiler _ _ _ xs) = xs
 
 
 getCompilers :: [Compiler] -> IO [Compiler]
@@ -132,6 +137,7 @@ getCompilerFamilyByName =
 
 compFilter :: CompilerFamily -> [Compiler] -> [Compiler]
 compFilter t = filter (\c -> t == getCompilerFamily c) 
+
 
 compFilterType :: CompilerType -> [Compiler] -> [Compiler]
 compFilterType t = filter (\c -> t == getCompilerType c) 
@@ -308,26 +314,27 @@ toSourceCode src = zipWith CodeLine [1..] (C.lines src)
 
 
 getCompilerOpt :: Compiler -> Bool -> [String]
-getCompilerOpt comp@(Compiler _ bin _) mt  
+getCompilerOpt comp@(Compiler _ bin _ opts) mt  
     | getCompilerFamily comp == Gcc =  
         case () of 
-        _ | "4.8" `isSuffixOf` bin -> args ++ ["-std=c++11"] ++ pth ++ [ "-I/usr/local/include/4.8" ]  
-          | "4.7" `isSuffixOf` bin -> args ++ ["-std=c++11"] ++ pth ++ [ "-I/usr/local/include/4.7" ]
-          | "4.6" `isSuffixOf` bin -> args ++ ["-std=c++0x"] ++ pth ++ [ "-I/usr/local/include/4.6" ]
-          | otherwise              -> args ++ ["-std=c++0x"] ++ pth 
-            where args = [ "-O0", "-D_GLIBCXX_DEBUG", "-Wall", "-Wextra", "-Wno-unused-parameter", "-Wno-unused-value" ]
+        _ | "4.8" `isSuffixOf` bin -> opt ++ opts ++ ["-std=c++11"] ++ pth ++ [ "-I/usr/local/include/4.8" ]  
+          | "4.7" `isSuffixOf` bin -> opt ++ opts ++ ["-std=c++11"] ++ pth ++ [ "-I/usr/local/include/4.7" ] 
+          | "4.6" `isSuffixOf` bin -> opt ++ opts ++ ["-std=c++0x"] ++ pth ++ [ "-I/usr/local/include/4.6" ] 
+          | otherwise              -> opt ++ opts ++ ["-std=c++0x"] ++ pth 
+            where opt = [ "-O0", "-D_GLIBCXX_DEBUG", "-Wall", "-Wextra", "-Wno-unused-parameter", "-Wno-unused-value" ]
                   pth | mt = ["-pthread"]
                       | otherwise = []
 
-getCompilerOpt (Compiler {}) mt =   
-        [ "-std=c++11", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", "-include", pch, 
-          "-Wextra", "-Wno-unused-parameter", "-Wno-unneeded-internal-declaration"] ++ stdlib ++ pth
-                where pch    | mt             = "/usr/local/include/clang/ass-mt.hpp"
-                             | otherwise      = "/usr/local/include/clang/ass.hpp" 
-                      stdlib | os == "darwin" = [ "-stdlib=libc++" ]
-                             | otherwise      = []
+getCompilerOpt (Compiler _ _ _ opts) mt =   
+        [ "-std=c++11", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", "-include", pch, "-Wextra", "-Wno-unused-parameter", "-Wno-unneeded-internal-declaration"] ++ opts ++ pth
+                where pch    | mt             = getCompilerPchPath opts ++ "ass-mt.hpp"
+                             | otherwise      = getCompilerPchPath opts ++ "ass.hpp" 
                       pth    | mt = ["-pthread"]
                              | otherwise = []
+
+getCompilerPchPath :: [String] -> String
+getCompilerPchPath opts |  "-stdlib=libc++" `elem` opts = "/usr/local/include/clang-libc++/"
+                    |  otherwise                        = "/usr/local/include/clang/"
 
 compileWith :: Compiler -> FilePath -> FilePath -> Bool -> [String] -> IO ExitCode
 compileWith cxx source binary mt user_opt = 

@@ -69,7 +69,7 @@ compilerList = [
 banner, snippet, assrc, ass_history :: String 
 tmpDir, includeDir :: FilePath
 
-banner      = "ASSi, version 1.2.6 :? for help"
+banner      = "ASSi, version 1.2.7 :? for help"
 snippet     = "snippet" 
 tmpDir      =  "/tmp" 
 includeDir  =  "/usr/local/include"
@@ -193,7 +193,8 @@ mainLoop args clist = do
                                   mapM_ outputStrLn (statePList state) >> 
                                   mapM_ outputStrLn (stateCode state) >> loop False state
                  Just (":c":_)    -> getCode    >>= \xs -> loop False state {stateCode = stateCode state ++ xs } 
-                 Just (":l":f:[]) -> outputStrLn (f ++ " loaded.") >> loadCode f >>= \xs -> loop False state {stateCode = xs }
+                 Just (":i":h:[]) -> outputStrLn (h ++ " included.") >> loop False state {stateCode = stateCode state ++ ["#include <" ++ h ++ ">"] }
+                 Just (":l":f:[]) -> outputStrLn (f ++ " loaded.")   >> loadCode f >>= \xs -> loop False state {stateCode = xs }
                  Just (":q":_) -> void (outputStrLn "Leaving ASSi.")
                  Just (":?":_) -> lift printHelp >> loop True state
                  Just (":n":_) -> loop True state { stateCType = next (stateCType state) }
@@ -229,8 +230,9 @@ mainFun args cxx = do
 printHelp :: IO ()
 printHelp =  putStrLn $ "Commands available from the prompt:\n\n" ++
                         "<statement>                 evaluate/run C++ <statement>\n" ++
-                        "  :c                        enter in C++ code mode\n" ++ 
-                        "  :l file                   load file in C++ code mode\n" ++ 
+                        "  :c                        enter in C++ code\n" ++ 
+                        "  :i file                   include file in C++ code\n" ++ 
+                        "  :l file                   load file in C++ code\n" ++ 
                         "  :s                        show code\n" ++
                         "  :r                        reset preprocessor/code\n" ++ 
                         "  :n                        switch to next compiler(s)\n" ++ 

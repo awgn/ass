@@ -30,31 +30,58 @@ Darwin)
     ;;
 esac
 
-echo -e "${ASS} Installing C++11 assistant."
 
-echo -e "${ASS} Installing rc file..."
-/bin/cp assrc $HOME/.assrc
+INSTALL_ASS=Y
+INSTALL_VPI=N
+INSTALL_PCH=N
 
-if [ -d $HOME/.vim/bundle/ ]; then
-    echo -e "${ASS} Installing vim-ass plug-in (pathogen detected)..."
-    /bin/mkdir -p ${HOME}/.vim/bundle/vim-ass/
-    cp -r plugin  ${HOME}/.vim/bundle/vim-ass/ 
+
+usage()
+{
+    echo "Usage: $0 [-l] [-v] [-a] [-h]" 1>&2; exit 1;
+}
+
+
+while getopts pvah opt
+ do
+  case "$opt" in
+    v)		INSTALL_VPI=Y;;
+    p)		INSTALL_PCH=Y;;
+    a)      INSTALL_VPI=Y; INSTALL_PCH=Y;;
+    h)      usage $0;;
+    *)      exit 1;;
+  esac
+ done
+
+
+ echo -e "${ASS} Installing C++11 Assistant."
+
+if [ $INSTALL_VPI = "Y" ];
+then
+
+    if [ -d $HOME/.vim/bundle/ ]; then
+        echo -e "${ASS} Installing vim-ass plug-in (pathogen detected)..."
+        /bin/mkdir -p ${HOME}/.vim/bundle/vim-ass/
+        cp -r plugin  ${HOME}/.vim/bundle/vim-ass/ 
+    fi
 fi
-
 
 echo -e "${ASS} Compiling Haskell binaries..."
 
 sudo /usr/bin/ghc -O -Wall Ass.hs -o /usr/local/bin/ass
 sudo /usr/bin/ghc -O -Wall Gen.hs -o /usr/local/bin/gen
-
 sudo /bin/ln -f -s /usr/local/bin/ass  /usr/local/bin/ass-clang
 
+echo -e "${ASS} Installing rc file..."
+/bin/cp assrc $HOME/.assrc
 
 echo -e "${ASS} Installing headers..."
 
 sudo /bin/cp includes/ass.hpp    /usr/local/include/
 sudo /bin/cp includes/ass-mt.hpp /usr/local/include/
 
+if [ $INSTALL_PCH = "Y" ];
+then
 
 case `uname` in
 Linux)
@@ -99,6 +126,6 @@ if [ -x /usr/bin/clang++ ]; then
     fi
 fi
 
-
+fi
 
 echo -e "${ASS} done."

@@ -118,7 +118,7 @@ if [ -x /usr/bin/clang++ ]; then
         sudo /usr/bin/clang++ includes/ass-mt.hpp -std=c++11 -stdlib=libc++ -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -pthread -x c++-header -o /usr/local/include/clang-libc++/ass-mt.hpp.pch
     fi 
 
-    if [ -z "$CLANG_LIBC"]; then
+    if [ -z "$CLANG_LIBC" ]; then
         echo -e "${ASS} Precompiling headers for clang++... (glibcxx)"
         mkdir -p /usr/local/include/clang
         sudo /usr/bin/clang++ includes/ass.hpp    -std=c++11 -O0 -D_GLIBCXX_DEBUG -Wall -Wextra          -x c++-header -o /usr/local/include/clang/ass.hpp.pch

@@ -27,6 +27,6 @@
 #include <future>
 #include <atomic>
 
-#include <ass.hpp>
+#include "ass.hpp"
 
 #endif /* _ASS_MT_HPP_ */

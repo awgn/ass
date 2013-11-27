@@ -217,7 +217,7 @@ getCode = do
 
 
 loadCode :: FilePath -> InputT IO [String]
-loadCode f = lift $ lines <$> readFile f
+loadCode f = lift $ filter (not . ("#pragma" `isPrefixOf`) . dropWhile isSpace) <$> lines <$> readFile f
 
 mainFun :: [String] -> Compiler -> IO ()
 mainFun args cxx = do

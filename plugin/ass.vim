@@ -11,7 +11,7 @@ let g:loaded_ass = 1
 
 
 if !exists('g:ass_snippet_file')
-    let g:ass_snippet_file = "/tmp/snippet.cpp"
+    let g:ass_snippet_file = "/tmp/snippet-" . $USER . ".cpp"
 endif
 
 
@@ -31,7 +31,7 @@ function! s:ass_compile_and_run(comp)
             let l:fname = expand("%")
             write 
         else
-            let l:fname = "/tmp/No_name.cpp"
+            let l:fname = "/tmp/snippet-".  $USER .".cpp"
             exec "silent! write! " . l:fname 
         endif
         %y+ | new | normal! P

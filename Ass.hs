@@ -71,7 +71,7 @@ compilerList = [
 banner, snippet, assrc, ass_history :: String 
 tmpDir, includeDir :: FilePath
 
-banner      = "ASSi, version 1.3.2 :? for help"
+banner      = "ASSi, version 1.3.3 :? for help"
 snippet     = "snippet" 
 tmpDir      =  "/tmp" 
 includeDir  =  "/usr/local/include"
@@ -190,23 +190,26 @@ mainLoop args clist = do
             minput <- getInputLine "Ass> "
             case words <$> minput of
                  Nothing -> return ()
-                 Just (":r":_) -> outputStrLn "Code clean." >> loop True state{ statePList = [], stateCode = [] } 
-                 Just (":s":_) -> outputStrLn "C++ Code:" >> 
-                                  mapM_ outputStrLn (statePList state) >> 
-                                  mapM_ outputStrLn (stateCode state) >> loop False state
-                 Just (":c":_)    -> getCode    >>= \xs -> loop False state {stateCode = stateCode state ++ xs } 
-                 Just (":i":h:[]) -> outputStrLn (h ++ " included.") >> loop False state {stateCode = stateCode state ++ ["#include <" ++ h ++ ">"] }
-                 Just (":l":f:[]) -> outputStrLn (f ++ " loaded.")   >> loadCode f >>= \xs -> loop False state {stateCode = xs }
+                 Just (":r":_) -> outputStrLn "Code buffer clean." >> loop True state{ statePList = [], stateCode = [] } 
+                 Just (":s":_) -> mapM_ outputStrLn (statePList state) >> 
+                                  mapM_ outputStrLn (stateCode  state) >> loop False state
+                 Just (":c":_) -> mapM_ outputStrLn (statePList state) >> 
+                                  mapM_ outputStrLn (stateCode  state) >> 
+                                  getCode >>= \xs -> loop False state{stateCode = stateCode state ++ xs } 
+                 Just (":i":h:[]) -> outputStrLn (h ++ " included.") >> 
+                                     loop False state{stateCode = stateCode state ++ ["#include <" ++ h ++ ">"] }
+                 Just (":l":f:[]) -> outputStrLn (f ++ " loaded.") >> 
+                                     loadCode f >>= \xs -> loop False state{stateCode = xs }
                  Just (":q":_) -> void (outputStrLn "Leaving ASSi.")
                  Just (":?":_) -> lift printHelp >> loop True state
-                 Just (":n":_) -> loop True state { stateCType = next (stateCType state) }
+                 Just (":n":_) -> loop True state{ stateCType = next (stateCType state) }
                  Just []       -> loop False state
-                 Just input | isPreprocessor (C.pack $ unwords input) -> loop False state { statePList = statePList state ++ [unwords input] } 
+                 Just input | isPreprocessor (C.pack $ unwords input) -> loop False state{ statePList = statePList state ++ [unwords input] } 
                             | otherwise -> do 
-                            e <- lift $ buildCompileAndRun (C.pack(unlines (statePList state) ++ unlines (stateCode state))) 
-                                        (C.pack (unwords input)) True  (compFilterType (stateCType state) clist) (getCompilerArgs args) [] 
-                            outputStrLn $ show e
-                            loop False state
+                              e <- lift $ buildCompileAndRun (C.pack(unlines (statePList state) ++ unlines (stateCode state))) 
+                                                             (C.pack(unwords input)) True (compFilterType (stateCType state) clist) (getCompilerArgs args) [] 
+                              outputStrLn $ show e
+                              loop False state
 
 
 mainFun :: [String] -> Compiler -> IO ()
@@ -219,12 +222,12 @@ mainFun args cxx = do
 printHelp :: IO ()
 printHelp =  putStrLn $ "Commands available from the prompt:\n\n" ++
                         "<statement>                 evaluate/run C++ <statement>\n" ++
-                        "  :c                        enter in C++ code\n" ++ 
-                        "  :i file                   include file in C++ code\n" ++ 
-                        "  :l file                   load file in C++ code\n" ++ 
-                        "  :s                        show code\n" ++
-                        "  :r                        reset preprocessor/code\n" ++ 
-                        "  :n                        switch to next compiler(s)\n" ++ 
+                        "  :c                        enter in C++ mode\n" ++ 
+                        "  :i file                   include file in C++ buffer\n" ++ 
+                        "  :l file                   load file in C++ buffer\n" ++ 
+                        "  :s                        show C++ buffer\n" ++
+                        "  :r                        reset C++ buffer\n" ++ 
+                        "  :n                        switch to next compiler\n" ++ 
                         "  :q                        quit\n" ++
                         "  :?                        print this help\n"  
 
@@ -274,9 +277,9 @@ useThreadOrAsync src =  "thread" `elem` identifiers || "async" `elem` identifier
                                   identifiers = Cpp.toString <$> tokens
 
 getNamespaceInUse :: Source -> [String]
-getNamespaceInUse src = map (Cpp.toString . (\ix -> tokens !! (ix + 1))) ixs  
+getNamespaceInUse src = map (Cpp.toString . (\i -> tokens !! (i + 1))) is  
                         where tokens = Cpp.tokenizer $ sourceCodeFilter src
-                              ixs = findIndices (\token -> Cpp.isKeyword token && Cpp.toString token == "namespace") tokens 
+                              is = findIndices (\token -> Cpp.isKeyword token && Cpp.toString token == "namespace") tokens 
 
 
 makeSourceCode :: Source -> Source -> [String] -> Bool -> Bool -> [SourceCode]
@@ -284,8 +287,8 @@ makeSourceCode :: Source -> Source -> [String] -> Bool -> Bool -> [SourceCode]
 makeSourceCode code main_code ns lambda mt 
     | lambda       = [ headers, zipSourceCode code] ++ makeNamespaces ns  ++ [ mainHeader, zipSourceCode main_code, mainFooter ]
     | hasMain code = [ headers, zipSourceCode code] ++ makeNamespaces ns  ++ [ zipSourceCode main_code ]
-    | otherwise    = [ headers, global ] ++ makeNamespaces ns  ++ [ mainHeader, body, mainFooter ]
-      where (global, body) = foldl parseCodeLine ([], []) (zipSourceCode code) 
+    | otherwise    = [ headers, code' ] ++ makeNamespaces ns  ++ [ mainHeader, main_code', mainFooter ]
+      where (code', main_code') = foldl parseCodeLine ([], []) (zipSourceCode code) 
             include    = C.pack $ "#include" ++ if mt then "<ass-mt.hpp>" else "<ass.hpp>"  
             headers    = [ CodeLine 1 include]
             mainHeader = if lambda 
@@ -296,9 +299,8 @@ makeSourceCode code main_code ns lambda mt
                             else [ CodeLine 1 ";}" ]
 
 
-
 makeNamespaces :: [String] -> [SourceCode]
-makeNamespaces = map (zipSourceCode . C.pack . (\n -> "using namespace " ++ n ++ ";"))
+makeNamespaces = map $ zipSourceCode . C.pack . (\n -> "using namespace " ++ n ++ ";")
 
 
 hasMain :: Source -> Bool

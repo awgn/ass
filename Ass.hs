@@ -29,6 +29,8 @@ import System.Environment(getArgs, getProgName)
 import System.Process(system)
 import System.IO
 -- import System.Info
+-- import Debug.Trace
+
 import System.Exit
 import System.FilePath
 import System.Directory(getCurrentDirectory, getHomeDirectory, doesFileExist)
@@ -69,7 +71,7 @@ compilerList = [
 banner, snippet, assrc, ass_history :: String 
 tmpDir, includeDir :: FilePath
 
-banner      = "ASSi, version 1.2.7 :? for help"
+banner      = "ASSi, version 1.3 :? for help"
 snippet     = "snippet" 
 tmpDir      =  "/tmp" 
 includeDir  =  "/usr/local/include"
@@ -106,7 +108,7 @@ instance Show Compiler where
     show (Compiler _ _ name opt) = name ++ " (" ++ show opt ++ ")"
 
 
-getCompilerType :: Compiler -> CompilerType 
+getCompilerType :: Compiler -> CompilerType
 getCompilerType (Compiler t _ _ _) = t
 
 
@@ -201,9 +203,8 @@ mainLoop args clist = do
                  Just []       -> loop False state
                  Just input | isPreprocessor (C.pack $ unwords input) -> loop False state { statePList = statePList state ++ [unwords input] } 
                             | otherwise -> do 
-                            e <- lift $ buildCompileAndRun (C.pack(
-                                unlines (statePList state) ++ unlines (stateCode state))) (C.pack (unwords input)) True  
-                                    (compFilterType (stateCType state) clist) (getCompilerArgs args) [] 
+                            e <- lift $ buildCompileAndRun (C.pack(unlines (statePList state) ++ unlines (stateCode state))) 
+                                        (C.pack (unwords input)) True  (compFilterType (stateCType state) clist) (getCompilerArgs args) [] 
                             outputStrLn $ show e
                             loop False state
 
@@ -212,7 +213,7 @@ mainFun :: [String] -> Compiler -> IO ()
 mainFun args cxx = do
     code <- C.hGetContents stdin
     liftM head
-        (buildCompileAndRun "" code False [cxx] (getCompilerArgs args) (getTestArgs args)) >>= exitWith
+        (buildCompileAndRun code "" False [cxx] (getCompilerArgs args) (getTestArgs args)) >>= exitWith
 
 
 printHelp :: IO ()
@@ -242,14 +243,14 @@ loadCode f = lift $ filter (not . ("#pragma" `isPrefixOf`) . dropWhile isSpace) 
 
 
 buildCompileAndRun :: Source -> Source -> Bool -> [Compiler] -> [String] -> [String] -> IO [ExitCode] 
--- buildCompileRun code' code inter cxx cargs targs | trace ("buildCompileRun") False = undefined
-buildCompileAndRun code' code inter clist cargs targs = do 
+-- buildCompileRun code main_code inter cxx cargs targs | trace ("buildCompileRun") False = undefined
+buildCompileAndRun code main_code inter clist cargs targs = do 
     cwd' <- getCurrentDirectory
     uid  <- getRealUserID 
-    let mt = isMultiThread code cargs
+    let mt = isMultiThread main_code cargs
     let bin = tmpDir </> snippet ++ "-" ++ show uid
     let src = bin <.> "cpp"
-    writeSource src (makeSourceCode code' code inter mt)
+    writeSource src (makeSourceCode code main_code (getNamespaceInUse code) inter mt)
     forM clist $ \cxx -> do
         when (length clist > 1) $ putStr (show cxx ++ " -> ") >> hFlush stdout
         e <- compileWith cxx src (binary bin cxx) mt (["-I", cwd', "-I",  cwd' </> ".."] ++ cargs) 
@@ -272,12 +273,20 @@ useThreadOrAsync src =  "thread" `elem` identifiers || "async" `elem` identifier
                             where tokens = filter Cpp.isIdentifier $ Cpp.tokenizer $ sourceCodeFilter src
                                   identifiers = Cpp.toString <$> tokens
 
+getNamespaceInUse :: Source -> [String]
+getNamespaceInUse src = map (Cpp.toString . (\ix -> tokens !! (ix + 1))) ixs  
+                        where tokens = Cpp.tokenizer $ sourceCodeFilter src
+                              ixs = findIndices (\token -> Cpp.isKeyword token && Cpp.toString token == "namespace") tokens 
 
-makeSourceCode :: Source -> Source -> Bool -> Bool -> [SourceCode]
-makeSourceCode src' src lambda mt 
-    | hasMain src = [ headers, zipSourceCode src', zipSourceCode src ]
-    | otherwise   = [ headers, zipSourceCode src', global, mainHeader, body, mainFooter ]
-      where (global, body) = foldl parseCodeLine ([], []) (zipSourceCode src) 
+
+makeSourceCode :: Source -> Source -> [String] -> Bool -> Bool -> [SourceCode]
+-- makeSourceCode code main_code ns lambda mt | trace ("makeSourceCode code=" ++ (C.unpack code) ++ " main_code=" ++ (C.unpack main_code)) False = undefined
+makeSourceCode code main_code ns lambda mt 
+    | lambda       = [ headers, zipSourceCode code] ++ makeNamespaces ns  ++ [ mainHeader, zipSourceCode main_code, mainFooter ]
+    | hasMain code = [ headers, zipSourceCode code] ++ makeNamespaces ns  ++ [ zipSourceCode main_code ]
+    | otherwise    = [ headers, global ] ++ makeNamespaces ns  ++ [ mainHeader, body, mainFooter ]
+      where (global, body) = foldl parseCodeLine ([], []) (zipSourceCode code) 
+            include    = C.pack $ "#include" ++ if mt then "<ass-mt.hpp>" else "<ass.hpp>"  
             headers    = [ CodeLine 1 include]
             mainHeader = if lambda 
                             then [ CodeLine 1 "int main(int argc, char *argv[]) { cout << boolalpha; ass::cmdline([] {" ] 
@@ -285,7 +294,11 @@ makeSourceCode src' src lambda mt
             mainFooter = if lambda 
                             then [ CodeLine 1 "; }); }" ] 
                             else [ CodeLine 1 ";}" ]
-            include    = C.pack $ "#include" ++ if mt then "<ass-mt.hpp>" else "<ass.hpp>"  
+
+
+
+makeNamespaces :: [String] -> [SourceCode]
+makeNamespaces = map (zipSourceCode . C.pack . (\n -> "using namespace " ++ n ++ ";"))
 
 
 hasMain :: Source -> Bool
@@ -310,11 +323,10 @@ isPreprocessor = C.isPrefixOf "#" . C.dropWhile isSpace
 
 
 parseCodeLine :: ParserState -> CodeLine -> ParserState
-parseCodeLine (t,m) (CodeLine n x)  
-    | isPreprocessor x = (t ++ [CodeLine n x], m)
-    | isSwitchLine x   = (m ++ [CodeLine n x], t)
-    | otherwise        = (t, m ++ [CodeLine n x])
-        where isSwitchLine = ("///" `C.isPrefixOf`)
+parseCodeLine (t,m) (CodeLine n l)  
+    | isMainLine  l = (t, m ++ [CodeLine n (C.pack $ delete '$' $ C.unpack l) ])
+    | otherwise     = (t ++ [CodeLine n l], m)
+        where isMainLine = ("$" `C.isPrefixOf`) . C.dropWhile isSpace
 
 
 zipSourceCode :: Source -> SourceCode

@@ -892,18 +892,23 @@ inline namespace ass_inline {
 
     template <typename Tp = int>
     std::initializer_list<Tp> 
-    R(int a0, int a1, int b)
+    R(Tp a0, Tp a1, Tp b)
     {                                 
-        int step = a1 - a0;
-        int size = (b - a0 + (step < 0 ? -1 : 1))/step; 
+        auto step = a1 - a0;
+        if (step == 0)
+            throw std::runtime_error("Range error: step == 0");
+        
+        auto size  = (b - a0 + step) / step;
+        
         size = (size > 0 ? size : 0);
 
         Tp * leak = nullptr;   // leak! a per-thread static should be a viable option...
         if (size) {
             leak = static_cast<Tp *>(realloc(leak, size * sizeof(Tp)));
-            for(int n = 0; (step > 0  ? a0 <= b : a0 >= b); a0 += step, n++)
+            for(int n = 0; n < size && (step > 0  ? a0 <= b : a0 >= b); a0 += step, n++)
                 new (leak+n) Tp(a0);  
         }
+
         ass::initializer_list<Tp> ret(leak,size);
         return reinterpret_cast<std::initializer_list<Tp> &>(ret);
     }

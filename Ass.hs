@@ -21,7 +21,6 @@
 
 module Main where
 
-import Data.Char
 import Data.List
 import Data.Functor
 import Safe (tailSafe)
@@ -242,7 +241,7 @@ getCode = do
 
 
 loadCode :: FilePath -> InputT IO [String]
-loadCode f = lift $ filter (not . ("#pragma" `isPrefixOf`) . dropWhile isSpace) <$> lines <$> readFile f
+loadCode f = lift $ filter (not . ("#pragma" `isPrefixOf`) . dropWhite) <$> lines <$> readFile f
 
 
 buildCompileAndRun :: Source -> Source -> Bool -> [Compiler] -> [String] -> [String] -> IO [ExitCode] 
@@ -320,15 +319,23 @@ getTestArgs :: [String] -> [String]
 getTestArgs = tailSafe . dropWhile ( /= "--" ) 
 
 
+dropWhite :: String -> String
+dropWhite = dropWhile (`elem` " \\\a\b\t\n\v\f\r") 
+
+
+dropWhiteBS :: C.ByteString -> C.ByteString
+dropWhiteBS =  C.dropWhile (`elem` " \\\a\b\t\n\v\f\r") 
+
+
 isPreprocessor :: SourceLine -> Bool
-isPreprocessor = C.isPrefixOf "#" . C.dropWhile isSpace 
+isPreprocessor = C.isPrefixOf "#" . dropWhiteBS 
 
 
 parseCodeLine :: ParserState -> CodeLine -> ParserState
 parseCodeLine (t,m) (CodeLine n l)  
     | isMainLine  l = (t, m ++ [CodeLine n (C.pack $ delete '$' $ C.unpack l) ])
     | otherwise     = (t ++ [CodeLine n l], m)
-        where isMainLine = ("$" `C.isPrefixOf`) . C.dropWhile isSpace
+        where isMainLine = ("$" `C.isPrefixOf`) . dropWhiteBS 
 
 
 zipSourceCode :: Source -> SourceCode

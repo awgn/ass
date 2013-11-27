@@ -268,7 +268,7 @@ isMultiThread src xs = "-pthread" `elem` xs  || useThreadOrAsync src
 
 useThreadOrAsync :: Source -> Bool
 useThreadOrAsync src =  "thread" `elem` identifiers || "async" `elem` identifiers   
-                            where tokens = filter Cpp.isIdentifier $ Cpp.tokenizer $ sourceFilter src
+                            where tokens = filter Cpp.isIdentifier $ Cpp.tokenizer $ sourceCodeFilter src
                                   identifiers = Cpp.toString <$> tokens
 
 
@@ -289,11 +289,11 @@ makeSourceCode src' src lambda mt
 
 hasMain :: Source -> Bool
 hasMain src =  ["int", "main", "("] `isInfixOf` (Cpp.toString <$> ts) 
-                where ts = Cpp.tokenizer $ sourceFilter src
+                where ts = Cpp.tokenizer $ sourceCodeFilter src
 
 
-sourceFilter :: Source -> Source
-sourceFilter = Cpp.filter Cpp.ContextFilter { Cpp.cppCode = True, Cpp.cppLiteral = True, Cpp.cppComment = False }   
+sourceCodeFilter :: Source -> Source
+sourceCodeFilter = Cpp.filter Cpp.ContextFilter { Cpp.cppCode = True, Cpp.cppLiteral = True, Cpp.cppComment = False }   
 
 
 getCompilerArgs :: [String] -> [String]

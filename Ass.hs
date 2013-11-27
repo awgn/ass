@@ -208,18 +208,6 @@ mainLoop args clist = do
                             loop False state
 
 
-getCode :: InputT IO [String]
-getCode = do 
-    line <- getInputLine "code> "
-    case line of
-         Nothing    -> return []
-         Just []    -> getCode
-         Just input -> (input :) <$> getCode
-
-
-loadCode :: FilePath -> InputT IO [String]
-loadCode f = lift $ filter (not . ("#pragma" `isPrefixOf`) . dropWhile isSpace) <$> lines <$> readFile f
-
 mainFun :: [String] -> Compiler -> IO ()
 mainFun args cxx = do
     code <- C.hGetContents stdin
@@ -238,6 +226,19 @@ printHelp =  putStrLn $ "Commands available from the prompt:\n\n" ++
                         "  :n                        switch to next compiler(s)\n" ++ 
                         "  :q                        quit\n" ++
                         "  :?                        print this help\n"  
+
+
+getCode :: InputT IO [String]
+getCode = do 
+    line <- getInputLine "code> "
+    case line of
+         Nothing    -> return []
+         Just []    -> getCode
+         Just input -> (input :) <$> getCode
+
+
+loadCode :: FilePath -> InputT IO [String]
+loadCode f = lift $ filter (not . ("#pragma" `isPrefixOf`) . dropWhile isSpace) <$> lines <$> readFile f
 
 
 buildCompileAndRun :: Source -> Source -> Bool -> [Compiler] -> [String] -> [String] -> IO [ExitCode] 
@@ -274,9 +275,9 @@ useThreadOrAsync src =  "thread" `elem` identifiers || "async" `elem` identifier
 
 makeSourceCode :: Source -> Source -> Bool -> Bool -> [SourceCode]
 makeSourceCode src' src lambda mt 
-    | hasMain src = [ headers, toSourceCode src', toSourceCode src ]
-    | otherwise   = [ headers, toSourceCode src', global, mainHeader, body, mainFooter ]
-      where (global, body) = foldl parseCodeLine ([], []) (toSourceCode src) 
+    | hasMain src = [ headers, zipSourceCode src', zipSourceCode src ]
+    | otherwise   = [ headers, zipSourceCode src', global, mainHeader, body, mainFooter ]
+      where (global, body) = foldl parseCodeLine ([], []) (zipSourceCode src) 
             headers    = [ CodeLine 1 include]
             mainHeader = if lambda 
                             then [ CodeLine 1 "int main(int argc, char *argv[]) { cout << boolalpha; ass::cmdline([] {" ] 
@@ -316,8 +317,8 @@ parseCodeLine (t,m) (CodeLine n x)
         where isSwitchLine = ("///" `C.isPrefixOf`)
 
 
-toSourceCode :: Source -> SourceCode
-toSourceCode src = zipWith CodeLine [1..] (C.lines src)
+zipSourceCode :: Source -> SourceCode
+zipSourceCode src = zipWith CodeLine [1..] (C.lines src)
 
 
 getCompilerOpt :: Compiler -> Bool -> [String]

@@ -618,6 +618,21 @@ inline namespace more_show {
     show(std::chrono::time_point<Clock, Dur> const &r)
     {    
         return show(r.time_since_epoch());
+    }    
+    
+    ////////////////////////////////////////////////////////
+    // show for chrono types... 
+    
+    template <typename T>
+    inline std::string
+    show(std::initializer_list<T> const &init)
+    {
+        std::string out("{ ");
+        for(auto const & e : init)
+        {
+            out += show(e) + ' ';
+        }
+        return std::move(out) + '}';
     }
 
     ///////////////////////////////////////

@@ -687,26 +687,37 @@ inline namespace ass_inline {
         return more_show::details::demangle(name);    
     }
 
-    template <bool is_ref, typename Tp>
-    std::string type_of(Tp &&x)
+    template <typename Tp>
+    std::string __type_of(typename std::remove_reference<Tp>::type &&)
     {
-        typedef decltype(std::forward<Tp>(x)) decl_type;
-        
         auto name = demangle(typeid(Tp).name());
         if (std::is_const<
-             typename std::remove_reference<decl_type>::type>::value)
+             typename std::remove_reference<Tp>::type>::value)
             name.append(" const");
+
         if (std::is_volatile<
-             typename std::remove_reference<decl_type>::type>::value)
+             typename std::remove_reference<Tp>::type>::value)
             name.append(" volatile");
-        if (is_ref &&
-            std::is_lvalue_reference<decl_type>::value)
-            name.append("&");
-        else if (std::is_rvalue_reference<decl_type>::value)
-            name.append("&&");
-        return name;
+
+        return name.append("&&");
     }
-    
+
+    template <typename Tp>
+    std::string __type_of(typename std::remove_reference<Tp>::type &)
+    {
+        auto name = demangle(typeid(Tp).name());
+        if (std::is_const<
+             typename std::remove_reference<Tp>::type>::value)
+            name.append(" const");
+
+        if (std::is_volatile<
+             typename std::remove_reference<Tp>::type>::value)
+            name.append(" volatile");
+
+        return name.append("&");
+    }
+
+
     template <typename Tp>
     std::string type_name()
     {
@@ -736,12 +747,12 @@ inline namespace ass_inline {
         template <typename T>
         static void print_type(std::ostringstream &out, T&& arg)
         {
-            out << type_of<std::is_reference<T>::value>(std::forward<T>(arg));
+            out << __type_of<T>(std::forward<T>(arg));
         }
         template <typename T, typename ...Ti>
         static void print_type(std::ostringstream &out, T&& arg, Ti&&...args)
         {
-            out << type_of<std::is_reference<T>::value>(std::forward<T>(arg)) << ',';
+            out << __type_of<T>(std::forward<T>(arg)) << ',';
             print_type(out, std::forward<Ti>(args)...);
         }
 
@@ -984,10 +995,14 @@ inline namespace ass_inline {
         return type_name<Tp>();
     }
 
-    ////////////////////////////////////////////////////////////// TYPE_OF(): return the type of an expression
+    ////////////////////////////////////////////////////////////// type_of(): return the type of an expression
 
-    #define TYPE_OF(x)   type_of<is_reference<decltype(x)>::value>(x)
-
+    template <typename Tp>
+    std::string
+    type_of(Tp && arg)
+    {
+        return __type_of<Tp>(std::forward<Tp>(arg));
+    }
 
 
 } // namespace ass_inline

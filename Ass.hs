@@ -70,7 +70,7 @@ compilerList = [
 banner, snippet, assrc, ass_history :: String 
 tmpDir, includeDir :: FilePath
 
-banner      = "ASSi, version 1.3.3 :? for help"
+banner      = "ASSi, version 1.3.4 :? for help"
 snippet     = "snippet" 
 tmpDir      =  "/tmp" 
 includeDir  =  "/usr/local/include"
@@ -221,14 +221,21 @@ mainFun args cxx = do
 printHelp :: IO ()
 printHelp =  putStrLn $ "Commands available from the prompt:\n\n" ++
                         "<statement>                 evaluate/run C++ <statement>\n" ++
-                        "  :c                        enter in C++ mode\n" ++ 
-                        "  :i file                   include file in C++ buffer\n" ++ 
-                        "  :l file                   load file in C++ buffer\n" ++ 
-                        "  :s                        show C++ buffer\n" ++
-                        "  :r                        reset C++ buffer\n" ++ 
+                        "  :c                        edit the C++ buffer\n" ++ 
+                        "  :i file                   include file in the C++ buffer\n" ++ 
+                        "  :l file                   load file in the C++ buffer\n" ++ 
+                        "  :s                        show the C++ buffer\n" ++
+                        "  :r                        reset the C++ buffer\n" ++ 
                         "  :n                        switch to next compiler\n" ++ 
                         "  :q                        quit\n" ++
-                        "  :?                        print this help\n"  
+                        "  :?                        print this help\n\n" ++  
+                        "C++ goodies:\n" ++
+                        "  _(1,2,3)                  tuple/pair constructor\n" ++
+                        "  P(arg1, arg2, ...)        variadic print\n" ++
+                        "  S(instance)               stringify a value\n" ++
+                        "  T<type>()                 demangle the name of a type\n" ++
+                        "  R(1,2,5)                  range: initializer_list<int> {1,2,3,4,5}\n" ++
+                        "  class O                   oracle class.\n"
 
 
 getCode :: InputT IO [String]

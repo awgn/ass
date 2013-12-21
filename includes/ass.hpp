@@ -761,116 +761,139 @@ inline namespace ass_inline {
         O() : 
         value(reinterpret_cast<std::intptr_t>(this)) 
         { 
-            print(std::cout," O()"); 
+            print(std::cout,"O() "); 
         } 
 
         O(O &other) :
         value(other.value) 
         { 
-            print(std::cout," O(O&)"); 
+            print(std::cout,"O(O&) "); 
         } 
 
         O(const O &other) :
         value(other.value) 
         { 
-            print(std::cout," O(const O&)"); 
+            print(std::cout,"O(const O&) "); 
         } 
 
         O &operator=(const O &other) 
         { 
             value = other.value;
-            print(std::cout," op=(const O&)"); return *this; 
+            print(std::cout,"op=(const O&) "); return *this; 
         } 
 
         ~O() 
         { 
-            print(std::cout," ~O()"); 
+            print(std::cout,"~O() "); 
         }
 
-        O(O &&other) :
-        value(other.value)    
+        O(O &&other) noexcept 
+        : value(other.value)    
         { 
             other.value = 0xdeadbeef;
-            print(std::cout," O(O&&)"); 
+            print(std::cout,"O(O&&) "); 
         } 
 
-        O &operator=(O &&other) 
+        O &operator=(O &&other) noexcept 
         { 
             value = other.value;
             other.value = 0xdeadbeef;        
-            print(std::cout," op=(O&&)"); 
+            print(std::cout,"op=(O&&) "); 
             return *this; 
         } 
 
         template <typename ...Ti> 
-        explicit O(Ti&& ...arg) :
-        value(reinterpret_cast<std::intptr_t>(this)) 
+        explicit O(Ti&& ...arg) 
+        : value(reinterpret_cast<std::intptr_t>(this)) 
         {
-            std::ostringstream ss; ss << " O(";
+            std::ostringstream ss; ss << "O(";
             print_type(ss, std::forward<Ti>(arg)...);
             ss << ")";
             print(std::cout,ss.str().c_str()); 
         } 
 
-        void swap(O &rhs) 
+        void swap(O &rhs) noexcept
         { 
             std::swap(value, rhs.value);
-            print(std::cout," swap(O,O)"); 
+            print(std::cout,"swap(O,O) "); 
         }
 
         bool operator<(const O &rhs) const
         {
-            print(std::cout," <");
+            print(std::cout,"< ");
             return value < rhs.value;
         }
         bool operator>=(const O &rhs) const
         {
-            print(std::cout," >=");
+            print(std::cout,">= ");
             return !(*this < rhs);   
         }
         bool operator>(const O &rhs) const
         {
-            print(std::cout," >");
+            print(std::cout,"> ");
             return rhs < *this;
         }
         bool operator<=(const O &rhs) const
         {
-            print(std::cout," <=");
+            print(std::cout,"<= ");
             return !(rhs < *this);   
         }
 
         bool operator==(const O &rhs) const
         {
-            print(std::cout," ==");
+            print(std::cout,"== ");
             return value == rhs.value;
         }
         bool operator!=(const O &rhs) const
         {
-            print(std::cout," !=");
+            print(std::cout,"!= ");
             return !(*this == rhs);
         }
     };  
 
+    inline std::string
+    show(const O &that)
+    {
+        return "O@" + show(hex(that.value));
+    }
+
     template <typename CharT, typename Traits>
     typename std::basic_ostream<CharT, Traits> &
-    operator<<(std::basic_ostream<CharT,Traits> &out, const O & rhs)
+    operator<<(std::basic_ostream<CharT,Traits> &out, const O & that)
     {
-        std::ostringstream ss; ss << " O@" << (void *)rhs.value;
+        std::ostringstream ss; ss << "O@" << (void *)that.value << ' ';
         O::print(out, ss.str().c_str());
         return out;
     }
 
+    template <typename CharT, typename Traits>
+    typename std::basic_istream<CharT, Traits> &
+    operator>>(std::basic_istream<CharT,Traits>& in, O& that)
+    {
+        std::ostringstream ss; ss << "->O@" << (void *)that.value << ' ';
+        O::print(std::cout, ss.str().c_str());
+        return in;
+    }
 
 } // namespace ass_inline
 
+
+namespace std
+{
+    template <>   
+    void swap<O>(O & lhs, O & rhs) noexcept
+    {
+        lhs.swap(rhs);
+    }
+}
 
 
 ////////////////////////////////////////////////////////////// R(): Ranges ala Haskell 
 
 // The following implementation mimics the std::initializer_list, only it and can be constructed
-// by the user. We know that it is barely legal and is *not* guaranteed to work 
-// by the standard (my initializer_list and the standard initializer list have indeed different layouts).
-// Although, it works with gcc and clang, and there's no better way to implement it (Nicola).
+// by the user. This is *not* guaranteed to work by the standard (my initializer_list and the standard 
+// initializer list have indeed different layouts).
+// Although, it works with gcc and clang, and there's no better way to implement it at the moment (Nicola).
 
 namespace ass {
 
@@ -983,7 +1006,7 @@ inline namespace ass_inline {
     std::string
     S(const T & arg)
     {
-        return show(arg);
+        return ::show (arg);
     }
     
     ////////////////////////////////////////////////////////////// T<>(): get a demangled type name

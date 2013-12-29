@@ -27,8 +27,6 @@ import Safe (tailSafe)
 import System.Environment(getArgs, getProgName)
 import System.Process(system)
 import System.IO
--- import System.Info
--- import Debug.Trace
 
 import System.Exit
 import System.FilePath
@@ -74,7 +72,6 @@ banner      = "ASSi, version 1.3.5 :? for help"
 snippet     = "snippet" 
 tmpDir      =  "/tmp" 
 includeDir  =  "/usr/local/include"
-
 assrc       =  ".assrc"
 ass_history = ".ass_history"
 
@@ -160,10 +157,10 @@ usage = putStrLn $ "usage: ass [OPTION] [COMPILER OPT] -- [ARG]\n" ++
                    "    -h, --help      print this help"
                    
 main :: IO ()
-main = do args  <- getArgs
-          home  <- getHomeDirectory
+main = do args    <- getArgs
+          home    <- getHomeDirectory
           cfamily <- getCompilerFamilyByName
-          clist <- getCompilerConf (home </> assrc)
+          clist   <- getCompilerConf (home </> assrc)
           case args of
             ("-h":_)     -> usage
             ("--help":_) -> usage
@@ -180,15 +177,12 @@ data CliState = CliState { stateCType   :: CompilerType,
 mainLoop :: [String] -> [Compiler] -> IO ()
 mainLoop args clist = do
     putStrLn banner
-    putStr "Compilers found: "
-    mapM_ (\c -> putStr (getCompilerExec c ++ " ")) clist
-    putChar '\n'
+    putStr "Compilers found: " >> mapM_ (\c -> putStr (getCompilerExec c ++ " ")) clist >> putChar '\n'
     home <- getHomeDirectory
     runInputT defaultSettings { historyFile = Just $ home </> ".ass_history" } (loop True $ CliState (getCompilerType $ head clist) [] [])
     where
     loop :: Bool -> CliState -> InputT IO ()
     loop ban state = 
-        
         if null $ compFilterType (stateCType state) clist 
         then loop ban state { stateCType = next (stateCType state) }  
         else do 
@@ -202,9 +196,9 @@ mainLoop args clist = do
                  Just (":c":_) -> mapM_ outputStrLn (statePList state) >> 
                                   mapM_ outputStrLn (stateCode  state) >> 
                                   getCode >>= \xs -> loop False state{stateCode = stateCode state ++ xs } 
-                 Just (":i":h:[]) -> outputStrLn (h ++ " included.") >> 
+                 Just (":i":h:[]) -> outputStrLn ("including " ++ h ++ "...") >> 
                                      loop False state{stateCode = stateCode state ++ ["#include <" ++ h ++ ">"] }
-                 Just (":l":f:[]) -> outputStrLn (f ++ " loaded.") >> 
+                 Just (":l":f:[]) -> outputStrLn ("loading " ++ f ++ "...") >> 
                                      loadCode f >>= \xs -> loop False state{stateCode = xs }
                  Just (":q":_) -> void (outputStrLn "Leaving ASSi.")
                  Just (":?":_) -> lift printHelp >> loop True state
@@ -265,7 +259,7 @@ buildCompileAndRun :: Source -> Source -> Bool -> [Compiler] -> [String] -> [Str
 buildCompileAndRun code main_code inter clist cargs targs = do 
     cwd' <- getCurrentDirectory
     uid  <- getRealUserID 
-    let mt = isMultiThread main_code cargs
+    let mt  = isMultiThread main_code cargs
     let bin = tmpDir </> snippet ++ "-" ++ show uid
     let src = bin <.> "cpp"
     writeSource src (makeSourceCode code main_code (getNamespaceInUse code) inter mt)
@@ -386,7 +380,6 @@ getCompilerPchPath opts |  "-stdlib=libc++" `elem` opts = includeDir </> "clang-
 
 compileWith :: Compiler -> FilePath -> FilePath -> Bool -> [String] -> IO ExitCode
 compileWith cxx source binary mt user_opt = 
-    -- print cmd >>
     system cmd
         where cmd = unwords . concat $ [[getCompilerExec cxx], getCompilerOpt cxx mt, user_opt, [source], ["-o"], [binary]] 
 

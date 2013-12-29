@@ -70,7 +70,7 @@ compilerList = [
 banner, snippet, assrc, ass_history :: String 
 tmpDir, includeDir :: FilePath
 
-banner      = "ASSi, version 1.3.4 :? for help"
+banner      = "ASSi, version 1.3.5 :? for help"
 snippet     = "snippet" 
 tmpDir      =  "/tmp" 
 includeDir  =  "/usr/local/include"
@@ -154,15 +154,22 @@ getCompilerConf conf =
         if b then liftM read $ readFile conf
              else return compilerList
 
+usage :: IO ()
+usage = putStrLn $ "usage: ass [OPTION] [COMPILER OPT] -- [ARG]\n" ++
+                   "    -i              launch interactive mode\n" ++
+                   "    -h, --help      print this help"
+                   
 main :: IO ()
 main = do args  <- getArgs
           home  <- getHomeDirectory
           cfamily <- getCompilerFamilyByName
           clist <- getCompilerConf (home </> assrc)
-          case args of 
-            ("-i":_) -> getCompilers clist >>= mainLoop (tail args)
-            []       -> liftM (head . compFilter cfamily) (getCompilers clist) >>= mainFun []  
-            _        -> liftM (head . compFilter cfamily) (getCompilers clist) >>= mainFun args 
+          case args of
+            ("-h":_)     -> usage
+            ("--help":_) -> usage
+            ("-?":_)     -> usage
+            ("-i":_)     -> getCompilers clist >>= mainLoop (tail args)
+            _            -> liftM (head . compFilter cfamily) (getCompilers clist) >>= mainFun args 
 
 
 data CliState = CliState { stateCType   :: CompilerType,
@@ -298,7 +305,7 @@ makeSourceCode code main_code ns lambda mt
             include    = C.pack $ "#include" ++ if mt then "<ass-mt.hpp>" else "<ass.hpp>"  
             headers    = [ CodeLine 1 include]
             mainHeader = if lambda 
-                            then [ CodeLine 1 "int main(int argc, char *argv[]) { cout << boolalpha; ass::cmdline([] {" ] 
+                            then [ CodeLine 1 "int main(int argc, char *argv[]) { cout << boolalpha; ass::cmdline([&] {" ] 
                             else [ CodeLine 1 "int main(int argc, char *argv[]) { cout << boolalpha;" ]
             mainFooter = if lambda 
                             then [ CodeLine 1 "; }); }" ] 

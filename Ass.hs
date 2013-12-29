@@ -182,35 +182,37 @@ mainLoop args clist = do
     runInputT defaultSettings { historyFile = Just $ home </> ".ass_history" } (loop True $ CliState (getCompilerType $ head clist) [] [])
     where
     loop :: Bool -> CliState -> InputT IO ()
-    loop ban state = 
-        if null $ compFilterType (stateCType state) clist 
-        then loop ban state { stateCType = next (stateCType state) }  
-        else do 
-            when ban $ outputStrLn $ "Using " ++ show (stateCType state) ++ " compiler..."
-            minput <- getInputLine "Ass> "
-            case words <$> minput of
-                 Nothing -> return ()
-                 Just (":r":_) -> outputStrLn "Code buffer clean." >> loop True state{ statePList = [], stateCode = [] } 
-                 Just (":s":_) -> mapM_ outputStrLn (statePList state) >> 
-                                  mapM_ outputStrLn (stateCode  state) >> loop False state
-                 Just (":c":_) -> mapM_ outputStrLn (statePList state) >> 
-                                  mapM_ outputStrLn (stateCode  state) >> 
-                                  getCode >>= \xs -> loop False state{stateCode = stateCode state ++ xs } 
-                 Just (":i":h:[]) -> outputStrLn ("including " ++ h ++ "...") >> 
-                                     loop False state{stateCode = stateCode state ++ ["#include <" ++ h ++ ">"] }
-                 Just (":l":f:[]) -> outputStrLn ("loading " ++ f ++ "...") >> 
-                                     loadCode f >>= \xs -> loop False state{stateCode = xs }
-                 Just (":q":_) -> void (outputStrLn "Leaving ASSi.")
-                 Just (":?":_) -> lift printHelp >> loop True state
-                 Just (":n":_) -> loop True state{ stateCType = next (stateCType state) }
-                 Just []       -> loop False state
-                 Just input | isPreprocessor (C.pack $ unwords input) -> loop False state{ statePList = statePList state ++ [unwords input] } 
-                            | otherwise -> do 
-                              e <- lift $ buildCompileAndRun (C.pack(unlines (statePList state) ++ unlines (stateCode state))) 
-                                                             (C.pack(unwords input)) True (compFilterType (stateCType state) clist) (getCompilerArgs args) (getTestArgs args) 
-                              outputStrLn $ show e
-                              loop False state
-
+    loop ban state =
+        handle (\e -> let msg = show (e :: SomeException) in 
+                          if msg /= "user interrupt" then outputStrLn msg >> loop ban state 
+                                                     else loop ban state) $
+            if null $ compFilterType (stateCType state) clist 
+            then loop ban state { stateCType = next (stateCType state) }  
+            else do 
+                when ban $ outputStrLn $ "Using " ++ show (stateCType state) ++ " compiler..."
+                minput <- getInputLine "Ass> "
+                case words <$> minput of
+                     Nothing -> outputStrLn "Leaving ASSi."
+                     Just (":r":_) -> outputStrLn "Code buffer clean." >> loop True state{ statePList = [], stateCode = [] } 
+                     Just (":s":_) -> mapM_ outputStrLn (statePList state) >> 
+                                      mapM_ outputStrLn (stateCode  state) >> loop False state
+                     Just (":c":_) -> mapM_ outputStrLn (statePList state) >> 
+                                      mapM_ outputStrLn (stateCode  state) >> 
+                                      getCode >>= \xs -> loop False state{stateCode = stateCode state ++ xs } 
+                     Just (":i":h:[]) -> outputStrLn ("including " ++ h ++ "...") >> 
+                                         loop False state{stateCode = stateCode state ++ ["#include <" ++ h ++ ">"] }
+                     Just (":l":f:[]) -> outputStrLn ("loading " ++ f ++ "...") >> 
+                                         loadCode f >>= \xs -> loop False state{stateCode = xs }
+                     Just (":q":_) -> void (outputStrLn "Leaving ASSi.")
+                     Just (":?":_) -> lift printHelp >> loop True state
+                     Just (":n":_) -> loop True state{ stateCType = next (stateCType state) }
+                     Just []       -> loop False state
+                     Just input | isPreprocessor (C.pack $ unwords input) -> loop False state{ statePList = statePList state ++ [unwords input] } 
+                                | otherwise -> do 
+                                  e <- lift $ buildCompileAndRun (C.pack(unlines (statePList state) ++ unlines (stateCode state))) 
+                                                                 (C.pack(unwords input)) True (compFilterType (stateCType state) clist) (getCompilerArgs args) (getTestArgs args) 
+                                  outputStrLn $ show e
+                                  loop False state
 
 mainFun :: [String] -> Compiler -> IO ()
 mainFun args cxx = do
@@ -249,9 +251,7 @@ getCode = do
 
 
 loadCode :: FilePath -> InputT IO [String]
-loadCode f = lift $ 
-    catch (filter (not . ("#pragma" `isPrefixOf`) . dropWhite) <$> lines <$> readFile f) $ \e ->
-        let msg = show (e :: SomeException) in (hPutStrLn stderr msg) >> return [] 
+loadCode f = lift $ filter (not . ("#pragma" `isPrefixOf`) . dropWhite) <$> lines <$> readFile f 
 
 
 buildCompileAndRun :: Source -> Source -> Bool -> [Compiler] -> [String] -> [String] -> IO [ExitCode] 

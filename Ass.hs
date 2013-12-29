@@ -255,7 +255,9 @@ getCode = do
 
 
 loadCode :: FilePath -> InputT IO [String]
-loadCode f = lift $ filter (not . ("#pragma" `isPrefixOf`) . dropWhite) <$> lines <$> readFile f
+loadCode f = lift $ 
+    catch (filter (not . ("#pragma" `isPrefixOf`) . dropWhite) <$> lines <$> readFile f) $ \e ->
+        let msg = show (e :: SomeException) in (hPutStrLn stderr msg) >> return [] 
 
 
 buildCompileAndRun :: Source -> Source -> Bool -> [Compiler] -> [String] -> [String] -> IO [ExitCode] 

@@ -283,7 +283,7 @@ useThreadOrAsync src =  "thread" `elem` identifiers || "async" `elem` identifier
                                   identifiers = Cpp.toString <$> tokens
 
 getNamespaceInUse :: Source -> [String]
-getNamespaceInUse src = map (Cpp.toString . (\i -> tokens !! (i + 1))) is  
+getNamespaceInUse src = filter (/= "{") $ map (Cpp.toString . (\i -> tokens !! (i + 1))) is  
                         where tokens = Cpp.tokenizer $ sourceCodeFilter src
                               is = findIndices (\token -> Cpp.isKeyword token && Cpp.toString token == "namespace") tokens 
 

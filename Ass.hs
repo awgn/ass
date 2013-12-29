@@ -206,7 +206,7 @@ mainLoop args clist = do
                  Just input | isPreprocessor (C.pack $ unwords input) -> loop False state{ statePList = statePList state ++ [unwords input] } 
                             | otherwise -> do 
                               e <- lift $ buildCompileAndRun (C.pack(unlines (statePList state) ++ unlines (stateCode state))) 
-                                                             (C.pack(unwords input)) True (compFilterType (stateCType state) clist) (getCompilerArgs args) [] 
+                                                             (C.pack(unwords input)) True (compFilterType (stateCType state) clist) (getCompilerArgs args) (getTestArgs args) 
                               outputStrLn $ show e
                               loop False state
 

@@ -35,7 +35,7 @@ import System.Posix.User(getRealUserID)
 
 import System.Console.Haskeline
 
-import Control.Monad(when,void,forM,liftM,filterM)
+import Control.Monad
 import Control.Monad.Trans.Class
 import Control.Monad.State.Strict
 
@@ -47,7 +47,6 @@ import qualified Cpp.Token  as Cpp
 
 type Source          = Cpp.Source
 type SourceLine      = Cpp.Source
-
 type SourceCode      = [CodeLine]
 type TranslationUnit = SourceCode
 type MainFunction    = SourceCode
@@ -94,11 +93,11 @@ next   x = succ x
 
 
 data CompilerFamily = Gcc | Clang 
-                    deriving (Eq,Show,Read,Enum)
+                        deriving (Eq,Show,Read,Enum)
 
 
 data Compiler = Compiler CompilerType FilePath String [String] 
-                deriving (Read, Eq)
+                    deriving (Read, Eq)
 
 
 instance Show Compiler where
@@ -180,17 +179,23 @@ type StateIO = StateT CliState IO
 type InputIO = InputT StateIO
 
 
+getStringIdentifiers :: [String] -> [String]
+getStringIdentifiers xs =  
+    nub $ map Cpp.toString $ 
+    filter Cpp.isIdentifier $ 
+    Cpp.tokenizer $ sourceCodeFilter $ 
+    C.pack $ unlines xs
+
+
 cliCompletion :: String -> String -> StateIO [Completion]
 cliCompletion l s = do 
     state' <- get 
-    files  <- lift $ fmap (filter (\f -> f /= "." && f /= "..")) $ getDirectoryContents "."
-    let tokens = nub $ map Cpp.toString $ filter Cpp.isIdentifier $ Cpp.tokenizer $ sourceCodeFilter (C.pack $ unlines $ stateCode state')
+    files  <- lift $ liftM (filter (\f -> f /= "." && f /= "..")) $ getDirectoryContents "."
     case () of
        _ | "l:" `isSuffixOf` l ->  return $ map simpleCompletion (filter (s `isPrefixOf`) files  )    
        _ | "i:" `isSuffixOf` l ->  return $ map simpleCompletion (filter (s `isPrefixOf`) files  )    
-       _                       ->  return $ map simpleCompletion (filter (s `isPrefixOf`) tokens ) 
+       _                       ->  return $ map simpleCompletion (filter (s `isPrefixOf`) (getStringIdentifiers $ stateCode state')) 
     
-
 
 mainLoop :: [String] -> [Compiler] -> IO ()
 mainLoop args clist = do
@@ -235,6 +240,7 @@ mainLoop args clist = do
                                                                         (C.pack(unwords input)) True (compFilterType (stateCompType state') clist) (getCompilerArgs args) (getTestArgs args) 
                                   outputStrLn $ show e
                                   lift (put state'{ stateBanner = False }) >> loop
+
 
 mainFun :: [String] -> Compiler -> IO ()
 mainFun args cxx = do

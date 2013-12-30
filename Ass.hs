@@ -30,7 +30,7 @@ import System.IO
 
 import System.Exit
 import System.FilePath
-import System.Directory(getCurrentDirectory, getHomeDirectory, doesFileExist)
+import System.Directory
 import System.Posix.User(getRealUserID)
 
 import System.Console.Haskeline
@@ -69,7 +69,7 @@ compilerList = [
 banner, snippet, assrc, ass_history :: String 
 tmpDir, includeDir :: FilePath
 
-banner      = "ASSi, version 1.3.5 :? for help"
+banner      = "ASSi, version 1.3.6 :? for help"
 snippet     = "snippet" 
 tmpDir      =  "/tmp" 
 includeDir  =  "/usr/local/include"
@@ -179,13 +179,27 @@ data CliState = CliState { stateBanner     :: Bool,
 type StateIO = StateT CliState IO
 type InputIO = InputT StateIO
 
+
+cliCompletion :: String -> String -> StateIO [Completion]
+cliCompletion l s = do 
+    state' <- get 
+    files  <- lift $ fmap (filter (\f -> f /= "." && f /= "..")) $ getDirectoryContents "."
+    let tokens = nub $ map Cpp.toString $ filter Cpp.isIdentifier $ Cpp.tokenizer $ sourceCodeFilter (C.pack $ unlines $ stateCode state')
+    case () of
+       _ | "l:" `isSuffixOf` l ->  return $ map simpleCompletion (filter (s `isPrefixOf`) files  )    
+       _ | "i:" `isSuffixOf` l ->  return $ map simpleCompletion (filter (s `isPrefixOf`) files  )    
+       _                       ->  return $ map simpleCompletion (filter (s `isPrefixOf`) tokens ) 
+    
+
+
 mainLoop :: [String] -> [Compiler] -> IO ()
 mainLoop args clist = do
     putStrLn banner
     putStr "Compilers found: " >> mapM_ (\c -> putStr (getCompilerExec c ++ " ")) clist >> putChar '\n'
     home <- getHomeDirectory
     let startingState = CliState True (getCompilerType $ head clist) [] []
-    evalStateT (runInputT defaultSettings { historyFile = Just $ home </> ".ass_history" } loop) startingState
+    let settings      = setComplete (completeWordWithPrev Nothing " \t" cliCompletion) defaultSettings { historyFile = Just $ home </> ".ass_history" }
+    evalStateT (runInputT settings loop) startingState
     where
     loop :: InputIO ()
     loop = do

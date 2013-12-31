@@ -6,7 +6,7 @@ Ass is an interactive C++11 code assistant inspired to GHCi.
 It can be used through vim or as a shell command. It supports gcc and clang compilers, libstdc++ and the newer libc++ 
 library using precompiled headers. 
 
-In addition to including the standard headers, it provides some C++ goodies that allow you to write tests in a simple manner.
+In addition to including the standard headers, it provides some C++ goodies that allow you to test C++ code quickly.
 
 Session
 -------

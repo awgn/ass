@@ -170,6 +170,7 @@ main = do args    <- getArgs
 
 
 data CliState = CliState { stateBanner     :: Bool,
+                           stateFile       :: FilePath,
                            stateCompType   :: CompilerType,
                            statePrepList   :: [String],
                            stateCode       :: [String]} deriving (Show, Eq)
@@ -202,7 +203,7 @@ mainLoop args clist = do
     putStrLn banner
     putStr "Compilers found: " >> mapM_ (\c -> putStr (getCompilerExec c ++ " ")) clist >> putChar '\n'
     home <- getHomeDirectory
-    let startingState = CliState True (getCompilerType $ head clist) [] []
+    let startingState = CliState True "" (getCompilerType $ head clist) [] []
     let settings      = setComplete (completeWordWithPrev Nothing " \t" cliCompletion) defaultSettings { historyFile = Just $ home </> ".ass_history" }
     evalStateT (runInputT settings loop) startingState
     where
@@ -219,17 +220,20 @@ mainLoop args clist = do
                 minput <- getInputLine "Ass> "
                 case words <$> minput of
                      Nothing -> outputStrLn "Leaving ASSi."
-                     Just (":r":_) -> outputStrLn "Code buffer clean." >> lift (put state'{ stateBanner = True, statePrepList = [], stateCode = [] }) >> loop 
+                     Just (":c":_) -> outputStrLn "Buffer clean." >> 
+                                        lift (put state'{ stateBanner = True, stateFile = "", statePrepList = [], stateCode = [] }) >> loop 
                      Just (":s":_) -> mapM_ outputStrLn (statePrepList state') >> 
                                       mapM_ outputStrLn (stateCode  state')    >> 
                                       lift (put state'{ stateBanner = False }) >> loop
-                     Just (":c":_) -> mapM_ outputStrLn (statePrepList state') >> 
+                     Just (":e":_) -> mapM_ outputStrLn (statePrepList state') >> 
                                       mapM_ outputStrLn (stateCode  state') >> 
                                       getCode >>= \xs -> lift (put state'{ stateBanner = False, stateCode = stateCode state' ++ xs }) >> loop
-                     Just (":i":h:[]) -> outputStrLn ("including " ++ h ++ "...") >> 
+                     Just (":i":h:[]) -> outputStrLn ("Including " ++ h ++ "...") >> 
                                          lift (put state'{ stateBanner = False, stateCode = stateCode state' ++ ["#include <" ++ h ++ ">"] }) >> loop
                      Just (":l":f:[]) -> outputStrLn ("loading " ++ f ++ "...") >> 
-                                         loadCode f >>= \xs -> lift (put state'{ stateBanner = False, stateCode = xs }) >> loop
+                                         loadCode f >>= \xs -> lift (put state'{ stateBanner = False, stateFile = f, stateCode = xs }) >> loop
+                     Just (":r":_) -> outputStrLn ("Reloading " ++ stateFile state' ++ "...") >> 
+                                         reloadCode >>= \xs -> lift (put state'{ stateBanner = False, stateCode = xs }) >> loop
                      Just (":q":_) -> void (outputStrLn "Leaving ASSi.")
                      Just (":?":_) -> lift printHelp >> lift (put state'{ stateBanner = True }) >> loop
                      Just (":n":_) -> lift (put state'{ stateBanner = True, stateCompType = next (stateCompType state') }) >> loop
@@ -252,11 +256,12 @@ mainFun args cxx = do
 printHelp :: StateIO ()
 printHelp =  lift $ putStrLn $ "Commands available from the prompt:\n\n" ++
                         "<statement>                 evaluate/run C++ <statement>\n" ++
-                        "  :c                        edit the C++ buffer\n" ++ 
-                        "  :i file                   include file in the C++ buffer\n" ++ 
-                        "  :l file                   load file in the C++ buffer\n" ++ 
-                        "  :s                        show the C++ buffer\n" ++
-                        "  :r                        reset the C++ buffer\n" ++ 
+                        "  :e                        edit the buffer\n" ++ 
+                        "  :i file                   add include in the buffer\n" ++ 
+                        "  :l file                   load file in the buffer\n" ++ 
+                        "  :r                        reload the file\n" ++ 
+                        "  :s                        show the buffer\n" ++
+                        "  :c                        clear the buffer\n" ++ 
                         "  :n                        switch to next compiler\n" ++ 
                         "  :q                        quit\n" ++
                         "  :?                        print this help\n\n" ++  
@@ -280,6 +285,12 @@ getCode = do
 
 loadCode :: FilePath -> InputT StateIO [String]
 loadCode f = lift . lift $ filter (not . ("#pragma" `isPrefixOf`) . dropWhite) <$> lines <$> readFile f 
+
+
+reloadCode :: InputT StateIO [String]
+reloadCode = lift get >>= \s -> 
+    if null (stateFile s) then error "No file loaded!"
+                          else loadCode $ stateFile s 
 
 
 buildCompileAndRun :: Source -> Source -> Bool -> [Compiler] -> [String] -> [String] -> IO [ExitCode] 

@@ -68,7 +68,7 @@ compilerList = [
 banner, snippet, assrc, ass_history :: String 
 tmpDir, includeDir :: FilePath
 
-banner      = "ASSi, version 1.3.6 :? for help"
+banner      = "ASSi, version 1.3.7 :? for help"
 snippet     = "snippet" 
 tmpDir      =  "/tmp" 
 includeDir  =  "/usr/local/include"
@@ -187,6 +187,7 @@ getStringIdentifiers xs =
     Cpp.tokenizer $ sourceCodeFilter $ 
     C.pack $ unlines xs
 
+commands = [ ":load", ":include", ":reload", ":edit", ":show", ":clear", ":next", ":quit" ]
 
 cliCompletion :: String -> String -> StateIO [Completion]
 cliCompletion l s = do 
@@ -195,6 +196,7 @@ cliCompletion l s = do
     case () of
        _ | "l:" `isSuffixOf` l ->  return $ map simpleCompletion (filter (s `isPrefixOf`) files  )    
        _ | "i:" `isSuffixOf` l ->  return $ map simpleCompletion (filter (s `isPrefixOf`) files  )    
+       _ | ":" `isPrefixOf`  s ->  return $ map simpleCompletion (filter (s `isPrefixOf`) commands ) 
        _                       ->  return $ map simpleCompletion (filter (s `isPrefixOf`) (getStringIdentifiers $ stateCode state')) 
     
 
@@ -220,24 +222,24 @@ mainLoop args clist = do
                 minput <- getInputLine "Ass> "
                 case words <$> minput of
                      Nothing -> outputStrLn "Leaving ASSi."
-                     Just (":c":_) -> outputStrLn "Buffer clean." >> 
+                     Just (":clear":_) -> outputStrLn "Buffer clean." >> 
                                         lift (put state'{ stateBanner = True, stateFile = "", statePrepList = [], stateCode = [] }) >> loop 
-                     Just (":s":_) -> mapM_ outputStrLn (statePrepList state') >> 
-                                      mapM_ outputStrLn (stateCode  state')    >> 
-                                      lift (put state'{ stateBanner = False }) >> loop
-                     Just (":e":_) -> mapM_ outputStrLn (statePrepList state') >> 
-                                      mapM_ outputStrLn (stateCode  state') >> 
-                                      getCode >>= \xs -> lift (put state'{ stateBanner = False, stateCode = stateCode state' ++ xs }) >> loop
-                     Just (":i":h:[]) -> outputStrLn ("Including " ++ h ++ "...") >> 
-                                         lift (put state'{ stateBanner = False, stateCode = stateCode state' ++ ["#include <" ++ h ++ ">"] }) >> loop
-                     Just (":l":f:[]) -> outputStrLn ("loading " ++ f ++ "...") >> 
-                                         loadCode f >>= \xs -> lift (put state'{ stateBanner = False, stateFile = f, stateCode = xs }) >> loop
-                     Just (":r":_) -> outputStrLn ("Reloading " ++ stateFile state' ++ "...") >> 
-                                         reloadCode >>= \xs -> lift (put state'{ stateBanner = False, stateCode = xs }) >> loop
-                     Just (":q":_) -> void (outputStrLn "Leaving ASSi.")
-                     Just (":?":_) -> lift printHelp >> lift (put state'{ stateBanner = True }) >> loop
-                     Just (":n":_) -> lift (put state'{ stateBanner = True, stateCompType = next (stateCompType state') }) >> loop
-                     Just []       -> lift (put state'{ stateBanner = False }) >> loop
+                     Just (":show":_) -> mapM_ outputStrLn (statePrepList state') >> 
+                                         mapM_ outputStrLn (stateCode  state')    >> 
+                                         lift (put state'{ stateBanner = False }) >> loop
+                     Just (":edit":_) -> mapM_ outputStrLn (statePrepList state') >> 
+                                         mapM_ outputStrLn (stateCode  state') >> 
+                                         getCode >>= \xs -> lift (put state'{ stateBanner = False, stateCode = stateCode state' ++ xs }) >> loop
+                     Just (":include":h:[]) -> outputStrLn ("Including " ++ h ++ "...") >> 
+                                               lift (put state'{ stateBanner = False, stateCode = stateCode state' ++ ["#include <" ++ h ++ ">"] }) >> loop
+                     Just (":load":f:[]) -> outputStrLn ("loading " ++ f ++ "...") >> 
+                                            loadCode f >>= \xs -> lift (put state'{ stateBanner = False, stateFile = f, stateCode = xs }) >> loop
+                     Just (":reload":_) -> outputStrLn ("Reloading " ++ stateFile state' ++ "...") >> 
+                                           reloadCode >>= \xs -> lift (put state'{ stateBanner = False, stateCode = xs }) >> loop
+                     Just (":quit":_) -> void (outputStrLn "Leaving ASSi.")
+                     Just (":next":_) -> lift (put state'{ stateBanner = True, stateCompType = next (stateCompType state') }) >> loop
+                     Just (":?":_)    -> lift printHelp >> lift (put state'{ stateBanner = True }) >> loop
+                     Just []          -> lift (put state'{ stateBanner = False }) >> loop
                      Just input | isPreprocessor (C.pack $ unwords input) -> lift (put state'{ stateBanner = False, statePrepList = statePrepList state' ++ [unwords input] }) >> loop
                                 | otherwise -> do 
                                   e <- lift $ lift $ buildCompileAndRun (C.pack(unlines (statePrepList state') ++ unlines (stateCode state'))) 
@@ -256,14 +258,14 @@ mainFun args cxx = do
 printHelp :: StateIO ()
 printHelp =  lift $ putStrLn $ "Commands available from the prompt:\n\n" ++
                         "<statement>                 evaluate/run C++ <statement>\n" ++
-                        "  :e                        edit the buffer\n" ++ 
-                        "  :i file                   add include in the buffer\n" ++ 
-                        "  :l file                   load file in the buffer\n" ++ 
-                        "  :r                        reload the file\n" ++ 
-                        "  :s                        show the buffer\n" ++
-                        "  :c                        clear the buffer\n" ++ 
-                        "  :n                        switch to next compiler\n" ++ 
-                        "  :q                        quit\n" ++
+                        "  :include file             add include in the buffer\n" ++ 
+                        "  :load file                load file in the buffer\n" ++ 
+                        "  :reload                   reload the file\n" ++ 
+                        "  :edit                     edit the buffer\n" ++ 
+                        "  :show                     show the buffer\n" ++
+                        "  :clear                    clear the buffer\n" ++ 
+                        "  :next                     switch to next compiler\n" ++ 
+                        "  :quit                     quit\n" ++
                         "  :?                        print this help\n\n" ++  
                         "C++ goodies:\n" ++
                         "  _(1,2,3)                  tuple/pair constructor\n" ++

@@ -336,7 +336,7 @@ getNamespaceInUse src = filter (/= "{") $ map (Cpp.toString . (\i -> tokens !! (
 makeSourceCode :: Source -> Source -> [String] -> Bool -> Bool -> [SourceCode]
 -- makeSourceCode code main_code ns lambda mt | trace ("makeSourceCode code=" ++ (C.unpack code) ++ " main_code=" ++ (C.unpack main_code)) False = undefined
 makeSourceCode code main_code ns lambda mt 
-    | lambda       = [ headers, zipSourceCode code] ++ makeNamespaces ns  ++ [ mainHeader, zipSourceCode main_code, mainFooter ]
+    | lambda       = [ zipSourceCode code, headers] ++ makeNamespaces ns  ++ [ mainHeader, zipSourceCode main_code, mainFooter ]
     | hasMain code = [ headers, zipSourceCode code] ++ makeNamespaces ns  ++ [ zipSourceCode main_code ]
     | otherwise    = [ headers, code' ] ++ makeNamespaces ns  ++ [ mainHeader, main_code', mainFooter ]
       where (code', main_code') = foldl parseCodeLine ([], []) (zipSourceCode code) 

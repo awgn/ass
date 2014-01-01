@@ -25,6 +25,8 @@ Session
       :show                     show the buffer
       :clear                    clear the buffer
       :next                     switch to next compiler
+      :args ARG1 ARG2...        set runtime arguments
+      :run [ARG1 ARG2...]       run main function
       :quit                     quit
       :?                        print this help
     

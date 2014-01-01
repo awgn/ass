@@ -273,7 +273,7 @@ printHelp =  lift $ putStrLn $ "Commands available from the prompt:\n\n" ++
                         "  :show                     show the buffer\n" ++
                         "  :clear                    clear the buffer\n" ++ 
                         "  :next                     switch to next compiler\n" ++ 
-                        "  :args ARG1 ARG2...        set runtime args\n" ++ 
+                        "  :args ARG1 ARG2...        set runtime arguments\n" ++ 
                         "  :run [ARG1 ARG2...]       run main function\n" ++ 
                         "  :quit                     quit\n" ++
                         "  :?                        print this help\n\n" ++  

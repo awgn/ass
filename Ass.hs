@@ -172,6 +172,7 @@ main = do args    <- getArgs
 data CliState = CliState { stateBanner     :: Bool,
                            stateFile       :: FilePath,
                            stateCompType   :: CompilerType,
+                           stateArgs       :: [String],
                            statePrepList   :: [String],
                            stateCode       :: [String]} deriving (Show, Eq)
 
@@ -188,7 +189,7 @@ getStringIdentifiers xs =
     C.pack $ unlines xs
 
 commands :: [String]
-commands = [ ":load", ":include", ":reload", ":edit", ":show", ":clear", ":next", ":quit" ]
+commands = [ ":load", ":include", ":reload", ":edit", ":show", ":clear", ":next", ":args", ":quit" ]
 
 cliCompletion :: String -> String -> StateIO [Completion]
 cliCompletion l s = do 
@@ -206,7 +207,7 @@ mainLoop args clist = do
     putStrLn banner
     putStr "Compilers found: " >> mapM_ (\c -> putStr (getCompilerExec c ++ " ")) clist >> putChar '\n'
     home <- getHomeDirectory
-    let startingState = CliState True "" (getCompilerType $ head clist) [] []
+    let startingState = CliState True "" (getCompilerType $ head clist) (getRuntimeArgs args) [] []
     let settings      = setComplete (completeWordWithPrev Nothing " \t" cliCompletion) defaultSettings { historyFile = Just $ home </> ".ass_history" }
     evalStateT (runInputT settings loop) startingState
     where
@@ -223,6 +224,7 @@ mainLoop args clist = do
                 minput <- getInputLine "Ass> "
                 case words <$> minput of
                      Nothing -> outputStrLn "Leaving ASSi."
+                     Just (":args":xs) -> lift (put state'{ stateArgs = xs }) >> loop 
                      Just (":clear":_) -> outputStrLn "Buffer clean." >> 
                                         lift (put state'{ stateBanner = True, stateFile = "", statePrepList = [], stateCode = [] }) >> loop 
                      Just (":show":_) -> mapM_ outputStrLn (statePrepList state') >> 
@@ -244,7 +246,7 @@ mainLoop args clist = do
                      Just input | isPreprocessor (C.pack $ unwords input) -> lift (put state'{ stateBanner = False, statePrepList = statePrepList state' ++ [unwords input] }) >> loop
                                 | otherwise -> do 
                                   e <- lift $ lift $ buildCompileAndRun (C.pack(unlines (statePrepList state') ++ unlines (stateCode state'))) 
-                                                                        (C.pack(unwords input)) True (compFilterType (stateCompType state') clist) (getCompilerArgs args) (getTestArgs args) 
+                                                                        (C.pack(unwords input)) True (compFilterType (stateCompType state') clist) (getCompilerArgs args) (stateArgs state') 
                                   outputStrLn $ show e
                                   lift (put state'{ stateBanner = False }) >> loop
 
@@ -253,7 +255,7 @@ mainFun :: [String] -> Compiler -> IO ()
 mainFun args cxx = do
     code <- C.hGetContents stdin
     liftM head
-        (buildCompileAndRun code "" False [cxx] (getCompilerArgs args) (getTestArgs args)) >>= exitWith
+        (buildCompileAndRun code "" False [cxx] (getCompilerArgs args) (getRuntimeArgs args)) >>= exitWith
 
 
 printHelp :: StateIO ()
@@ -266,6 +268,7 @@ printHelp =  lift $ putStrLn $ "Commands available from the prompt:\n\n" ++
                         "  :show                     show the buffer\n" ++
                         "  :clear                    clear the buffer\n" ++ 
                         "  :next                     switch to next compiler\n" ++ 
+                        "  :args ARG1 ARG2...        set runtime args\n" ++ 
                         "  :quit                     quit\n" ++
                         "  :?                        print this help\n\n" ++  
                         "C++ goodies:\n" ++
@@ -367,8 +370,8 @@ getCompilerArgs :: [String] -> [String]
 getCompilerArgs = takeWhile ( /= "--" )  
 
 
-getTestArgs :: [String] -> [String]
-getTestArgs = tailSafe . dropWhile ( /= "--" ) 
+getRuntimeArgs :: [String] -> [String]
+getRuntimeArgs = tailSafe . dropWhile ( /= "--" ) 
 
 
 dropWhite :: String -> String

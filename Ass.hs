@@ -73,7 +73,7 @@ compilerList = [
 banner, snippet, assrc, ass_history :: String 
 tmpDir, includeDir :: FilePath
 
-banner      = "ASSi, version 2.0 :? for help"
+banner      = "ASSi, version 2.0"
 snippet     = "snippet" 
 tmpDir      =  "/tmp" 
 includeDir  =  "/usr/local/include"
@@ -154,6 +154,7 @@ getCompilerConf conf =
 usage :: IO ()
 usage = putStrLn $ "usage: ass [OPTION] [COMPILER OPT] -- [ARG]\n" ++
                    "    -i              launch interactive mode\n" ++
+                   "    -v, --version   show version\n" ++
                    "    -h, --help      print this help"
                    
 main :: IO ()
@@ -162,11 +163,13 @@ main = do args    <- getArgs
           cfamily <- getCompilerFamilyByName
           clist   <- getCompilerConf (home </> assrc)
           case args of
-            ("-h":_)     -> usage
-            ("--help":_) -> usage
-            ("-?":_)     -> usage
-            ("-i":_)     -> getCompilers clist >>= mainLoop (tail args)
-            _            -> liftM (head . compFilter cfamily) (getCompilers clist) >>= mainFun args 
+            ("-h":_)        -> usage
+            ("--help":_)    -> usage
+            ("-?":_)        -> usage
+            ("-v":_)        -> putStrLn banner 
+            ("--version":_) -> putStrLn banner 
+            ("-i":_)        -> getCompilers clist >>= mainLoop (tail args)
+            _               -> liftM (head . compFilter cfamily) (getCompilers clist) >>= mainFun args 
 
 
 data CliState = CliState { stateBanner     :: Bool,
@@ -204,7 +207,7 @@ cliCompletion l s = do
 
 mainLoop :: [String] -> [Compiler] -> IO ()
 mainLoop args clist = do
-    putStrLn banner
+    putStrLn $ banner ++ " :? for help"
     putStr "Compilers found: " >> mapM_ (\c -> putStr (getCompilerExec c ++ " ")) clist >> putChar '\n'
     home <- getHomeDirectory
     let startingState = CliState True "" (getCompilerType $ head clist) (getRuntimeArgs args) [] []

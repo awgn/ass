@@ -1034,28 +1034,35 @@ inline namespace ass_inline {
 namespace ass {
 
     ////////////////////////////////////////////////////////////// interactive: run a command line
-
-    template <typename T>
-    struct _cmdline
+    
+    struct main_ 
     {
-        template <typename F>
-        static void run(F f) 
-        { auto ret = f(); std::cout << ret << ' '; }
+        template <typename Fun>
+        main_(Fun fun)
+        {
+            cmdline<decltype(fun())>::run(fun);
+            std::exit(0); 
+        }
+
+        template <typename T>
+        struct cmdline
+        {
+            template <typename F>
+            static void run(F f) 
+            { auto ret = f(); std::cout << ret << ' '; }
+        };
+
     };
 
     template <>
-    struct _cmdline<void>
+    struct main_::cmdline<void>
     {
         template <typename F>
         static void run(F f) 
         { f(); std::cout << "(void) "; }
+
     };
 
-    template <typename Fun>
-    inline void cmdline(Fun fun)
-    {   
-        _cmdline<decltype(fun())>::run(fun);
-    }
 
 } // namespace ass
 

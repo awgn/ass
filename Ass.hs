@@ -73,7 +73,7 @@ compilerList = [
 banner, snippet, assrc, ass_history :: String 
 tmpDir, includeDir :: FilePath
 
-banner      = "ASSi, version 1.3.7 :? for help"
+banner      = "ASSi, version 2.0 :? for help"
 snippet     = "snippet" 
 tmpDir      =  "/tmp" 
 includeDir  =  "/usr/local/include"
@@ -189,7 +189,7 @@ getStringIdentifiers xs =
     C.pack $ unlines xs
 
 commands :: [String]
-commands = [ ":load", ":include", ":reload", ":edit", ":show", ":clear", ":next", ":args", ":quit" ]
+commands = [ ":load", ":include", ":reload", ":edit", ":show", ":clear", ":next", ":args", ":run", ":quit" ]
 
 cliCompletion :: String -> String -> StateIO [Completion]
 cliCompletion l s = do 
@@ -224,15 +224,16 @@ mainLoop args clist = do
                 minput <- getInputLine "Ass> "
                 case words <$> minput of
                      Nothing -> outputStrLn "Leaving ASSi."
+                     Just []           -> lift (put state'{ stateBanner = False }) >> loop
                      Just (":args":xs) -> lift (put state'{ stateArgs = xs }) >> loop 
                      Just (":clear":_) -> outputStrLn "Buffer clean." >> 
-                                        lift (put state'{ stateBanner = True, stateFile = "", statePrepList = [], stateCode = [] }) >> loop 
-                     Just (":show":_) -> mapM_ outputStrLn (statePrepList state') >> 
-                                         mapM_ outputStrLn (stateCode  state')    >> 
-                                         lift (put state'{ stateBanner = False }) >> loop
-                     Just (":edit":_) -> mapM_ outputStrLn (statePrepList state') >> 
-                                         mapM_ outputStrLn (stateCode  state') >> 
-                                         getCode >>= \xs -> lift (put state'{ stateBanner = False, stateCode = stateCode state' ++ xs }) >> loop
+                                          lift (put state'{ stateBanner = True, stateFile = "", statePrepList = [], stateCode = [] }) >> loop 
+                     Just (":show":_)  -> mapM_ outputStrLn (statePrepList state') >> 
+                                          mapM_ outputStrLn (stateCode  state')    >> 
+                                          lift (put state'{ stateBanner = False }) >> loop
+                     Just (":edit":_)  -> mapM_ outputStrLn (statePrepList state') >> 
+                                          mapM_ outputStrLn (stateCode  state') >> 
+                                          getCode >>= \xs -> lift (put state'{ stateBanner = False, stateCode = stateCode state' ++ xs }) >> loop
                      Just (":include":h:[]) -> outputStrLn ("Including " ++ h ++ "...") >> 
                                                lift (put state'{ stateBanner = False, stateCode = stateCode state' ++ ["#include <" ++ h ++ ">"] }) >> loop
                      Just (":load":f:[]) -> outputStrLn ("loading " ++ f ++ "...") >> 
@@ -242,12 +243,17 @@ mainLoop args clist = do
                      Just (":quit":_) -> void (outputStrLn "Leaving ASSi.")
                      Just (":next":_) -> lift (put state'{ stateBanner = True, stateCompType = next (stateCompType state') }) >> loop
                      Just (":?":_)    -> lift printHelp >> lift (put state'{ stateBanner = True }) >> loop
-                     Just []          -> lift (put state'{ stateBanner = False }) >> loop
+                     Just (":run" :xs)-> do
+                                  e <- lift $ lift $ buildCompileAndRun (C.pack(unlines (statePrepList state') ++ unlines (stateCode state'))) 
+                                                                        "" False (compFilterType (stateCompType state') clist) (getCompilerArgs args) (if null xs then stateArgs state'
+                                                                                                                                                                  else xs)
+                                  outputStrLn $ show e  
+                                  lift (put state'{ stateBanner = False }) >> loop
                      Just input | isPreprocessor (C.pack $ unwords input) -> lift (put state'{ stateBanner = False, statePrepList = statePrepList state' ++ [unwords input] }) >> loop
                                 | otherwise -> do 
                                   e <- lift $ lift $ buildCompileAndRun (C.pack(unlines (statePrepList state') ++ unlines (stateCode state'))) 
                                                                         (C.pack(unwords input)) True (compFilterType (stateCompType state') clist) (getCompilerArgs args) (stateArgs state') 
-                                  outputStrLn $ show e
+                                  outputStrLn $ show e  
                                   lift (put state'{ stateBanner = False }) >> loop
 
 
@@ -268,6 +274,7 @@ printHelp =  lift $ putStrLn $ "Commands available from the prompt:\n\n" ++
                         "  :clear                    clear the buffer\n" ++ 
                         "  :next                     switch to next compiler\n" ++ 
                         "  :args ARG1 ARG2...        set runtime args\n" ++ 
+                        "  :run [ARG1 ARG2...]       run main function\n" ++ 
                         "  :quit                     quit\n" ++
                         "  :?                        print this help\n\n" ++  
                         "C++ goodies:\n" ++
@@ -335,20 +342,22 @@ getNamespaceInUse src = filter (/= "{") $ map (Cpp.toString . (\i -> tokens !! (
 
 
 makeSourceCode :: Source -> Source -> [String] -> Bool -> Bool -> [SourceCode]
--- makeSourceCode code main_code ns cmdline mt | trace ("makeSourceCode code=" ++ (C.unpack code) ++ " main_code=" ++ (C.unpack main_code)) False = undefined
 makeSourceCode code main_code ns cmdline mt 
-    | cmdline      = [ zipSourceCode code, headers] ++ makeNamespaces ns  ++ [ mainHeader, zipSourceCode main_code, mainFooter ]
-    | hasMain code = [ headers, zipSourceCode code] ++ makeNamespaces ns  ++ [ zipSourceCode main_code ]
-    | otherwise    = [ headers, code' ] ++ makeNamespaces ns  ++ [ mainHeader, main_code', mainFooter ]
+    | cmdline    = [zipSourceCode code, headers] ++ makeNamespaces ns  ++ makeCmdCode (zipSourceCode main_code) ++ [main']
+    | otherwise  = [headers, code'] ++ makeNamespaces ns  ++ makeCmdCode main_code' ++ [main']
       where (code', main_code') = foldl parseCodeLine ([], []) (zipSourceCode code) 
-            include    = C.pack $ "#include" ++ if mt then "<ass-mt.hpp>" else "<ass.hpp>"  
-            headers    = [ CodeLine 1 include]
-            mainHeader = if cmdline
-                            then [ CodeLine 1 "int main(int argc, char *argv[]) { cout << boolalpha; ass::cmdline([&] {" ] 
-                            else [ CodeLine 1 "int main(int argc, char *argv[]) { cout << boolalpha;" ]
-            mainFooter = if cmdline
-                            then [ CodeLine 1 "; }); }" ] 
-                            else [ CodeLine 1 ";}" ]
+            main'   | hasMain code = [] 
+                    | otherwise    = [ CodeLine 1 "int main() {}" ]
+            headers   = [ CodeLine 1 include ]
+                where include | mt        = C.pack $ "#include <ass-mt.hpp>" 
+                              | otherwise = C.pack $ "#include <ass.hpp>"
+
+
+makeCmdCode :: SourceCode -> [SourceCode]
+makeCmdCode [] = []
+makeCmdCode main_code = [cmdHeader, main_code, cmdFooter]
+    where cmdHeader = [ CodeLine 1 "auto __VOID__ = ass::main_([] {" ] 
+          cmdFooter = [ CodeLine 1 "});" ]
 
 
 makeNamespaces :: [String] -> [SourceCode]

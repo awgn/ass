@@ -11,7 +11,7 @@ In addition to including the standard headers, it provides some C++ goodies that
 Session
 -------
 
-    ASSi, version 1.3.7 :? for help
+    ASSi, version 2.0 :? for help
     Compilers found: /usr/bin/g++-4.8 /usr/bin/g++-4.7 /usr/bin/g++-4.6 /usr/bin/clang++ 
     Using Gcc48 compiler...
     Ass> :?

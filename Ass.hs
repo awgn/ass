@@ -73,7 +73,7 @@ compilerList = [
 banner, snippet, assrc, ass_history :: String 
 tmpDir, includeDir :: FilePath
 
-banner      = "ASSi, version 2.0"
+banner      = "ASSi, version 2.1"
 snippet     = "snippet" 
 tmpDir      =  "/tmp" 
 includeDir  =  "/usr/local/include"
@@ -168,11 +168,12 @@ main = do args    <- getArgs
             ("-?":_)        -> usage
             ("-v":_)        -> putStrLn banner 
             ("--version":_) -> putStrLn banner 
-            ("-i":_)        -> getCompilers clist >>= mainLoop (tail args)
+            ("-i":_)        -> getCompilers clist >>= mainLoop (tail args) 
             _               -> liftM (head . compFilter cfamily) (getCompilers clist) >>= mainFun args 
 
 
 data CliState = CliState { stateBanner     :: Bool,
+                           statePreload    :: Bool,
                            stateFile       :: FilePath,
                            stateCompType   :: CompilerType,
                            stateArgs       :: [String],
@@ -192,7 +193,8 @@ getStringIdentifiers xs =
     C.pack $ unlines xs
 
 commands :: [String]
-commands = [ ":load", ":include", ":reload", ":edit", ":show", ":clear", ":next", ":args", ":run", ":quit" ]
+commands = [ ":load", ":include", ":reload", ":edit", ":show", ":clear", ":next", ":args", ":run", ":preload", ":quit" ]
+
 
 cliCompletion :: String -> String -> StateIO [Completion]
 cliCompletion l s = do 
@@ -210,8 +212,10 @@ mainLoop args clist = do
     putStrLn $ banner ++ " :? for help"
     putStr "Compilers found: " >> mapM_ (\c -> putStr (getCompilerExec c ++ " ")) clist >> putChar '\n'
     home <- getHomeDirectory
-    let startingState = CliState True "" (getCompilerType $ head clist) (getRuntimeArgs args) [] []
+
+    let startingState = CliState True False "" (getCompilerType $ head clist) (getRuntimeArgs args) [] []
     let settings      = setComplete (completeWordWithPrev Nothing " \t" cliCompletion) defaultSettings { historyFile = Just $ home </> ".ass_history" }
+        
     evalStateT (runInputT settings loop) startingState
     where
     loop :: InputIO ()
@@ -227,35 +231,38 @@ mainLoop args clist = do
                 minput <- getInputLine "Ass> "
                 case words <$> minput of
                      Nothing -> outputStrLn "Leaving ASSi."
-                     Just []           -> lift (put state'{ stateBanner = False }) >> loop
-                     Just (":args":xs) -> lift (put state'{ stateArgs = xs }) >> loop 
-                     Just (":clear":_) -> outputStrLn "Buffer clean." >> 
-                                          lift (put state'{ stateBanner = True, stateFile = "", statePrepList = [], stateCode = [] }) >> loop 
-                     Just (":show":_)  -> mapM_ outputStrLn (statePrepList state') >> 
-                                          mapM_ outputStrLn (stateCode  state')    >> 
-                                          lift (put state'{ stateBanner = False }) >> loop
-                     Just (":edit":_)  -> mapM_ outputStrLn (statePrepList state') >> 
-                                          mapM_ outputStrLn (stateCode  state') >> 
-                                          getCode >>= \xs -> lift (put state'{ stateBanner = False, stateCode = stateCode state' ++ xs }) >> loop
+                     Just []              -> lift (put state'{ stateBanner = False }) >> loop
+                     Just (":args":xs)    -> lift (put state'{ stateArgs = xs }) >> loop 
+                     Just (":preload":_)  -> let v = statePreload state' in 
+                                                 outputStrLn ("Preloading std::headers " ++ show (not v) ++ "...") >> lift (put state'{ statePreload = not v }) >> loop 
+                     Just (":clear":_)    -> outputStrLn "Buffer clean." >> 
+                                             lift (put state'{ stateBanner = True, stateFile = "", statePrepList = [], stateCode = [] }) >> loop 
+                     Just (":show":_)     -> mapM_ outputStrLn (statePrepList state') >> 
+                                             mapM_ outputStrLn (stateCode  state')    >> 
+                                             lift (put state'{ stateBanner = False }) >> loop
+                     Just (":edit":_)     -> mapM_ outputStrLn (statePrepList state') >> 
+                                             mapM_ outputStrLn (stateCode  state') >> 
+                                             getCode >>= \xs -> lift (put state'{ stateBanner = False, stateCode = stateCode state' ++ xs }) >> loop
                      Just (":include":h:[]) -> outputStrLn ("Including " ++ h ++ "...") >> 
                                                lift (put state'{ stateBanner = False, stateCode = stateCode state' ++ ["#include <" ++ h ++ ">"] }) >> loop
                      Just (":load":f:[]) -> outputStrLn ("loading " ++ f ++ "...") >> 
                                             loadCode f >>= \xs -> lift (put state'{ stateBanner = False, stateFile = f, stateCode = xs }) >> loop
-                     Just (":reload":_) -> outputStrLn ("Reloading " ++ stateFile state' ++ "...") >> 
+                     Just (":reload":_)  -> outputStrLn ("Reloading " ++ stateFile state' ++ "...") >> 
                                            reloadCode >>= \xs -> lift (put state'{ stateBanner = False, stateCode = xs }) >> loop
-                     Just (":quit":_) -> void (outputStrLn "Leaving ASSi.")
-                     Just (":next":_) -> lift (put state'{ stateBanner = True, stateCompType = next (stateCompType state') }) >> loop
-                     Just (":?":_)    -> lift printHelp >> lift (put state'{ stateBanner = True }) >> loop
-                     Just (":run" :xs)-> do
-                                  e <- lift $ lift $ buildCompileAndRun (C.pack(unlines (statePrepList state') ++ unlines (stateCode state'))) 
-                                                                        "" False (compFilterType (stateCompType state') clist) (getCompilerArgs args) (if null xs then stateArgs state'
-                                                                                                                                                                  else xs)
-                                  outputStrLn $ show e  
-                                  lift (put state'{ stateBanner = False }) >> loop
+                     Just (":quit":_)    -> void (outputStrLn "Leaving ASSi.")
+                     Just (":next":_)    -> lift (put state'{ stateBanner = True, stateCompType = next (stateCompType state') }) >> loop
+                     Just (":?":_)       -> lift printHelp >> lift (put state'{ stateBanner = True }) >> loop
+                     Just (":run" :xs)   -> do
+                        e <- lift $ lift $ buildCompileAndRun (C.pack(unlines (statePrepList state') ++ unlines (stateCode state'))) 
+                                            "" (statePreload state') True (compFilterType (stateCompType state') clist) (getCompilerArgs args) 
+                                                (if null xs then stateArgs state' else xs)
+                        outputStrLn $ show e  
+                        lift (put state'{ stateBanner = False }) >> loop
+
                      Just input | isPreprocessor (C.pack $ unwords input) -> lift (put state'{ stateBanner = False, statePrepList = statePrepList state' ++ [unwords input] }) >> loop
                                 | otherwise -> do 
                                   e <- lift $ lift $ buildCompileAndRun (C.pack(unlines (statePrepList state') ++ unlines (stateCode state'))) 
-                                                                        (C.pack(unwords input)) True (compFilterType (stateCompType state') clist) (getCompilerArgs args) (stateArgs state') 
+                                                                        (C.pack(unwords input)) (statePreload state') True (compFilterType (stateCompType state') clist) (getCompilerArgs args) (stateArgs state') 
                                   outputStrLn $ show e  
                                   lift (put state'{ stateBanner = False }) >> loop
 
@@ -263,7 +270,7 @@ mainLoop args clist = do
 mainFun :: [String] -> Compiler -> IO ()
 mainFun args cxx = do
     code <- C.hGetContents stdin
-    liftM head (buildCompileAndRun code "" False [cxx] (getCompilerArgs args) (getRuntimeArgs args)) >>= exitWith
+    liftM head (buildCompileAndRun code "" True False [cxx] (getCompilerArgs args) (getRuntimeArgs args)) >>= exitWith
 
 
 printHelp :: StateIO ()
@@ -278,6 +285,7 @@ printHelp =  lift $ putStrLn $ "Commands available from the prompt:\n\n" ++
                         "  :next                     switch to next compiler\n" ++ 
                         "  :args ARG1 ARG2...        set runtime arguments\n" ++ 
                         "  :run [ARG1 ARG2...]       run main function\n" ++ 
+                        "  :preload                  toggle preload std headers\n" ++
                         "  :quit                     quit\n" ++
                         "  :?                        print this help\n\n" ++  
                         "C++ goodies:\n" ++
@@ -308,14 +316,14 @@ reloadCode = lift get >>= \s ->
                           else loadCode $ stateFile s 
 
 
-buildCompileAndRun :: Source -> Source -> Bool -> [Compiler] -> [String] -> [String] -> IO [ExitCode] 
-buildCompileAndRun code main_code inter clist cargs targs = do 
+buildCompileAndRun :: Source -> Source -> Bool -> Bool -> [Compiler] -> [String] -> [String] -> IO [ExitCode] 
+buildCompileAndRun code main_code preload cmdline clist cargs targs = do 
     cwd' <- getCurrentDirectory
     uid  <- getRealUserID 
     let mt  = isMultiThread main_code cargs
     let bin = tmpDir </> snippet ++ "-" ++ show uid
     let src = bin <.> "cpp"
-    writeSource src (makeSourceCode code main_code (getNamespaceInUse code) inter mt)
+    writeSource src (makeSourceCode code main_code (getNamespaceInUse code) preload cmdline mt)
     forM clist $ \cxx -> do
         when (length clist > 1) $ putStr (show cxx ++ " -> ") >> hFlush stdout
         e <- compileWith cxx src (binary bin cxx) mt (["-I", cwd', "-I",  cwd' </> ".."] ++ cargs) 
@@ -344,16 +352,21 @@ getNamespaceInUse src = filter (/= "{") $ map (Cpp.toString . (\i -> tokens !! (
                               is = findIndices (\token -> Cpp.isKeyword token && Cpp.toString token == "namespace") tokens 
 
 
-makeSourceCode :: Source -> Source -> [String] -> Bool -> Bool -> [SourceCode]
-makeSourceCode code main_code ns cmdline mt 
-    | cmdline    = [zipSourceCode code, headers] ++ makeNamespaces ns  ++ makeCmdCode (zipSourceCode main_code) ++ [main']
-    | otherwise  = [headers, code'] ++ makeNamespaces ns  ++ makeCmdCode main_code' ++ [main']
+makeSourceCode :: Source -> Source -> [String] -> Bool -> Bool -> Bool -> [SourceCode]
+makeSourceCode code main_code ns preload cmdline mt 
+    | cmdline   = (preloadHeaders preload headers (zipSourceCode code)) ++ makeNamespaces ns  ++ makeCmdCode (zipSourceCode main_code) ++ [main']
+    | otherwise = (preloadHeaders preload headers code') ++ makeNamespaces ns  ++ makeCmdCode main_code' ++ [main']
       where (code', main_code') = foldl parseCodeLine ([], []) (zipSourceCode code) 
             main'   | hasMain code = [] 
                     | otherwise    = [ CodeLine 1 "int main() {}" ]
             headers   = [ CodeLine 1 include ]
                 where include | mt        = C.pack $ "#include <ass-mt.hpp>" 
                               | otherwise = C.pack $ "#include <ass.hpp>"
+
+
+preloadHeaders :: Bool -> SourceCode -> SourceCode -> [SourceCode]
+preloadHeaders True  header code = [header, code]
+preloadHeaders False header code = [code, header]
 
 
 makeCmdCode :: SourceCode -> [SourceCode]

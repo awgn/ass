@@ -1049,7 +1049,7 @@ namespace ass {
         {
             template <typename F>
             static void run(F f) 
-            { auto ret = f(); std::cout << ret << ' '; }
+            { auto ret = f(); std::cout << std::boolalpha << ret << ' '; }
         };
 
     };

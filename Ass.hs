@@ -337,18 +337,18 @@ getNamespaceInUse src = filter (/= "{") $ map (Cpp.toString . (\i -> tokens !! (
 
 
 makeSourceCode :: Source -> Source -> [String] -> Bool -> Bool -> [SourceCode]
--- makeSourceCode code main_code ns lambda mt | trace ("makeSourceCode code=" ++ (C.unpack code) ++ " main_code=" ++ (C.unpack main_code)) False = undefined
-makeSourceCode code main_code ns lambda mt 
-    | lambda       = [ zipSourceCode code, headers] ++ makeNamespaces ns  ++ [ mainHeader, zipSourceCode main_code, mainFooter ]
+-- makeSourceCode code main_code ns cmdline mt | trace ("makeSourceCode code=" ++ (C.unpack code) ++ " main_code=" ++ (C.unpack main_code)) False = undefined
+makeSourceCode code main_code ns cmdline mt 
+    | cmdline      = [ zipSourceCode code, headers] ++ makeNamespaces ns  ++ [ mainHeader, zipSourceCode main_code, mainFooter ]
     | hasMain code = [ headers, zipSourceCode code] ++ makeNamespaces ns  ++ [ zipSourceCode main_code ]
     | otherwise    = [ headers, code' ] ++ makeNamespaces ns  ++ [ mainHeader, main_code', mainFooter ]
       where (code', main_code') = foldl parseCodeLine ([], []) (zipSourceCode code) 
             include    = C.pack $ "#include" ++ if mt then "<ass-mt.hpp>" else "<ass.hpp>"  
             headers    = [ CodeLine 1 include]
-            mainHeader = if lambda 
+            mainHeader = if cmdline
                             then [ CodeLine 1 "int main(int argc, char *argv[]) { cout << boolalpha; ass::cmdline([&] {" ] 
                             else [ CodeLine 1 "int main(int argc, char *argv[]) { cout << boolalpha;" ]
-            mainFooter = if lambda 
+            mainFooter = if cmdline
                             then [ CodeLine 1 "; }); }" ] 
                             else [ CodeLine 1 ";}" ]
 

@@ -43,6 +43,7 @@ Session
       :next                     switch to next compiler
       :args ARG1 ARG2...        set runtime arguments
       :run [ARG1 ARG2...]       run main function
+      :preload                  toggle preload std headers
       :quit                     quit
       :?                        print this help
     

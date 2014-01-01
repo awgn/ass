@@ -45,13 +45,18 @@ import qualified Cpp.Source as Cpp
 import qualified Cpp.Filter as Cpp
 import qualified Cpp.Token  as Cpp
 
+
 type Source          = Cpp.Source
-type SourceLine      = Cpp.Source
+data CodeLine        = CodeLine Int Source 
+
 type SourceCode      = [CodeLine]
 type TranslationUnit = SourceCode
 type MainFunction    = SourceCode
 type ParserState     = (TranslationUnit, MainFunction)
  
+instance Show CodeLine where
+    show (CodeLine n xs) = "#line " ++ show n ++ "\n" ++ C.unpack xs  
+
 
 -- default compiler list (overridden by ~/.assrc)
 --
@@ -76,11 +81,6 @@ assrc       =  ".assrc"
 ass_history = ".ass_history"
 
 
-data CodeLine = CodeLine Int SourceLine 
-
-
-instance Show CodeLine where
-    show (CodeLine n xs) = "#line " ++ show n ++ "\n" ++ C.unpack xs  
 
 -- Compiler:
 
@@ -254,8 +254,7 @@ mainLoop args clist = do
 mainFun :: [String] -> Compiler -> IO ()
 mainFun args cxx = do
     code <- C.hGetContents stdin
-    liftM head
-        (buildCompileAndRun code "" False [cxx] (getCompilerArgs args) (getRuntimeArgs args)) >>= exitWith
+    liftM head (buildCompileAndRun code "" False [cxx] (getCompilerArgs args) (getRuntimeArgs args)) >>= exitWith
 
 
 printHelp :: StateIO ()
@@ -300,7 +299,6 @@ reloadCode = lift get >>= \s ->
 
 
 buildCompileAndRun :: Source -> Source -> Bool -> [Compiler] -> [String] -> [String] -> IO [ExitCode] 
--- buildCompileRun code main_code inter cxx cargs targs | trace ("buildCompileRun") False = undefined
 buildCompileAndRun code main_code inter clist cargs targs = do 
     cwd' <- getCurrentDirectory
     uid  <- getRealUserID 
@@ -382,15 +380,15 @@ dropWhiteBS :: C.ByteString -> C.ByteString
 dropWhiteBS =  C.dropWhile (`elem` " \\\a\b\t\n\v\f\r") 
 
 
-isPreprocessor :: SourceLine -> Bool
+isPreprocessor :: Source -> Bool
 isPreprocessor = C.isPrefixOf "#" . dropWhiteBS 
 
 
 parseCodeLine :: ParserState -> CodeLine -> ParserState
 parseCodeLine (t,m) (CodeLine n l)  
-    | isMainLine  l = (t, m ++ [CodeLine n (C.pack $ delete '$' $ C.unpack l) ])
-    | otherwise     = (t ++ [CodeLine n l], m)
-        where isMainLine = ("$" `C.isPrefixOf`) . dropWhiteBS 
+    | isCmdLine  l = (t, m ++ [CodeLine n (C.pack $ delete '$' $ C.unpack l) ])
+    | otherwise    = (t ++ [CodeLine n l], m)
+        where isCmdLine = ("$" `C.isPrefixOf`) . dropWhiteBS 
 
 
 zipSourceCode :: Source -> SourceCode

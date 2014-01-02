@@ -172,13 +172,14 @@ main = do args    <- getArgs
             _               -> liftM (head . compFilter cfamily) (getCompilers clist) >>= mainFun args 
 
 
-data CliState = CliState { stateBanner     :: Bool,
-                           statePreload    :: Bool,
-                           stateFile       :: FilePath,
-                           stateCompType   :: CompilerType,
-                           stateArgs       :: [String],
-                           statePrepList   :: [String],
-                           stateCode       :: [String]} deriving (Show, Eq)
+data CliState = CliState { stateBanner     :: !Bool,
+                           statePreload    :: !Bool,
+                           stateVerbose    :: !Bool,
+                           stateFile       :: !FilePath,
+                           stateCompType   :: !CompilerType,
+                           stateArgs       :: ![String],
+                           statePrepList   :: ![String],
+                           stateCode       :: ![String]} deriving (Show, Eq)
 
 
 type StateIO = StateT CliState IO
@@ -193,7 +194,7 @@ getStringIdentifiers xs =
     C.pack $ unlines xs
 
 commands :: [String]
-commands = [ ":load", ":include", ":reload", ":edit", ":show", ":clear", ":next", ":args", ":run", ":preload", ":quit" ]
+commands = [ ":load", ":include", ":reload", ":edit", ":show", ":clear", ":next", ":args", ":run", ":preload", ":verbose", ":quit" ]
 
 
 cliCompletion :: String -> String -> StateIO [Completion]
@@ -213,7 +214,7 @@ mainLoop args clist = do
     putStr "Compilers found: " >> mapM_ (\c -> putStr (getCompilerExec c ++ " ")) clist >> putChar '\n'
     home <- getHomeDirectory
 
-    let startingState = CliState True False "" (getCompilerType $ head clist) (getRuntimeArgs args) [] []
+    let startingState = CliState True False False "" (getCompilerType $ head clist) (getRuntimeArgs args) [] []
     let settings      = setComplete (completeWordWithPrev Nothing " \t" cliCompletion) defaultSettings { historyFile = Just $ home </> ".ass_history" }
         
     evalStateT (runInputT settings loop) startingState
@@ -235,6 +236,8 @@ mainLoop args clist = do
                      Just (":args":xs)    -> lift (put state'{ stateArgs = xs }) >> loop 
                      Just (":preload":_)  -> let v = statePreload state' in 
                                                  outputStrLn ("Preloading std::headers " ++ show (not v) ++ "...") >> lift (put state'{ statePreload = not v }) >> loop 
+                     Just (":verbose":_)  -> let v = stateVerbose state' in 
+                                                 outputStrLn ("Verbose (" ++ show (not v) ++ ")") >> lift (put state'{ stateVerbose = not v }) >> loop 
                      Just (":clear":_)    -> outputStrLn "Buffer clean." >> 
                                              lift (put state'{ stateBanner = True, stateFile = "", statePrepList = [], stateCode = [] }) >> loop 
                      Just (":show":_)     -> mapM_ outputStrLn (statePrepList state') >> 
@@ -254,7 +257,7 @@ mainLoop args clist = do
                      Just (":?":_)       -> lift printHelp >> lift (put state'{ stateBanner = True }) >> loop
                      Just (":run" :xs)   -> do
                         e <- lift $ lift $ buildCompileAndRun (C.pack(unlines (statePrepList state') ++ unlines (stateCode state'))) 
-                                            "" (statePreload state') True (compFilterType (stateCompType state') clist) (getCompilerArgs args) 
+                                            "" (statePreload state') True (stateVerbose state') (compFilterType (stateCompType state') clist) (getCompilerArgs args) 
                                                 (if null xs then stateArgs state' else xs)
                         outputStrLn $ show e  
                         lift (put state'{ stateBanner = False }) >> loop
@@ -262,7 +265,7 @@ mainLoop args clist = do
                      Just input | isPreprocessor (C.pack $ unwords input) -> lift (put state'{ stateBanner = False, statePrepList = statePrepList state' ++ [unwords input] }) >> loop
                                 | otherwise -> do 
                                   e <- lift $ lift $ buildCompileAndRun (C.pack(unlines (statePrepList state') ++ unlines (stateCode state'))) 
-                                                                        (C.pack(unwords input)) (statePreload state') True (compFilterType (stateCompType state') clist) (getCompilerArgs args) (stateArgs state') 
+                                                                        (C.pack(unwords input)) (statePreload state') True (stateVerbose state') (compFilterType (stateCompType state') clist) (getCompilerArgs args) (stateArgs state') 
                                   outputStrLn $ show e  
                                   lift (put state'{ stateBanner = False }) >> loop
 
@@ -270,7 +273,7 @@ mainLoop args clist = do
 mainFun :: [String] -> Compiler -> IO ()
 mainFun args cxx = do
     code <- C.hGetContents stdin
-    liftM head (buildCompileAndRun code "" True False [cxx] (getCompilerArgs args) (getRuntimeArgs args)) >>= exitWith
+    liftM head (buildCompileAndRun code "" True False False [cxx] (getCompilerArgs args) (getRuntimeArgs args)) >>= exitWith
 
 
 printHelp :: StateIO ()
@@ -286,6 +289,7 @@ printHelp =  lift $ putStrLn $ "Commands available from the prompt:\n\n" ++
                         "  :args ARG1 ARG2...        set runtime arguments\n" ++ 
                         "  :run [ARG1 ARG2...]       run main function\n" ++ 
                         "  :preload                  toggle preload std headers\n" ++
+                        "  :verbose                  show additional information\n" ++
                         "  :quit                     quit\n" ++
                         "  :?                        print this help\n\n" ++  
                         "C++ goodies:\n" ++
@@ -316,8 +320,8 @@ reloadCode = lift get >>= \s ->
                           else loadCode $ stateFile s 
 
 
-buildCompileAndRun :: Source -> Source -> Bool -> Bool -> [Compiler] -> [String] -> [String] -> IO [ExitCode] 
-buildCompileAndRun code main_code preload cmdline clist cargs targs = do 
+buildCompileAndRun :: Source -> Source -> Bool -> Bool -> Bool -> [Compiler] -> [String] -> [String] -> IO [ExitCode] 
+buildCompileAndRun code main_code preload cmdline verbose clist cargs targs = do 
     cwd' <- getCurrentDirectory
     name <- getEffectiveUserName 
     let mt  = isMultiThread main_code cargs
@@ -326,7 +330,7 @@ buildCompileAndRun code main_code preload cmdline clist cargs targs = do
     writeSource src (makeSourceCode code main_code (getNamespaceInUse code) preload cmdline mt)
     forM clist $ \cxx -> do
         when (length clist > 1) $ putStr (show cxx ++ " -> ") >> hFlush stdout
-        e <- compileWith cxx src (binary bin cxx) mt (["-I", cwd', "-I",  cwd' </> ".."] ++ cargs) 
+        e <- compileWith cxx src (binary bin cxx) mt verbose (["-I", cwd', "-I",  cwd' </> ".."] ++ cargs) 
         if e == ExitSuccess 
             then system (binary bin cxx ++ " " ++ unwords targs) 
             else return e
@@ -445,9 +449,9 @@ getCompilerPchPath opts |  "-stdlib=libc++" `elem` opts = includeDir </> "clang-
                         |  otherwise                    = includeDir </> "clang"
 
 
-compileWith :: Compiler -> FilePath -> FilePath -> Bool -> [String] -> IO ExitCode
-compileWith cxx source binary mt user_opt = 
-    system cmd
+compileWith :: Compiler -> FilePath -> FilePath -> Bool -> Bool -> [String] -> IO ExitCode
+compileWith cxx source binary mt verbose user_opt = 
+    when verbose (putStrLn cmd) >> system cmd
         where cmd = unwords . concat $ [[getCompilerExec cxx], getCompilerOpt cxx mt, user_opt, [source], ["-o"], [binary]] 
 
 

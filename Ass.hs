@@ -298,6 +298,7 @@ printHelp =  lift $ putStrLn $ "Commands available from the prompt:\n\n" ++
                         "  S(instance)               stringify a value\n" ++
                         "  T<type>()                 demangle the name of a type\n" ++
                         "  R(1,2,5)                  range: initializer_list<int> {1,2,3,4,5}\n" ++
+                        "  hex(v), oct(v), bin(v)    show manipulators\n" ++
                         "  class O                   oracle class.\n"
 
 

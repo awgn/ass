@@ -274,7 +274,7 @@ namespace ass
 
 #ifndef MORE_SHOW
 #define MORE_SHOW
-
+ 
 inline namespace more_show {
 
     // manipulators
@@ -303,6 +303,19 @@ inline namespace more_show {
     {
         return _oct<T>{value};
     }
+
+    template <typename T>
+    struct _bin 
+    {
+        T value;
+    };
+
+    template <typename T>
+    _bin<T> bin(T const &value)
+    {
+        return _bin<T>{value};
+    }
+
 
     // forward declarations:
     //
@@ -334,6 +347,10 @@ inline namespace more_show {
     template <typename T>
     inline typename std::enable_if<std::is_integral<T>::value, std::string>::type
     show(_oct<T> const &value);
+
+    template <typename T>
+    inline typename std::enable_if<std::is_integral<T>::value, std::string>::type
+    show(_bin<T> const &value);
 
     // pointers...
    
@@ -532,6 +549,34 @@ inline namespace more_show {
         return out.str();
     }
 
+    /////////////////////////////////////////////
+    // show for arithmetic types as bin values...
+
+    template <typename T>
+    inline typename std::enable_if<std::is_integral<T>::value, std::string>::type
+    show(_bin<T> const &value)
+    {
+        std::ostringstream out;
+
+        std::function<void(T)> binary = [&] (T value) 
+        {
+            T rem;
+
+            if(value <= 1) {
+                out << value;
+                return;
+            }
+            
+            rem = value % 2; 
+            binary(value >> 1);    
+
+            out << rem;
+        };
+
+        binary(value.value);
+        return out.str();
+    }
+
     ///////////////////////////////////////
     // show for pointers *
 
@@ -618,11 +663,8 @@ inline namespace more_show {
     show(std::chrono::time_point<Clock, Dur> const &r)
     {    
         return show(r.time_since_epoch());
-    }    
-    
-    ////////////////////////////////////////////////////////
-    // show for chrono types... 
-    
+    }
+
     template <typename T>
     inline std::string
     show(std::initializer_list<T> const &init)
@@ -653,7 +695,6 @@ inline namespace more_show {
         }
         return std::move(out) + ']';
     }
-
 
 } // namespace more_show
 

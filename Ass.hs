@@ -235,7 +235,7 @@ mainLoop args clist = do
                      Just []              -> lift (put state'{ stateBanner = False }) >> loop
                      Just (":args":xs)    -> lift (put state'{ stateArgs = xs }) >> loop 
                      Just (":preload":_)  -> let v = statePreload state' in 
-                                                 outputStrLn ("Preloading std::headers " ++ show (not v) ++ "...") >> lift (put state'{ statePreload = not v }) >> loop 
+                                                 outputStrLn ("Preloading headers (" ++ show (not v) ++ ")") >> lift (put state'{ statePreload = not v }) >> loop 
                      Just (":verbose":_)  -> let v = stateVerbose state' in 
                                                  outputStrLn ("Verbose (" ++ show (not v) ++ ")") >> lift (put state'{ stateVerbose = not v }) >> loop 
                      Just (":clear":_)    -> outputStrLn "Buffer clean." >> 
@@ -358,13 +358,13 @@ getNamespaceInUse src = filter (/= "{") $ map (Cpp.toString . (\i -> tokens !! (
 
 makeSourceCode :: Source -> Source -> [String] -> Bool -> Bool -> Bool -> [SourceCode]
 makeSourceCode code main_code ns preload _ mt 
-    = (preloadHeaders preload headers code') ++ makeNamespaces ns  ++ makeCmdCode (zipSourceCode main_code ++ main_code') ++ [main']
+    = preloadHeaders preload headers code' ++ makeNamespaces ns  ++ makeCmdCode (zipSourceCode main_code ++ main_code') ++ [main']
       where (code', main_code') = foldl parseCodeLine ([], []) (zipSourceCode code) 
             main'   | hasMain code = [] 
                     | otherwise    = [ CodeLine 1 "int main() {}" ]
             headers   = [ CodeLine 1 include ]
-                where include | mt        = C.pack $ "#include <ass-mt.hpp>" 
-                              | otherwise = C.pack $ "#include <ass.hpp>"
+                where include | mt        = C.pack "#include <ass-mt.hpp>" 
+                              | otherwise = C.pack "#include <ass.hpp>"
 
 
 preloadHeaders :: Bool -> SourceCode -> SourceCode -> [SourceCode]

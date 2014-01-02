@@ -73,7 +73,7 @@ compilerList = [
 banner, snippet, assrc, ass_history :: String 
 tmpDir, includeDir :: FilePath
 
-banner      = "ASSi, version 2.2"
+banner      = "ASSi, version 2.3"
 snippet     = "ass-snippet" 
 tmpDir      =  "/tmp" 
 includeDir  =  "/usr/local/include"
@@ -257,7 +257,7 @@ mainLoop args clist = do
                      Just (":?":_)       -> lift printHelp >> lift (put state'{ stateBanner = True }) >> loop
                      Just (":run" :xs)   -> do
                         e <- lift $ lift $ buildCompileAndRun (C.pack(unlines (statePrepList state') ++ unlines (stateCode state'))) 
-                                            "" (statePreload state') True (stateVerbose state') (compFilterType (stateCompType state') clist) (getCompilerArgs args) 
+                                            "" (statePreload state') (stateVerbose state') (compFilterType (stateCompType state') clist) (getCompilerArgs args) 
                                                 (if null xs then stateArgs state' else xs)
                         outputStrLn $ show e  
                         lift (put state'{ stateBanner = False }) >> loop
@@ -265,7 +265,7 @@ mainLoop args clist = do
                      Just input | isPreprocessor (C.pack $ unwords input) -> lift (put state'{ stateBanner = False, statePrepList = statePrepList state' ++ [unwords input] }) >> loop
                                 | otherwise -> do 
                                   e <- lift $ lift $ buildCompileAndRun (C.pack(unlines (statePrepList state') ++ unlines (stateCode state'))) 
-                                                                        (C.pack(unwords input)) (statePreload state') True (stateVerbose state') (compFilterType (stateCompType state') clist) (getCompilerArgs args) (stateArgs state') 
+                                                                        (C.pack(unwords input)) (statePreload state') (stateVerbose state') (compFilterType (stateCompType state') clist) (getCompilerArgs args) (stateArgs state') 
                                   outputStrLn $ show e  
                                   lift (put state'{ stateBanner = False }) >> loop
 
@@ -273,7 +273,7 @@ mainLoop args clist = do
 mainFun :: [String] -> Compiler -> IO ()
 mainFun args cxx = do
     code <- C.hGetContents stdin
-    liftM head (buildCompileAndRun code "" True False False [cxx] (getCompilerArgs args) (getRuntimeArgs args)) >>= exitWith
+    liftM head (buildCompileAndRun code "" True False [cxx] (getCompilerArgs args) (getRuntimeArgs args)) >>= exitWith
 
 
 printHelp :: StateIO ()
@@ -295,9 +295,10 @@ printHelp =  lift $ putStrLn $ "Commands available from the prompt:\n\n" ++
                         "C++ goodies:\n" ++
                         "  _(1,2,3)                  tuple/pair constructor\n" ++
                         "  P(arg1, arg2, ...)        variadic print\n" ++
-                        "  S(instance)               stringify a value\n" ++
                         "  T<type>()                 demangle the name of a type\n" ++
+                        "  type_of(v)                deduce the type of a given expression\n" ++
                         "  R(1,2,5)                  range: initializer_list<int> {1,2,3,4,5}\n" ++
+                        "  S(v),SHOW(v)              stringify a value\n" ++
                         "  hex(v), oct(v), bin(v)    show manipulators\n" ++
                         "  class O                   oracle class.\n"
 
@@ -321,15 +322,15 @@ reloadCode = lift get >>= \s ->
                           else loadCode $ stateFile s 
 
 
-buildCompileAndRun :: Source -> Source -> Bool -> Bool -> Bool -> [Compiler] -> [String] -> [String] -> IO [ExitCode] 
-buildCompileAndRun code main_code preload cmdline verbose clist cargs targs = do 
+buildCompileAndRun :: Source -> Source -> Bool -> Bool -> [Compiler] -> [String] -> [String] -> IO [ExitCode] 
+buildCompileAndRun code main_code preload verbose clist cargs targs = do 
     cwd' <- getCurrentDirectory
     name <- getEffectiveUserName 
     let mt    = isMultiThread main_code cargs
     let boost = useBoostLib main_code
     let bin   = tmpDir </> snippet ++ "-" ++ name
     let src   = bin <.> "cpp"
-    writeSource src (makeSourceCode code main_code (getNamespaceInUse code) preload boost)
+    writeSource src $ makeSourceCode code main_code (getNamespaceInUse code) preload boost
     forM clist $ \cxx -> do
         when (length clist > 1) $ putStr (show cxx ++ " -> ") >> hFlush stdout
         e <- compileWith cxx src (binary bin cxx) mt verbose (["-I", cwd', "-I",  cwd' </> ".."] ++ cargs) 
@@ -378,13 +379,13 @@ makeSourceCode code main_code ns preload boost
                                                  else []
                                          
 
-makeInclude :: String -> CodeLine
-makeInclude s = CodeLine 1 (C.pack $ "#include " ++ s)
-
-
 preloadHeaders :: Bool -> SourceCode -> SourceCode -> [SourceCode]
 preloadHeaders True  header code = [header, code]
 preloadHeaders False header code = [code, header]
+
+
+makeInclude :: String -> CodeLine
+makeInclude s = CodeLine 1 (C.pack $ "#include " ++ s)
 
 
 makeCmdCode :: SourceCode -> [SourceCode]

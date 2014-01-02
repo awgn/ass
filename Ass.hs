@@ -73,7 +73,7 @@ compilerList = [
 banner, snippet, assrc, ass_history :: String 
 tmpDir, includeDir :: FilePath
 
-banner      = "ASSi, version 2.1"
+banner      = "ASSi, version 2.2"
 snippet     = "ass-snippet" 
 tmpDir      =  "/tmp" 
 includeDir  =  "/usr/local/include"
@@ -353,9 +353,8 @@ getNamespaceInUse src = filter (/= "{") $ map (Cpp.toString . (\i -> tokens !! (
 
 
 makeSourceCode :: Source -> Source -> [String] -> Bool -> Bool -> Bool -> [SourceCode]
-makeSourceCode code main_code ns preload cmdline mt 
-    | cmdline   = (preloadHeaders preload headers (zipSourceCode code)) ++ makeNamespaces ns  ++ makeCmdCode (zipSourceCode main_code) ++ [main']
-    | otherwise = (preloadHeaders preload headers code') ++ makeNamespaces ns  ++ makeCmdCode main_code' ++ [main']
+makeSourceCode code main_code ns preload _ mt 
+    = (preloadHeaders preload headers code') ++ makeNamespaces ns  ++ makeCmdCode (zipSourceCode main_code ++ main_code') ++ [main']
       where (code', main_code') = foldl parseCodeLine ([], []) (zipSourceCode code) 
             main'   | hasMain code = [] 
                     | otherwise    = [ CodeLine 1 "int main() {}" ]

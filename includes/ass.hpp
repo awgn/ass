@@ -1056,7 +1056,9 @@ inline namespace ass_inline {
     {
         return ::show (arg);
     }
-    
+
+#define SHOW(v) # v " = " + S(v)
+
     ////////////////////////////////////////////////////////////// T<>(): get a demangled type name
 
     template <typename Tp>

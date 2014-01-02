@@ -31,7 +31,7 @@ import System.IO
 import System.Exit
 import System.FilePath
 import System.Directory
-import System.Posix.User(getRealUserID)
+import System.Posix.User(getEffectiveUserName)
 
 import System.Console.Haskeline
 
@@ -74,7 +74,7 @@ banner, snippet, assrc, ass_history :: String
 tmpDir, includeDir :: FilePath
 
 banner      = "ASSi, version 2.1"
-snippet     = "snippet" 
+snippet     = "ass-snippet" 
 tmpDir      =  "/tmp" 
 includeDir  =  "/usr/local/include"
 assrc       =  ".assrc"
@@ -319,9 +319,9 @@ reloadCode = lift get >>= \s ->
 buildCompileAndRun :: Source -> Source -> Bool -> Bool -> [Compiler] -> [String] -> [String] -> IO [ExitCode] 
 buildCompileAndRun code main_code preload cmdline clist cargs targs = do 
     cwd' <- getCurrentDirectory
-    uid  <- getRealUserID 
+    name <- getEffectiveUserName 
     let mt  = isMultiThread main_code cargs
-    let bin = tmpDir </> snippet ++ "-" ++ show uid
+    let bin = tmpDir </> snippet ++ "-" ++ name
     let src = bin <.> "cpp"
     writeSource src (makeSourceCode code main_code (getNamespaceInUse code) preload cmdline mt)
     forM clist $ \cxx -> do

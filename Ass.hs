@@ -325,10 +325,11 @@ buildCompileAndRun :: Source -> Source -> Bool -> Bool -> Bool -> [Compiler] -> 
 buildCompileAndRun code main_code preload cmdline verbose clist cargs targs = do 
     cwd' <- getCurrentDirectory
     name <- getEffectiveUserName 
-    let mt  = isMultiThread main_code cargs
-    let bin = tmpDir </> snippet ++ "-" ++ name
-    let src = bin <.> "cpp"
-    writeSource src (makeSourceCode code main_code (getNamespaceInUse code) preload cmdline mt)
+    let mt    = isMultiThread main_code cargs
+    let boost = useBoostLib main_code
+    let bin   = tmpDir </> snippet ++ "-" ++ name
+    let src   = bin <.> "cpp"
+    writeSource src (makeSourceCode code main_code (getNamespaceInUse code) preload boost)
     forM clist $ \cxx -> do
         when (length clist > 1) $ putStr (show cxx ++ " -> ") >> hFlush stdout
         e <- compileWith cxx src (binary bin cxx) mt verbose (["-I", cwd', "-I",  cwd' </> ".."] ++ cargs) 
@@ -347,9 +348,18 @@ isMultiThread src xs = "-pthread" `elem` xs  || useThreadOrAsync src
 
 
 useThreadOrAsync :: Source -> Bool
-useThreadOrAsync src =  "thread" `elem` identifiers || "async" `elem` identifiers   
-                            where tokens = filter Cpp.isIdentifier $ Cpp.tokenizer $ sourceCodeFilter src
-                                  identifiers = Cpp.toString <$> tokens
+useThreadOrAsync src =  
+    "thread" `elem` identifiers || "async" `elem` identifiers   
+        where tokens = filter Cpp.isIdentifier $ Cpp.tokenizer $ sourceCodeFilter src
+              identifiers = Cpp.toString <$> tokens
+
+
+useBoostLib :: Source -> Bool
+useBoostLib src =  
+    "boost" `elem` identifiers  
+        where tokens = filter Cpp.isIdentifier $ Cpp.tokenizer $ sourceCodeFilter src
+              identifiers = Cpp.toString <$> tokens
+
 
 getNamespaceInUse :: Source -> [String]
 getNamespaceInUse src = filter (/= "{") $ map (Cpp.toString . (\i -> tokens !! (i + 1))) is  
@@ -357,15 +367,19 @@ getNamespaceInUse src = filter (/= "{") $ map (Cpp.toString . (\i -> tokens !! (
                               is = findIndices (\token -> Cpp.isKeyword token && Cpp.toString token == "namespace") tokens 
 
 
-makeSourceCode :: Source -> Source -> [String] -> Bool -> Bool -> Bool -> [SourceCode]
-makeSourceCode code main_code ns preload _ mt 
+makeSourceCode :: Source -> Source -> [String] -> Bool -> Bool -> [SourceCode]
+makeSourceCode code main_code ns preload boost  
     = preloadHeaders preload headers code' ++ makeNamespaces ns  ++ makeCmdCode (zipSourceCode main_code ++ main_code') ++ [main']
       where (code', main_code') = foldl parseCodeLine ([], []) (zipSourceCode code) 
             main'   | hasMain code = [] 
                     | otherwise    = [ CodeLine 1 "int main() {}" ]
-            headers   = [ CodeLine 1 include ]
-                where include | mt        = C.pack "#include <ass-mt.hpp>" 
-                              | otherwise = C.pack "#include <ass.hpp>"
+            headers                = [ makeInclude "<ass.hpp>" ] ++
+                                        if boost then [ makeInclude "<ass-boost.hpp>" ]
+                                                 else []
+                                         
+
+makeInclude :: String -> CodeLine
+makeInclude s = CodeLine 1 (C.pack $ "#include " ++ s)
 
 
 preloadHeaders :: Bool -> SourceCode -> SourceCode -> [SourceCode]
@@ -425,26 +439,21 @@ zipSourceCode src = zipWith CodeLine [1..] (C.lines src)
 
 
 getCompilerOpt :: Compiler -> Bool -> [String]
-getCompilerOpt comp@(Compiler _ bin _ opts) mt  
+getCompilerOpt comp@(Compiler _ bin _ opts) _ 
     | getCompilerFamily comp == Gcc =  
         case () of 
-        _ | "4.8" `isSuffixOf` bin -> opt ++ opts ++ ["-std=c++11"] ++ pth ++ [ "-I" ++ includeDir </> "4.8" ]  
-          | "4.7" `isSuffixOf` bin -> opt ++ opts ++ ["-std=c++11"] ++ pth ++ [ "-I" ++ includeDir </> "4.7" ] 
-          | "4.6" `isSuffixOf` bin -> opt ++ opts ++ ["-std=c++0x"] ++ pth ++ [ "-I" ++ includeDir </> "4.6" ] 
-          | otherwise              -> opt ++ opts ++ ["-std=c++0x"] ++ pth 
-            where opt = [ "-O0", "-D_GLIBCXX_DEBUG", "-Wall", "-Wextra", "-Wno-unused-parameter", "-Wno-unused-value" ]
-                  pth | mt = ["-pthread"]
-                      | otherwise = []
+        _ | "4.8" `isSuffixOf` bin -> opt ++ opts ++ ["-std=c++11", "-I" ++ includeDir </> "4.8" ]  
+          | "4.7" `isSuffixOf` bin -> opt ++ opts ++ ["-std=c++11", "-I" ++ includeDir </> "4.7" ] 
+          | "4.6" `isSuffixOf` bin -> opt ++ opts ++ ["-std=c++0x", "-I" ++ includeDir </> "4.6" ] 
+          | otherwise              -> opt ++ opts ++ ["-std=c++0x"] 
+            where opt = [ "-O0", "-D_GLIBCXX_DEBUG", "-pthread", "-Wall", "-Wextra", "-Wno-unused-parameter", "-Wno-unused-value" ]
 
 
-getCompilerOpt (Compiler _ _ _ opts) mt =   
-        [ "-std=c++11", "-O0", "-D_GLIBCXX_DEBUG", "-Wall", "-include", pch, "-Wextra", "-Wno-unused-parameter", "-Wno-unneeded-internal-declaration"] ++ opts ++ pth
-                where pch    | mt             = getCompilerPchPath opts </> "ass-mt.hpp"
-                             | otherwise      = getCompilerPchPath opts </> "ass.hpp" 
-                      pth    | mt = ["-pthread"]
-                             | otherwise = []
+getCompilerOpt (Compiler _ _ _ opts) _ =   
+        [ "-std=c++11", "-O0", "-D_GLIBCXX_DEBUG", "-pthread", "-Wall", pch, "-Wextra", "-Wno-unused-parameter", "-Wno-unneeded-internal-declaration"] ++ opts 
+                where pch = "-include " ++ getCompilerPchPath opts </> "ass.hpp "   
 
-
+                                                                  
 getCompilerPchPath :: [String] -> String
 getCompilerPchPath opts |  "-stdlib=libc++" `elem` opts = includeDir </> "clang-libc++"
                         |  otherwise                    = includeDir </> "clang"

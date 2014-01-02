@@ -1,4 +1,4 @@
-// 
+//
 //  Copyright (c) 2011 Bonelli Nicola <bonelli@antifork.org>
 // 
 //  This program is free software; you can redistribute it and/or modify
@@ -18,8 +18,9 @@
 //  ass: C++11 code ass'istant
 //
 
-#ifndef __ASS_HPP__
-#define __ASS_HPP__
+
+#ifndef __ASS_HPP__ 
+#define __ASS_HPP__ 
 
 #include <cxxabi.h>
 
@@ -93,6 +94,12 @@
 
 #include <unordered_set>
 #include <unordered_map>
+
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <future>
+#include <atomic>
 
 //////////////////////////////////////////////////////// additional type_traits...
 
@@ -1112,4 +1119,3 @@ using namespace std::chrono;
 using namespace std::placeholders;
 
 #endif /* __ASS_HPP__ */
-

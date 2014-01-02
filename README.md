@@ -6,7 +6,8 @@ ASSi is an interactive C++11 code assistant inspired to GHCi.
 It can be used through vim or interactively as a shell command. It supports gcc and clang compilers, libstdc++ and the newer libc++ 
 library. It features precompiled headers and tab completion for commands, files and C++ identifiers. 
 
-C++ statements are evaluated on the fly, possibly using the source code loaded, no matter if it is about a complete piece of code or a class declaration.
+C++ statements are evaluated on the fly, possibly using the source code loaded, no matter if it is about a test including the main function or a class declaration.
+Namespaces are automatically deducted parsing the code and made available with using namespace declarations.
 
 In addition, ASSi provides some C++ goodies that allow you to test code quickly. It provides an oracle class and allows to show STL containers, 
 tuples, smart pointers, chrono, streamable types etc. 

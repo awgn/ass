@@ -91,7 +91,7 @@ data CompilerType = Gcc46 | Gcc47 | Gcc48 | Clang31 | Clang32 | Clang33
 
 next :: CompilerType -> CompilerType
 next Clang33 = Gcc46
-next   x = succ x
+next x = succ x
 
 
 data CompilerFamily = Gcc | Clang 
@@ -319,7 +319,7 @@ loadCode f = lift . lift $ filter (not . ("#pragma" `isPrefixOf`) . dropWhite) <
 reloadCode :: InputT StateIO [String]
 reloadCode = lift get >>= \s -> 
     if null (s^.stateFile) then error "No file loaded!"
-                          else loadCode $ s^.stateFile
+                           else loadCode $ s^.stateFile
 
 
 buildCompileAndRun :: Source -> Source -> Bool -> Bool -> [Compiler] -> [String] -> [String] -> IO [ExitCode] 
@@ -327,10 +327,10 @@ buildCompileAndRun code main_code preload verbose clist cargs targs = do
     cwd' <- getCurrentDirectory
     name <- getEffectiveUserName 
     let mt    = isMultiThread main_code cargs
-    let boost = useBoostLib main_code
+    let boost = let ns = getQualifiedNamespace main_code in any (`elem` ns) ["b","boost"]
     let bin   = tmpDir </> snippet ++ "-" ++ name
     let src   = bin `addExtension` "cpp"
-    writeSource src $ makeSourceCode code main_code (getNamespaceInUse code) preload boost
+    writeSource src $ makeSourceCode code main_code (getDeclaredNamespace code) preload boost
     forM clist $ \cxx -> do
         when (length clist > 1) $ putStr (show cxx ++ " -> ") >> hFlush stdout
         e <- compileWith cxx src (binary bin cxx) mt verbose (["-I", cwd', "-I",  cwd' </> ".."] ++ cargs) 
@@ -355,16 +355,15 @@ useThreadOrAsync src =
               identifiers = Cpp.toString <$> tokens
 
 
-useBoostLib :: Source -> Bool
-useBoostLib src =  
-    "b" `elem` names || "boost" `elem` names 
+getQualifiedNamespace :: Source -> [String]
+getQualifiedNamespace src = names  
         where tokens = Cpp.TokenIdentifier "" 0 : Cpp.tokenizer (sourceCodeFilter src)
               ids    = findIndices (\t -> Cpp.isOperOrPunct t && Cpp.toString t == "::") tokens
               names  = map Cpp.toString $ filter Cpp.isIdentifier $ map (\i -> tokens !! (i-1)) ids
 
 
-getNamespaceInUse :: Source -> [String]
-getNamespaceInUse src = filter (/= "{") $ map (Cpp.toString . (\i -> tokens !! (i + 1))) is  
+getDeclaredNamespace :: Source -> [String]
+getDeclaredNamespace src = filter (/= "{") $ map (Cpp.toString . (\i -> tokens !! (i + 1))) is  
                         where tokens = Cpp.tokenizer $ sourceCodeFilter src
                               is = findIndices (\token -> Cpp.isKeyword token && Cpp.toString token == "namespace") tokens 
 

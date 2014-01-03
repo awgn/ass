@@ -38,4 +38,6 @@
 #include <boost/integer_traits.hpp>
 #include <boost/iterator_adaptors.hpp>
 
+namespace b = boost;
+
 #endif /* __ASS_BOOST_HPP__ */

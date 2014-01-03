@@ -357,9 +357,10 @@ useThreadOrAsync src =
 
 useBoostLib :: Source -> Bool
 useBoostLib src =  
-    "boost" `elem` identifiers  
-        where tokens = filter Cpp.isIdentifier $ Cpp.tokenizer $ sourceCodeFilter src
-              identifiers = Cpp.toString <$> tokens
+    "b" `elem` names || "boost" `elem` names 
+        where tokens = [Cpp.TokenIdentifier "" 0] ++ (Cpp.tokenizer (sourceCodeFilter src))
+              ids    = findIndices (\t -> Cpp.isOperOrPunct t && Cpp.toString t == "::") tokens
+              names  = map Cpp.toString $ filter Cpp.isIdentifier $ map (\i -> tokens !! (i-1)) ids
 
 
 getNamespaceInUse :: Source -> [String]

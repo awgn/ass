@@ -80,7 +80,7 @@ class ArgShow a where
     argRender :: a -> String
 
 instance ArgShow ArgType where
-    argRender arg = render arg
+    argRender = render 
 
 instance ArgShow () where
     argRender () = "()"
@@ -181,27 +181,27 @@ instance CppType Type where
     add_pointer          (Type xs) = Type $ xs ++ "* "
 
 
-data ArgType = Unnamed Type | Named Type Identifier 
+data ArgType = UnnamedArg Type | Arg Type Identifier 
 
 instance CppShow ArgType where
-    render (Unnamed t)  = render t
-    render (Named t ns) = render t ++ " " ++ ns
+    render (UnnamedArg t)  = render t
+    render (Arg t ns) = render t ++ " " ++ ns
 
 instance CppType ArgType where
-    getType              (Unnamed t) = getType t
-    getType              (Named t _) = getType t
-    add_cv               (Unnamed t) = Unnamed (add_cv t) 
-    add_cv               (Named t n) = Named   (add_cv t) n 
-    add_const            (Unnamed t) = Unnamed (add_const t)
-    add_const            (Named t n) = Named   (add_const t) n
-    add_volatile         (Unnamed t) = Unnamed (add_volatile t)
-    add_volatile         (Named t n) = Named   (add_volatile t) n
-    add_lvalue_reference (Unnamed t) = Unnamed (add_lvalue_reference t)
-    add_lvalue_reference (Named t n) = Named   (add_lvalue_reference t) n
-    add_rvalue_reference (Unnamed t) = Unnamed (add_rvalue_reference t)
-    add_rvalue_reference (Named t n) = Named   (add_rvalue_reference t) n
-    add_pointer          (Unnamed t) = Unnamed (add_pointer t)
-    add_pointer          (Named t n) = Named   (add_pointer t) n
+    getType              (UnnamedArg t) = getType t
+    getType              (Arg t _) = getType t
+    add_cv               (UnnamedArg t) = UnnamedArg (add_cv t) 
+    add_cv               (Arg t n) = Arg (add_cv t) n 
+    add_const            (UnnamedArg t) = UnnamedArg (add_const t)
+    add_const            (Arg t n) = Arg (add_const t) n
+    add_volatile         (UnnamedArg t) = UnnamedArg (add_volatile t)
+    add_volatile         (Arg t n) = Arg (add_volatile t) n
+    add_lvalue_reference (UnnamedArg t) = UnnamedArg (add_lvalue_reference t)
+    add_lvalue_reference (Arg t n) = Arg (add_lvalue_reference t) n
+    add_rvalue_reference (UnnamedArg t) = UnnamedArg (add_rvalue_reference t)
+    add_rvalue_reference (Arg t n) = Arg (add_rvalue_reference t) n
+    add_pointer          (UnnamedArg t) = UnnamedArg (add_pointer t)
+    add_pointer          (Arg t n) = Arg (add_pointer t) n
 
 
 add_const_lvalue_reference :: (CppType a) => a -> a
@@ -360,7 +360,6 @@ instance CppTemplate Function where
 data FuncDecl = forall args . (ArgShow args) => FuncDecl [Specifier] (Maybe Type) Identifier args
 
 
-
 instance CppSpecifier FuncDecl where
     inline (FuncDecl xs t id' arg)    = FuncDecl (Inline : xs) t id' arg
     static (FuncDecl xs t id' arg)    = FuncDecl (Static : xs) t id' arg
@@ -378,19 +377,19 @@ instance CppShow FuncDecl where
 -- Cpp Function Body
 --
    
-data FuncBody = FuncBody [String] | MembFuncBody [String] Qualifier
+data FuncBody = Body [String] | MembBody [String] Qualifier
 
 
 instance CppShow FuncBody where
-    render (FuncBody xs) =  "\n{" ++ bodyToString xs ++ "}"
+    render (Body xs) =  "\n{" ++ bodyToString xs ++ "}"
                                         where bodyToString [] = []
                                               bodyToString ys = intercalate "\n    " ( "" :ys) ++ "\n"
-    render (MembFuncBody xs Unqualified)= render $ FuncBody xs
-    render (MembFuncBody xs Constant)   = " const" ++ render (FuncBody xs)
-    render (MembFuncBody xs Volatile)   = " volatile" ++ render (FuncBody xs)
-    render (MembFuncBody _  Delete)     = " = delete;"
-    render (MembFuncBody _  Default)    = " = default;" 
-    render (MembFuncBody _  Pure)       = " = 0;"
+    render (MembBody xs Unqualified)= render $ Body xs
+    render (MembBody xs Constant)   = " const" ++ render (Body xs)
+    render (MembBody xs Volatile)   = " volatile" ++ render (Body xs)
+    render (MembBody _  Delete)     = " = delete;"
+    render (MembBody _  Default)    = " = default;" 
+    render (MembBody _  Pure)       = " = 0;"
 
 ---------------------------------------------------------
 -- Predefined Cpp member Functions
@@ -400,39 +399,39 @@ ctor :: Identifier -> Qualifier -> Function
 ctor ns qual = 
     function 
         (FuncDecl [] Nothing ns ()) 
-        (MembFuncBody [] qual)
+        (MembBody [] qual)
 
 
 dtor :: Identifier -> Qualifier -> Function
 dtor ns qual = 
     function (FuncDecl [] Nothing ('~' : ns) ()) 
-             (MembFuncBody [] qual)
+             (MembBody [] qual)
 
 
 copyCtor :: Identifier -> Qualifier -> Function
 copyCtor ns qual = 
-    function (FuncDecl [] Nothing ns (add_const_lvalue_reference(Named (Type ns) "other"))) 
-             (MembFuncBody [] qual)
+    function (FuncDecl [] Nothing ns (add_const_lvalue_reference(Arg (Type ns) "other"))) 
+             (MembBody [] qual)
 
 
 moveCtor :: Identifier -> Qualifier -> Function
 moveCtor ns qual = 
-    function (FuncDecl [] Nothing ns (add_rvalue_reference $ Named (Type ns) "other")) 
-             (MembFuncBody [] qual)
+    function (FuncDecl [] Nothing ns (add_rvalue_reference $ Arg (Type ns) "other")) 
+             (MembBody [] qual)
 
 
 operAssign:: Identifier -> Qualifier -> Function
 operAssign ns qual = 
     function (FuncDecl [] (Just $ add_lvalue_reference (Type ns)) "operator=" 
-                (add_const_lvalue_reference $ Named (Type ns) "other")) 
-             (MembFuncBody ["return *this;" ] qual)
+                (add_const_lvalue_reference $ Arg (Type ns) "other")) 
+             (MembBody ["return *this;" ] qual)
 
 
 operMoveAssign:: Identifier -> Qualifier -> Function
 operMoveAssign ns qual = 
     function (FuncDecl [] (Just $ add_lvalue_reference (Type ns)) "operator=" 
-                (add_rvalue_reference $ Named (Type ns) "other")) 
-             (MembFuncBody ["return *this;" ] qual)
+                (add_rvalue_reference $ Arg (Type ns) "other")) 
+             (MembBody ["return *this;" ] qual)
 
 
 ---------------------------------------------------------
@@ -441,53 +440,53 @@ operMoveAssign ns qual =
 
 _main :: [String] -> Function
 _main impl =  function  
-                (FuncDecl [] (Just $ Type "int") "main" (Named (Type "int") "argc", Named (Type "char *") "argv[]"))  
-                (FuncBody impl)
+                (FuncDecl [] (Just $ Type "int") "main" (Arg (Type "int") "argc", Arg (Type "char *") "argv[]"))  
+                (Body impl)
 
 operEq :: Maybe Template -> Identifier -> Function
-operEq tp xs  = Function tp (FuncDecl [Inline] (Just (Type "bool")) "operator==" (add_const_lvalue_reference(Named (Type xs) "lhs"), 
-                                                                                  add_const_lvalue_reference(Named (Type xs) "rhs"))) 
-                            (FuncBody ["/* implementation */" ])        
+operEq tp xs  = Function tp (FuncDecl [Inline] (Just (Type "bool")) "operator==" (add_const_lvalue_reference(Arg (Type xs) "lhs"), 
+                                                                                  add_const_lvalue_reference(Arg (Type xs) "rhs"))) 
+                            (Body ["/* implementation */" ])        
 
 operNotEq :: Maybe Template -> Identifier -> Function
-operNotEq tp xs = Function tp (FuncDecl [Inline] (Just (Type "bool")) "operator!=" (add_const_lvalue_reference(Named (Type xs) "lhs"), 
-                                                                                    add_const_lvalue_reference(Named (Type xs) "rhs"))) 
-                              (FuncBody ["return !(lhs == rhs);"])
+operNotEq tp xs = Function tp (FuncDecl [Inline] (Just (Type "bool")) "operator!=" (add_const_lvalue_reference(Arg (Type xs) "lhs"), 
+                                                                                    add_const_lvalue_reference(Arg (Type xs) "rhs"))) 
+                              (Body ["return !(lhs == rhs);"])
 
 operLt :: Maybe Template -> Identifier -> Function
-operLt tp xs = Function tp (FuncDecl [Inline] (Just (Type "bool")) "operator<"  (add_const_lvalue_reference(Named (Type xs) "lhs"), 
-                                                                                 add_const_lvalue_reference(Named (Type xs) "rhs"))) 
-                           (FuncBody ["/* implementation */"])
+operLt tp xs = Function tp (FuncDecl [Inline] (Just (Type "bool")) "operator<"  (add_const_lvalue_reference(Arg (Type xs) "lhs"), 
+                                                                                 add_const_lvalue_reference(Arg (Type xs) "rhs"))) 
+                           (Body ["/* implementation */"])
 
 operLtEq :: Maybe Template -> Identifier -> Function
-operLtEq tp xs = Function tp (FuncDecl [Inline] (Just (Type "bool")) "operator<=" (add_const_lvalue_reference(Named (Type xs) "lhs"), 
-                                                                                   add_const_lvalue_reference(Named (Type xs) "rhs"))) 
-                             (FuncBody ["return !(rhs < lhs);"])
+operLtEq tp xs = Function tp (FuncDecl [Inline] (Just (Type "bool")) "operator<=" (add_const_lvalue_reference(Arg (Type xs) "lhs"), 
+                                                                                   add_const_lvalue_reference(Arg (Type xs) "rhs"))) 
+                             (Body ["return !(rhs < lhs);"])
 
 operGt :: Maybe Template -> Identifier -> Function
-operGt tp xs = Function tp (FuncDecl [Inline] (Just (Type "bool")) "operator>" (add_const_lvalue_reference(Named (Type xs) "lhs"), 
-                                                                                add_const_lvalue_reference(Named (Type xs) "rhs"))) 
-                            (FuncBody ["return rhs < lhs;"])
+operGt tp xs = Function tp (FuncDecl [Inline] (Just (Type "bool")) "operator>" (add_const_lvalue_reference(Arg (Type xs) "lhs"), 
+                                                                                add_const_lvalue_reference(Arg (Type xs) "rhs"))) 
+                            (Body ["return rhs < lhs;"])
 
 operGtEq :: Maybe Template -> Identifier -> Function
-operGtEq tp xs = Function tp (FuncDecl [Inline] (Just (Type "bool")) "operator>=" (add_const_lvalue_reference(Named (Type xs) "lhs"), 
-                                                                                   add_const_lvalue_reference(Named (Type xs) "rhs"))) 
-                             (FuncBody ["return !(lsh < rhs);"])
+operGtEq tp xs = Function tp (FuncDecl [Inline] (Just (Type "bool")) "operator>=" (add_const_lvalue_reference(Arg (Type xs) "lhs"), 
+                                                                                   add_const_lvalue_reference(Arg (Type xs) "rhs"))) 
+                             (Body ["return !(lsh < rhs);"])
 
 operInsrt :: Maybe Template -> Identifier -> Function
 operInsrt tp xs = Function tapp 
                            (FuncDecl [] (Just (Type "typename std::basic_ostream<CharT, Traits> &")) "operator<<" 
-                                (Named (Type "std::basic_ostream<CharT,Traits>&") "out", 
-                                add_const_lvalue_reference (Named (Type $ getFullySpecializedName tp xs) "that")))
-                           (FuncBody ["return out;"])
+                                (Arg (Type "std::basic_ostream<CharT,Traits>&") "out", 
+                                add_const_lvalue_reference (Arg (Type $ getFullySpecializedName tp xs) "that")))
+                           (Body ["return out;"])
                                 where tapp =  mappend (Just (Template[Typename "CharT", Typename "Traits"])) tp 
 
 operExtrc :: Maybe Template -> Identifier -> Function
 operExtrc tp xs = Function tapp 
                            (FuncDecl [] (Just (Type "typename std::basic_istream<CharT, Traits> &")) "operator>>" 
-                                (Named (Type "std::basic_istream<CharT,Traits>&") "in", 
-                                add_lvalue_reference $ Named (Type $ getFullySpecializedName tp xs) "that"))
-                           (FuncBody ["return in;"])
+                                (Arg (Type "std::basic_istream<CharT,Traits>&") "in", 
+                                add_lvalue_reference $ Arg (Type $ getFullySpecializedName tp xs) "that"))
+                           (Body ["return in;"])
                                 where tapp =  mappend (Just (Template[Typename "CharT", Typename "Traits"])) tp 
 
 

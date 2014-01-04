@@ -161,7 +161,7 @@ model (SingletonClass name) =
                   operAssign name Delete,                                                                                           
                   function                                                                                                             
                       (FuncDecl [Static] (Just (add_lvalue_reference (Type name))) "instance" ())                            
-                      (MembFuncBody [ "static " ++ name ++ " one;", "return one;" ] Unqualified)                                       
+                      (MembBody [ "static " ++ name ++ " one;", "return one;" ] Unqualified)                                       
             ]                                                                                                                        
         ]                                                                                                                              
     ]

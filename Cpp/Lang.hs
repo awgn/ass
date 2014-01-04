@@ -79,7 +79,7 @@ class ArgShow a where
     argRender :: a -> String
 
 instance ArgShow ArgType where
-    argRender = render 
+    argRender x = "(" ++ render x ++ ")"
 
 instance ArgShow () where
     argRender () = "()"
@@ -383,7 +383,7 @@ instance CppSpecifier FuncDecl where
 instance CppShow FuncDecl where
     render (FuncDecl sp ret name args) = "\n" ++ spec ++ (if null spec then "" else " ") ++ render ret ++ 
                                         ( if null spec && null (getType ret) then "" else "\n" ) ++
-                                        name ++ "("  ++ argRender args ++ ")" 
+                                        name ++ argRender args  
                                             where spec = render sp
 
 ---------------------------------------------------------

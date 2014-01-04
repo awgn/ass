@@ -170,6 +170,17 @@ newtype Type = Type String
 noType :: Type
 noType = Type ""
 
+bool, int, unsigned_int, short, unsigned_short, char, unsigned_char, string :: Type
+
+bool           = Type "bool"
+int            = Type "int"
+unsigned_int   = Type "unsigned int"
+short          = Type "short"
+unsigned_short = Type "unsigned short"
+char           = Type "char"
+unsigned_char  = Type "unsigned char"
+string         = Type "std::string"
+
 instance CppShow Type where
     render = getType 
 
@@ -442,43 +453,43 @@ operMoveAssign name qual =
 
 _main :: [String] -> Function
 _main impl =  function  
-    (FuncDecl [] (Type "int") "main" (Arg (Type "int") "argc", Arg (Type "char *") "argv[]"))  
+    (FuncDecl [] int "main" (Arg int "argc", Arg (add_pointer(char)) "argv[]"))  
     (Body impl)
 
 operEq :: Maybe Template -> Identifier -> Function
 operEq tp xs  = Function tp 
-    (FuncDecl [Inline] (Type "bool") "operator==" (add_const_lvalue_reference(Arg (Type xs) "lhs"), 
-                                                   add_const_lvalue_reference(Arg (Type xs) "rhs"))) 
+    (FuncDecl [Inline] bool "operator==" (add_const_lvalue_reference(Arg (Type xs) "lhs"), 
+                                          add_const_lvalue_reference(Arg (Type xs) "rhs"))) 
     (Body ["/* implementation */" ])        
 
 operNotEq :: Maybe Template -> Identifier -> Function
 operNotEq tp xs = Function tp 
-    (FuncDecl [Inline] (Type "bool") "operator!=" (add_const_lvalue_reference(Arg (Type xs) "lhs"), 
-                                                   add_const_lvalue_reference(Arg (Type xs) "rhs"))) 
+    (FuncDecl [Inline] bool "operator!=" (add_const_lvalue_reference(Arg (Type xs) "lhs"), 
+                                          add_const_lvalue_reference(Arg (Type xs) "rhs"))) 
     (Body ["return !(lhs == rhs);"])
 
 operLt :: Maybe Template -> Identifier -> Function
 operLt tp xs = Function tp 
-    (FuncDecl [Inline] (Type "bool") "operator<"  (add_const_lvalue_reference(Arg (Type xs) "lhs"), 
-                                                   add_const_lvalue_reference(Arg (Type xs) "rhs"))) 
+    (FuncDecl [Inline] bool "operator<"  (add_const_lvalue_reference(Arg (Type xs) "lhs"), 
+                                          add_const_lvalue_reference(Arg (Type xs) "rhs"))) 
     (Body ["/* implementation */"])
 
 operLtEq :: Maybe Template -> Identifier -> Function
 operLtEq tp xs = Function tp 
-    (FuncDecl [Inline] (Type "bool") "operator<=" (add_const_lvalue_reference(Arg (Type xs) "lhs"), 
-                                                   add_const_lvalue_reference(Arg (Type xs) "rhs"))) 
+    (FuncDecl [Inline] bool "operator<=" (add_const_lvalue_reference(Arg (Type xs) "lhs"), 
+                                          add_const_lvalue_reference(Arg (Type xs) "rhs"))) 
     (Body ["return !(rhs < lhs);"])
 
 operGt :: Maybe Template -> Identifier -> Function
 operGt tp xs = Function tp 
-    (FuncDecl [Inline] (Type "bool") "operator>"  (add_const_lvalue_reference(Arg (Type xs) "lhs"), 
-                                                   add_const_lvalue_reference(Arg (Type xs) "rhs"))) 
+    (FuncDecl [Inline] bool "operator>"  (add_const_lvalue_reference(Arg (Type xs) "lhs"), 
+                                          add_const_lvalue_reference(Arg (Type xs) "rhs"))) 
     (Body ["return rhs < lhs;"])
 
 operGtEq :: Maybe Template -> Identifier -> Function
 operGtEq tp xs = Function tp 
-    (FuncDecl [Inline] (Type "bool") "operator>=" (add_const_lvalue_reference(Arg (Type xs) "lhs"), 
-                                                   add_const_lvalue_reference(Arg (Type xs) "rhs"))) 
+    (FuncDecl [Inline] bool "operator>=" (add_const_lvalue_reference(Arg (Type xs) "lhs"), 
+                                          add_const_lvalue_reference(Arg (Type xs) "rhs"))) 
     (Body ["return !(lsh < rhs);"])
 
 operInsrt :: Maybe Template -> Identifier -> Function

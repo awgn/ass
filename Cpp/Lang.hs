@@ -25,7 +25,6 @@ module Cpp.Lang where
 
 import Data.Monoid
 import Data.List 
-import Data.Maybe
 
 type Identifier = String
 type Code = Char
@@ -168,6 +167,9 @@ class CppType a where
 
 newtype Type = Type String 
 
+noType :: Type
+noType = Type ""
+
 instance CppShow Type where
     render = getType 
 
@@ -227,26 +229,26 @@ data Class = Class Identifier BaseSpecifierList [ClassAccessSpecifier] |
 
 
 instance CppShow Class where
-    render (Class ns base es) =  "class " ++ ns ++ render base ++ " {\n" ++ intercalate "\n" (map render es) ++ "\n\n};\n" 
-    render (TClass tp ns base es) =  template ++ (if null template then "" else "\n")  ++ "class " ++ ns ++ render base ++ " {\n" ++
+    render (Class name base es) =  "class " ++ name ++ render base ++ " {\n" ++ intercalate "\n" (map render es) ++ "\n\n};\n" 
+    render (TClass tp name base es) =  template ++ (if null template then "" else "\n")  ++ "class " ++ name ++ render base ++ " {\n" ++
                                  intercalate "\n" (map render es) ++ "\n\n};\n" 
                                    where template = render tp
 
 
 instance CppTemplate Class where
-    template +++ (Class name base ns) = TClass template name base ns
+    template +++ (Class name base bname) = TClass template name base bname
     _ +++ (TClass {})  = error "Template Syntax error"
 
 
 data BaseSpecifierList = NoBaseSpec | BaseSpecList [BaseAccessSpecifier] 
 
-data BaseAccessSpecifier = BasePublic      [Identifier] |
-                           BaseProtected   [Identifier] |
-                           BasePrivate     [Identifier]
+data BaseAccessSpecifier = BasePublic    [Identifier] |
+                           BaseProtected [Identifier] |
+                           BasePrivate   [Identifier]
 
-data ClassAccessSpecifier = Public      [CppEntity] |
-                            Protected   [CppEntity] |
-                            Private     [CppEntity]
+data ClassAccessSpecifier = Public    [CppEntity] |
+                            Protected [CppEntity] |
+                            Private   [CppEntity]
 
 
 class AccessSpecifier a b where
@@ -325,8 +327,8 @@ instance Monoid Template where
 
 
 getFullySpecializedName :: Maybe Template -> String -> String
-getFullySpecializedName Nothing ns = ns
-getFullySpecializedName (Just (Template xs)) ns = ns ++ "<" ++ intercalate ", " (map getTname xs) ++ ">"
+getFullySpecializedName Nothing name = name
+getFullySpecializedName (Just (Template xs)) name = name ++ "<" ++ intercalate ", " (map getTname xs) ++ ">"
 
 
 ---------------------------------------------------------
@@ -357,7 +359,7 @@ instance CppTemplate Function where
 -- Cpp Function Declaration
 --
 
-data FuncDecl = forall args . (ArgShow args) => FuncDecl [Specifier] (Maybe Type) Identifier args
+data FuncDecl = forall args . (ArgShow args) => FuncDecl [Specifier] Type Identifier args
 
 
 instance CppSpecifier FuncDecl where
@@ -368,9 +370,9 @@ instance CppSpecifier FuncDecl where
 
 
 instance CppShow FuncDecl where
-    render (FuncDecl sp ret ns args) = "\n" ++ spec ++ (if null spec then "" else " ") ++ render ret ++ 
-                                        ( if null spec && isNothing ret then "" else "\n" ) ++
-                                        ns ++ "("  ++ argRender args ++ ")" 
+    render (FuncDecl sp ret name args) = "\n" ++ spec ++ (if null spec then "" else " ") ++ render ret ++ 
+                                        ( if null spec && null (getType ret) then "" else "\n" ) ++
+                                        name ++ "("  ++ argRender args ++ ")" 
                                             where spec = render sp
 
 ---------------------------------------------------------
@@ -396,41 +398,41 @@ instance CppShow FuncBody where
 --
 
 ctor :: Identifier -> Qualifier -> Function
-ctor ns qual = 
+ctor name qual = 
     function 
-        (FuncDecl [] Nothing ns ()) 
+        (FuncDecl [] noType name ()) 
         (MembBody [] qual)
 
 
 dtor :: Identifier -> Qualifier -> Function
-dtor ns qual = 
-    function (FuncDecl [] Nothing ('~' : ns) ()) 
+dtor name qual = 
+    function (FuncDecl [] noType ('~' : name) ()) 
              (MembBody [] qual)
 
 
 copyCtor :: Identifier -> Qualifier -> Function
-copyCtor ns qual = 
-    function (FuncDecl [] Nothing ns (add_const_lvalue_reference(Arg (Type ns) "other"))) 
+copyCtor name qual = 
+    function (FuncDecl [] noType name (add_const_lvalue_reference $ Arg (Type name) "other")) 
              (MembBody [] qual)
 
 
 moveCtor :: Identifier -> Qualifier -> Function
-moveCtor ns qual = 
-    function (FuncDecl [] Nothing ns (add_rvalue_reference $ Arg (Type ns) "other")) 
+moveCtor name qual = 
+    function (FuncDecl [] noType name (add_rvalue_reference $ Arg (Type name) "other")) 
              (MembBody [] qual)
 
 
 operAssign:: Identifier -> Qualifier -> Function
-operAssign ns qual = 
-    function (FuncDecl [] (Just $ add_lvalue_reference (Type ns)) "operator=" 
-                (add_const_lvalue_reference $ Arg (Type ns) "other")) 
+operAssign name qual = 
+    function (FuncDecl [] (add_lvalue_reference (Type name)) 
+                          "operator=" (add_const_lvalue_reference $ Arg (Type name) "other")) 
              (MembBody ["return *this;" ] qual)
 
 
 operMoveAssign:: Identifier -> Qualifier -> Function
-operMoveAssign ns qual = 
-    function (FuncDecl [] (Just $ add_lvalue_reference (Type ns)) "operator=" 
-                (add_rvalue_reference $ Arg (Type ns) "other")) 
+operMoveAssign name qual = 
+    function (FuncDecl [] (add_lvalue_reference (Type name)) 
+                           "operator=" (add_rvalue_reference $ Arg (Type name) "other")) 
              (MembBody ["return *this;" ] qual)
 
 
@@ -440,53 +442,59 @@ operMoveAssign ns qual =
 
 _main :: [String] -> Function
 _main impl =  function  
-                (FuncDecl [] (Just $ Type "int") "main" (Arg (Type "int") "argc", Arg (Type "char *") "argv[]"))  
-                (Body impl)
+    (FuncDecl [] (Type "int") "main" (Arg (Type "int") "argc", Arg (Type "char *") "argv[]"))  
+    (Body impl)
 
 operEq :: Maybe Template -> Identifier -> Function
-operEq tp xs  = Function tp (FuncDecl [Inline] (Just (Type "bool")) "operator==" (add_const_lvalue_reference(Arg (Type xs) "lhs"), 
-                                                                                  add_const_lvalue_reference(Arg (Type xs) "rhs"))) 
-                            (Body ["/* implementation */" ])        
+operEq tp xs  = Function tp 
+    (FuncDecl [Inline] (Type "bool") "operator==" (add_const_lvalue_reference(Arg (Type xs) "lhs"), 
+                                                   add_const_lvalue_reference(Arg (Type xs) "rhs"))) 
+    (Body ["/* implementation */" ])        
 
 operNotEq :: Maybe Template -> Identifier -> Function
-operNotEq tp xs = Function tp (FuncDecl [Inline] (Just (Type "bool")) "operator!=" (add_const_lvalue_reference(Arg (Type xs) "lhs"), 
-                                                                                    add_const_lvalue_reference(Arg (Type xs) "rhs"))) 
-                              (Body ["return !(lhs == rhs);"])
+operNotEq tp xs = Function tp 
+    (FuncDecl [Inline] (Type "bool") "operator!=" (add_const_lvalue_reference(Arg (Type xs) "lhs"), 
+                                                   add_const_lvalue_reference(Arg (Type xs) "rhs"))) 
+    (Body ["return !(lhs == rhs);"])
 
 operLt :: Maybe Template -> Identifier -> Function
-operLt tp xs = Function tp (FuncDecl [Inline] (Just (Type "bool")) "operator<"  (add_const_lvalue_reference(Arg (Type xs) "lhs"), 
-                                                                                 add_const_lvalue_reference(Arg (Type xs) "rhs"))) 
-                           (Body ["/* implementation */"])
+operLt tp xs = Function tp 
+    (FuncDecl [Inline] (Type "bool") "operator<"  (add_const_lvalue_reference(Arg (Type xs) "lhs"), 
+                                                   add_const_lvalue_reference(Arg (Type xs) "rhs"))) 
+    (Body ["/* implementation */"])
 
 operLtEq :: Maybe Template -> Identifier -> Function
-operLtEq tp xs = Function tp (FuncDecl [Inline] (Just (Type "bool")) "operator<=" (add_const_lvalue_reference(Arg (Type xs) "lhs"), 
-                                                                                   add_const_lvalue_reference(Arg (Type xs) "rhs"))) 
-                             (Body ["return !(rhs < lhs);"])
+operLtEq tp xs = Function tp 
+    (FuncDecl [Inline] (Type "bool") "operator<=" (add_const_lvalue_reference(Arg (Type xs) "lhs"), 
+                                                   add_const_lvalue_reference(Arg (Type xs) "rhs"))) 
+    (Body ["return !(rhs < lhs);"])
 
 operGt :: Maybe Template -> Identifier -> Function
-operGt tp xs = Function tp (FuncDecl [Inline] (Just (Type "bool")) "operator>" (add_const_lvalue_reference(Arg (Type xs) "lhs"), 
-                                                                                add_const_lvalue_reference(Arg (Type xs) "rhs"))) 
-                            (Body ["return rhs < lhs;"])
+operGt tp xs = Function tp 
+    (FuncDecl [Inline] (Type "bool") "operator>"  (add_const_lvalue_reference(Arg (Type xs) "lhs"), 
+                                                   add_const_lvalue_reference(Arg (Type xs) "rhs"))) 
+    (Body ["return rhs < lhs;"])
 
 operGtEq :: Maybe Template -> Identifier -> Function
-operGtEq tp xs = Function tp (FuncDecl [Inline] (Just (Type "bool")) "operator>=" (add_const_lvalue_reference(Arg (Type xs) "lhs"), 
-                                                                                   add_const_lvalue_reference(Arg (Type xs) "rhs"))) 
-                             (Body ["return !(lsh < rhs);"])
+operGtEq tp xs = Function tp 
+    (FuncDecl [Inline] (Type "bool") "operator>=" (add_const_lvalue_reference(Arg (Type xs) "lhs"), 
+                                                   add_const_lvalue_reference(Arg (Type xs) "rhs"))) 
+    (Body ["return !(lsh < rhs);"])
 
 operInsrt :: Maybe Template -> Identifier -> Function
-operInsrt tp xs = Function tapp 
-                           (FuncDecl [] (Just (Type "typename std::basic_ostream<CharT, Traits> &")) "operator<<" 
-                                (Arg (Type "std::basic_ostream<CharT,Traits>&") "out", 
-                                add_const_lvalue_reference (Arg (Type $ getFullySpecializedName tp xs) "that")))
-                           (Body ["return out;"])
-                                where tapp =  mappend (Just (Template[Typename "CharT", Typename "Traits"])) tp 
+operInsrt tp xs = Function template 
+    (FuncDecl [] (Type "typename std::basic_ostream<CharT, Traits> &") 
+                 "operator<<" (Arg (Type "std::basic_ostream<CharT,Traits>&") "out", 
+                               add_const_lvalue_reference (Arg (Type $ getFullySpecializedName tp xs) "that")))
+    (Body ["return out;"])
+        where template =  mappend (Just (Template[Typename "CharT", Typename "Traits"])) tp 
 
 operExtrc :: Maybe Template -> Identifier -> Function
-operExtrc tp xs = Function tapp 
-                           (FuncDecl [] (Just (Type "typename std::basic_istream<CharT, Traits> &")) "operator>>" 
-                                (Arg (Type "std::basic_istream<CharT,Traits>&") "in", 
+operExtrc tp xs = Function template 
+    (FuncDecl [] (Type "typename std::basic_istream<CharT, Traits> &") 
+                  "operator>>" (Arg (Type "std::basic_istream<CharT,Traits>&") "in", 
                                 add_lvalue_reference $ Arg (Type $ getFullySpecializedName tp xs) "that"))
-                           (Body ["return in;"])
-                                where tapp =  mappend (Just (Template[Typename "CharT", Typename "Traits"])) tp 
+    (Body ["return in;"])
+        where template = mappend (Just (Template[Typename "CharT", Typename "Traits"])) tp 
 
 

@@ -160,7 +160,7 @@ model (SingletonClass name) =
                   copyCtor   name Delete,                                                                                             
                   operAssign name Delete,                                                                                           
                   function                                                                                                             
-                      (FuncDecl [Static] (Just (add_lvalue_reference (Type name))) "instance" ())                            
+                      (FuncDecl [Static] (add_lvalue_reference (Type name)) "instance" ())                            
                       (MembBody [ "static " ++ name ++ " one;", "return one;" ] Unqualified)                                       
             ]                                                                                                                        
         ]                                                                                                                              

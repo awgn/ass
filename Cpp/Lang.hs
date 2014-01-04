@@ -170,7 +170,7 @@ newtype Type = Type String
 noType :: Type
 noType = Type ""
 
-bool, int, unsigned_int, short, unsigned_short, char, unsigned_char, string :: Type
+bool, int, unsigned_int, short, unsigned_short, char, unsigned_char, double, string :: Type
 
 bool           = Type "bool"
 int            = Type "int"
@@ -179,6 +179,7 @@ short          = Type "short"
 unsigned_short = Type "unsigned short"
 char           = Type "char"
 unsigned_char  = Type "unsigned char"
+double         = Type "double"
 string         = Type "std::string"
 
 instance CppShow Type where

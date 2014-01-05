@@ -101,10 +101,14 @@
 #include <future>
 #include <atomic>
 
-//////////////////////////////////////////////////////// additional type_traits...
-
 namespace ass 
 {
+
+#ifndef PASTE
+#define PASTE(a,b)      a ## b
+#define XPASTE(a,b)     PASTE(a,b)
+#endif
+
     namespace traits {
 
     // For use in __is_convertible_simple.
@@ -1085,13 +1089,12 @@ namespace ass {
 
     ////////////////////////////////////////////////////////////// interactive: run a command line
     
-    struct main_ 
+    struct eval 
     {
         template <typename Fun>
-        main_(Fun fun)
+        eval(Fun fun)
         {
             cmdline<decltype(fun())>::run(fun);
-            std::exit(0); 
         }
 
         template <typename T>
@@ -1105,12 +1108,11 @@ namespace ass {
     };
 
     template <>
-    struct main_::cmdline<void>
+    struct eval::cmdline<void>
     {
         template <typename F>
         static void run(F f) 
         { f(); std::cout << "(void) "; }
-
     };
 
 

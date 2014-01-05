@@ -356,14 +356,14 @@ useThreadOrAsync src =  any (`elem` identifiers) ["thread", "async"]
 
 
 getQualifiedNamespace :: Source -> [String]
-getQualifiedNamespace src = concatMap 
-    (\[t1,t2] -> if Cpp.isOperOrPunct t2 && Cpp.toString t2 == "::" then [Cpp.toString t1] else [])  grps  
+getQualifiedNamespace src = [ Cpp.toString t1 | [t1,t2] <- grps, 
+                                Cpp.isOperOrPunct t2 && Cpp.toString t2 == "::" ]  
         where grps = spanGroup 2 $ Cpp.tokenizer $ sourceCodeFilter src
  
 
 getDeclaredNamespace :: Source -> [String]
-getDeclaredNamespace src = filter (/= "{") $ concatMap 
-    (\[t1,t2] -> if Cpp.isKeyword t1 && Cpp.toString t1 == "namespace" then [Cpp.toString t2] else [] ) grps
+getDeclaredNamespace src =  [ t | [t1,t2] <- grps, let t = Cpp.toString t2, 
+                                            Cpp.isKeyword t1 && Cpp.toString t1 == "namespace", t /= "{"] 
         where grps = spanGroup 2 $ Cpp.tokenizer $ sourceCodeFilter src
 
 

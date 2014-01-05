@@ -75,7 +75,7 @@ compilerList = [
 banner, snippet, assrc, ass_history :: String 
 tmpDir, includeDir :: FilePath
 
-banner      = "ASSi, version 2.3"
+banner      = "ASSi, version 2.4"
 snippet     = "ass-snippet" 
 tmpDir      =  "/tmp" 
 includeDir  =  "/usr/local/include"
@@ -378,11 +378,10 @@ makeSourceCode :: Source -> Source -> [String] -> Bool -> Bool -> [SourceCode]
 makeSourceCode code cmd_code ns preload boost  
     = preloadHeaders preload headers code' ++ 
          makeNamespaces ns  ++ 
-         concatMap makeCmdCode (groupBy (\_ _ -> False) main_code') ++ 
-         let cmd = concatMap makeCmdCode [zipSourceCode cmd_code] in 
-             if null cmd then [] else (cmd ++ [exit]) ++ 
+         concatMap makeCmdCode (groupBy (\_ _ -> False) cmd_code') ++ 
+         (let cmd = concatMap makeCmdCode [zipSourceCode cmd_code] in if null cmd then [] else (cmd ++ [exit])) ++ 
          [main']
-      where (code', main_code') = foldl parseCodeLine ([], []) (zipSourceCode code) 
+      where (code', cmd_code') = foldl parseCodeLine ([], []) (zipSourceCode code) 
             main'   | hasMain code = [] 
                     | otherwise    = [ CodeLine 1 "int main() {}" ]
             exit                   = [ CodeLine 1 "auto __EXIT__ = ass::eval([]() { std::exit(0); }); "]                            
@@ -401,7 +400,7 @@ makeInclude s = CodeLine 1 (C.pack $ "#include " ++ s)
 
 makeCmdCode :: SourceCode -> [SourceCode]
 makeCmdCode [] = []
-makeCmdCode main_code = [cmdHeader, main_code, cmdFooter] 
+makeCmdCode code = [cmdHeader, code, cmdFooter] 
     where cmdHeader = [ CodeLine 1 "auto XPASTE(__VOID_, __COUNTER__) = ass::eval([] {" ] 
           cmdFooter = [ CodeLine 1 "});" ]
 

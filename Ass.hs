@@ -369,13 +369,18 @@ getDeclaredNamespace src = filter (/= "{") $ map (Cpp.toString . (\i -> tokens !
 
 
 makeSourceCode :: Source -> Source -> [String] -> Bool -> Bool -> [SourceCode]
-makeSourceCode code main_code ns preload boost  
-    = preloadHeaders preload headers code' ++ makeNamespaces ns  ++ makeCmdCode (zipSourceCode main_code ++ main_code') ++ [main']
+makeSourceCode code cmd_code ns preload boost  
+    = preloadHeaders preload headers code' ++ 
+         makeNamespaces ns  ++ 
+         concatMap makeCmdCode (groupBy (\_ _ -> False) main_code') ++ 
+         let cmd = concatMap makeCmdCode [zipSourceCode cmd_code] in 
+             if null cmd then [] else (cmd ++ [exit]) ++ 
+         [main']
       where (code', main_code') = foldl parseCodeLine ([], []) (zipSourceCode code) 
             main'   | hasMain code = [] 
                     | otherwise    = [ CodeLine 1 "int main() {}" ]
+            exit                   = [ CodeLine 1 "auto __EXIT__ = ass::eval([]() { std::exit(0); }); "]                            
             headers                = makeInclude "<ass.hpp>" : [ makeInclude "<ass-boost.hpp>" | boost ]
-                                         
 
 preloadHeaders :: Bool -> SourceCode -> SourceCode -> [SourceCode]
 preloadHeaders True  header code = [header, code]
@@ -388,8 +393,8 @@ makeInclude s = CodeLine 1 (C.pack $ "#include " ++ s)
 
 makeCmdCode :: SourceCode -> [SourceCode]
 makeCmdCode [] = []
-makeCmdCode main_code = [cmdHeader, main_code, cmdFooter]
-    where cmdHeader = [ CodeLine 1 "auto __VOID__ = ass::main_([] {" ] 
+makeCmdCode main_code = [cmdHeader, main_code, cmdFooter] 
+    where cmdHeader = [ CodeLine 1 "auto XPASTE(__VOID_, __COUNTER__) = ass::eval([] {" ] 
           cmdFooter = [ CodeLine 1 "});" ]
 
 

@@ -356,16 +356,22 @@ useThreadOrAsync src =  any (`elem` identifiers) ["thread", "async"]
 
 
 getQualifiedNamespace :: Source -> [String]
-getQualifiedNamespace src = names  
-        where tokens = Cpp.TokenIdentifier "" 0 : Cpp.tokenizer (sourceCodeFilter src)
-              ids    = findIndices (\t -> Cpp.isOperOrPunct t && Cpp.toString t == "::") tokens
-              names  = map Cpp.toString $ filter Cpp.isIdentifier $ map (\i -> tokens !! (i-1)) ids
-
+getQualifiedNamespace src = concatMap 
+    (\[t1,t2] -> if Cpp.isOperOrPunct t2 && Cpp.toString t2 == "::" then [Cpp.toString t1] else [])  grps  
+        where grps = spanGroup 2 $ Cpp.tokenizer $ sourceCodeFilter src
+ 
 
 getDeclaredNamespace :: Source -> [String]
-getDeclaredNamespace src = filter (/= "{") $ map (Cpp.toString . (\i -> tokens !! (i + 1))) is  
-                        where tokens = Cpp.tokenizer $ sourceCodeFilter src
-                              is = findIndices (\token -> Cpp.isKeyword token && Cpp.toString token == "namespace") tokens 
+getDeclaredNamespace src = filter (/= "{") $ concatMap 
+    (\[t1,t2] -> if Cpp.isKeyword t1 && Cpp.toString t1 == "namespace" then [Cpp.toString t2] else [] ) grps
+        where grps = spanGroup 2 $ Cpp.tokenizer $ sourceCodeFilter src
+
+
+spanGroup :: Int -> [a] -> [[a]]
+spanGroup _ [] = []
+spanGroup 1 xs = map (: []) xs
+spanGroup n xs | length xs >= n = take n xs : spanGroup n (tail xs)
+               | otherwise      = []
 
 
 makeSourceCode :: Source -> Source -> [String] -> Bool -> Bool -> [SourceCode]
@@ -382,9 +388,11 @@ makeSourceCode code cmd_code ns preload boost
             exit                   = [ CodeLine 1 "auto __EXIT__ = ass::eval([]() { std::exit(0); }); "]                            
             headers                = makeInclude "<ass.hpp>" : [ makeInclude "<ass-boost.hpp>" | boost ]
 
+
 preloadHeaders :: Bool -> SourceCode -> SourceCode -> [SourceCode]
 preloadHeaders True  header code = [header, code]
 preloadHeaders False header code = [code, header]
+
 
 
 makeInclude :: String -> CodeLine

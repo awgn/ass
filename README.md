@@ -26,7 +26,7 @@ Help
 Session
 -------
   
-    ASSi, version 2.4 :? for help
+    ASSi, version 2.5 :? for help
     Compilers found: /usr/bin/g++-4.8 /usr/bin/g++-4.7 /usr/bin/g++-4.6 /usr/bin/clang++ 
     Using Gcc48 compiler...
     Ass> :?

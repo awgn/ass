@@ -26,10 +26,10 @@ Help
 Session
 -------
   
-    ASSi, version 2.5 :? for help
-    Compilers found: /usr/bin/g++-4.8 /usr/bin/g++-4.7 /usr/bin/g++-4.6 /usr/bin/clang++ 
+    ASSi, version 2.6 :? for help
+    Compilers found: /usr/bin/g++-4.8(Gcc48) /usr/bin/g++-4.7(Gcc47) /usr/bin/g++-4.6(Gcc46) /usr/bin/clang++(Clang34) 
     Using Gcc48 compiler...
-    Ass> :?
+    Ass Gcc48> :?
     Commands available from the prompt:
     
     <statement>                 evaluate/run C++ <statement>
@@ -43,10 +43,12 @@ Session
       :args ARG1 ARG2...        set runtime arguments
       :run [ARG1 ARG2...]       run main function
       :preload                  toggle preload std headers
+      :verbose                  show additional information
       :quit                     quit
       :?                        print this help
-
+    
     C++ goodies:
+      _s _h,_min,_s,_ms,_us...  string and chrono user-defined literals
       _(1,2,3)                  tuple/pair constructor
       P(arg1, arg2, ...)        variadic print
       T<type>()                 demangle the name of a type

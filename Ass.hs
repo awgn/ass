@@ -79,7 +79,7 @@ compilerList = [
 banner, snippet, assrc, ass_history :: String 
 tmpDir, includeDir :: FilePath
 
-banner      = "ASSi, version 2.5"
+banner      = "ASSi, version 2.6"
 snippet     = "ass-snippet" 
 tmpDir      =  "/tmp" 
 includeDir  =  "/usr/local/include"
@@ -322,6 +322,7 @@ printHelp =  lift $ putStrLn $ "Commands available from the prompt:\n\n" ++
                         "  :quit                     quit\n" ++
                         "  :?                        print this help\n\n" ++  
                         "C++ goodies:\n" ++
+                        "  _s _h,_min,_s,_ms,_us...  string and chrono user-defined literals\n" ++
                         "  _(1,2,3)                  tuple/pair constructor\n" ++
                         "  P(arg1, arg2, ...)        variadic print\n" ++
                         "  T<type>()                 demangle the name of a type\n" ++

@@ -927,6 +927,8 @@ inline namespace ass_inline {
         return in;
     }
 
+#if __cplusplus >= 201103L
+
     /// user defined literal... (waiting C++14!)
 
     inline std::basic_string<char>
@@ -970,6 +972,8 @@ inline namespace ass_inline {
     {
         return std::chrono::nanoseconds{n};
     }
+
+#endif
 
 } // namespace ass_inline
 

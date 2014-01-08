@@ -458,7 +458,7 @@ inline namespace more_show {
         template <> struct duration_traits<std::chrono::microseconds> { static constexpr const char *str = "_us"; };
         template <> struct duration_traits<std::chrono::milliseconds> { static constexpr const char *str = "_ms"; };
         template <> struct duration_traits<std::chrono::seconds>      { static constexpr const char *str = "_s"; };
-        template <> struct duration_traits<std::chrono::minutes>      { static constexpr const char *str = "_m"; };
+        template <> struct duration_traits<std::chrono::minutes>      { static constexpr const char *str = "_min"; };
         template <> struct duration_traits<std::chrono::hours>        { static constexpr const char *str = "_h"; };
 
     } // namespace details
@@ -925,6 +925,50 @@ inline namespace ass_inline {
         std::ostringstream ss; ss << "->O@" << (void *)that.value << ' ';
         O::print(std::cout, ss.str().c_str());
         return in;
+    }
+
+    /// user defined literal... (waiting C++14!)
+
+    inline std::basic_string<char>
+    operator "" _s(const char* str, size_t len)
+    { 
+        return std::basic_string<char>{str, len}; 
+    } 
+
+    constexpr
+    std::chrono::hours operator"" _h(unsigned long long n)
+    {
+        return std::chrono::hours{n};
+    }
+    
+    constexpr
+    std::chrono::minutes operator"" _min(unsigned long long n)
+    {
+        return std::chrono::minutes{n};
+    }
+
+    constexpr
+    std::chrono::seconds operator"" _s(unsigned long long n)
+    {
+        return std::chrono::seconds{n};
+    }
+    
+    constexpr
+    std::chrono::milliseconds operator"" _ms(unsigned long long n)
+    {
+        return std::chrono::milliseconds{n};
+    }
+    
+    constexpr
+    std::chrono::microseconds operator"" _us(unsigned long long n)
+    {
+        return std::chrono::microseconds{n};
+    }
+    
+    constexpr
+    std::chrono::nanoseconds operator"" _ns(unsigned long long n)
+    {
+        return std::chrono::nanoseconds{n};
     }
 
 } // namespace ass_inline

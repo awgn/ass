@@ -491,7 +491,7 @@ operGtEq :: Maybe Template -> Identifier -> Function
 operGtEq tp xs = Function tp 
     (FuncDecl [Inline] bool "operator>=" (add_const_lvalue_reference(Arg (Type xs) "lhs"), 
                                           add_const_lvalue_reference(Arg (Type xs) "rhs"))) 
-    (Body ["return !(lsh < rhs);"])
+    (Body ["return !(lhs < rhs);"])
 
 operInsrt :: Maybe Template -> Identifier -> Function
 operInsrt tp xs = Function template 

@@ -39,7 +39,9 @@ data Entity = ENamespace     Identifier |
               SingletonClass Identifier |
               CRTPClass      Identifier Identifier |
               YatsTest       String     |
-              Streamable     Identifier
+              Streamable     Identifier |
+              Showable       Identifier |
+              Readable       Identifier 
                 deriving (Show)
 
 factoryEntity :: Code -> [String] -> (Entity, [String])
@@ -53,21 +55,26 @@ factoryEntity 'n' (x:xs)    = (ENamespace x, xs)
 factoryEntity 'r' (x:y:xs)  = (CRTPClass x y, xs)
 factoryEntity 'y' (x:xs)    = (YatsTest x, xs)
 factoryEntity 'x' (x:xs)    = (Streamable x, xs)
+factoryEntity 'S' (x:xs)    = (Showable x, xs)
+factoryEntity 'R' (x:xs)    = (Readable x, xs)
+
 
 factoryEntity  c  _ | c `elem` "cmtvsnryx" = error $ "Missing argument(s) for entity '" ++ [c] ++ "'"
 factoryEntity  c  _ = error $ "Unknown entity '" ++ [c] ++ "'. Usage [code] ARG... \n" ++ helpString
 
 
 helpString :: String
-helpString = "     c -> simple class\n" ++
-             "     m -> moavable class\n" ++
-             "     t -> template class\n" ++
-             "     v -> value class\n" ++
-             "     s -> singleton class\n" ++
-             "     n -> namespace\n" ++
-             "     r -> crtp idiom\n" ++
-             "     y -> yats test\n" ++
-             "     x -> streamable type"
+helpString = "     n  ID       namespace\n" ++
+             "     c  ID       simple class\n" ++
+             "     m  ID       moavable class\n" ++
+             "     t  ID       template class\n" ++
+             "     v  ID       value class\n" ++
+             "     s  ID       singleton class\n" ++
+             "     r  BASE ID  crtp idiom\n" ++
+             "     y  ID       yats test\n" ++
+             "     x  ID       streamable type\n" ++
+             "     S  ID       show type\n" ++
+             "     R  ID       read type"
 
 ---------------------------------- Cpp Class Models:                             
 
@@ -76,6 +83,23 @@ model :: Entity -> [CppEntity]
 model (ENamespace name)  = 
     cpp [ Namespace name [] ]
 
+
+model (Showable name) = 
+    cpp 
+    [
+        function
+        (FuncDecl [Inline] string "show" (add_lvalue_reference . add_const $ Arg (Type name) "value"))  
+        (Body [""])
+    ]
+
+model (Readable name) = 
+    cpp 
+    [
+        Function (Just $ Template[Typename "CharT", Typename "Traits"])
+            (FuncDecl [] (Type "void") "read" (add_lvalue_reference $ Arg (Type name) "ret", 
+                                               Arg (Type "std::basic_istream<CharT, Traits> &") "in" ))
+            (Body ["ret = ...;"])
+    ]
 
 model (SimpleClass name) = 
     cpp 

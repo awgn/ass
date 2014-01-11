@@ -301,7 +301,7 @@ mainLoop args clist = do
                                                   lift (put $ stateBanner.~ False $ s) >> loop
 
                      Just (":info":xs)      -> do e <- liftIO $ buildCompileAndRun (C.pack (unlines (s^.statePrepList) ++ unlines (s^.stateCode))) 
-                                                                    (C.pack $ "return type_info_<" ++ unwords xs ++ ">();") 
+                                                                    (C.pack $ if null xs then "" else "return type_info_<" ++ unwords xs ++ ">();") 
                                                                     (s^.statePreload) 
                                                                     (s^.stateVerbose) 
                                                                     (compFilterType (s^.stateCompType) clist) 

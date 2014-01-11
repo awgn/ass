@@ -368,14 +368,14 @@ namespace ass
     {
         std::string ret; ret.reserve(8);
 
-        const char * p1 = reinterpret_cast<char const *>(value.v1.get());    
-        const char * p2 = reinterpret_cast<char const *>(value.v2.get());    
+        auto p1 = reinterpret_cast<char const *>(value.v1.get());    
+        auto p2 = reinterpret_cast<char const *>(value.v2.get());    
 
         for(size_t n = 0; n < sizeof(Tp); ++n)
         {
             if (p1[n] == p2[n])
             {
-                ret += (p1[n] == 0 ? '0' : '.');
+                ret += (p1[n] == 0 ? '0' : 'X');
             }
             else
             {

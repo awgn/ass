@@ -42,6 +42,7 @@ Session
       :next                     switch to next compiler
       :args ARG1 ARG2...        set runtime arguments
       :run [ARG1 ARG2...]       run main function
+      :xray TYPE                show info about the given TYPE
       :preload                  toggle preload std headers
       :verbose                  show additional information
       :quit                     quit

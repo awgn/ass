@@ -58,8 +58,9 @@ type MainFunction    = SourceCode
 type ParserState     = (TranslationUnit, MainFunction)
  
 instance Show CodeLine where
-    show (CodeLine n xs) = "#line " ++ show n ++ "\n" ++ C.unpack xs  
-
+    show (CodeLine n xs)
+        | "\\" `C.isSuffixOf` xs = C.unpack xs  
+        | otherwise              = C.unpack xs ++ "\n#line " ++ show n 
 
 -- default compiler list (overridden by ~/.assrc)
 --
@@ -474,7 +475,7 @@ parseCodeLine (t,m) (CodeLine n l)
 
 
 zipSourceCode :: Source -> SourceCode
-zipSourceCode src = zipWith CodeLine [1..] (C.lines src)
+zipSourceCode src = zipWith CodeLine [2..] (C.lines src)
 
 
 getCompilerOpt :: Compiler -> [String]

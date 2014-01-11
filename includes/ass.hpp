@@ -1211,12 +1211,64 @@ inline namespace ass_inline {
 
     ////////////////////////////////////////////////////////////// Xray<Type>(): make xray
 
+#define XRAY_TRAIT_INFO(Tp,trait)   std::cout << # trait ": " << std::trait<Tp>::value << std::endl
+
     template <typename Tp>
     void Xray()
     {
-        std::cout << "default: {" << show( ass::xray_ptr<Tp>::make_default() ) << '}' << std::endl;
-        std::cout << "uniform: {" << show( ass::xray_ptr<Tp>::make_uniform() ) << '}' << std::endl;
-        std::cout << "value  : {" << show( ass::xray_ptr<Tp>::make_value() )   << '}' << std::endl;
+        std::cout << std::boolalpha;
+//      XRAY_TRAIT_INFO(Tp, is_trivially_copyable); 
+        
+        XRAY_TRAIT_INFO(Tp, is_const           );
+        XRAY_TRAIT_INFO(Tp, is_volatile        );
+        XRAY_TRAIT_INFO(Tp, is_trivial         );
+        XRAY_TRAIT_INFO(Tp, is_standard_layout );
+        XRAY_TRAIT_INFO(Tp, is_pod             );
+        XRAY_TRAIT_INFO(Tp, is_literal_type    );
+        XRAY_TRAIT_INFO(Tp, is_empty           );
+        XRAY_TRAIT_INFO(Tp, is_polymorphic     );
+        XRAY_TRAIT_INFO(Tp, is_abstract        );
+        XRAY_TRAIT_INFO(Tp, is_signed          );
+        XRAY_TRAIT_INFO(Tp, is_unsigned        );
+ 
+        XRAY_TRAIT_INFO(Tp, is_constructible                     );
+        XRAY_TRAIT_INFO(Tp, is_nothrow_constructible             );
+        
+//      XRAY_TRAIT_INFO(Tp, is_trivially_constructible           );
+//      XRAY_TRAIT_INFO(Tp, is_trivially_default_constructible   );
+//      XRAY_TRAIT_INFO(Tp, is_trivially_copy_constructible      );
+//      XRAY_TRAIT_INFO(Tp, is_trivially_move_constructible      );
+//      XRAY_TRAIT_INFO(Tp, is_assignable                        );
+//      XRAY_TRAIT_INFO(Tp, is_trivially_assignable              );
+//      XRAY_TRAIT_INFO(Tp, is_nothrow_assignable                );
+//      XRAY_TRAIT_INFO(Tp, is_trivially_copy_assignable         );
+//      XRAY_TRAIT_INFO(Tp, is_trivially_move_assignable         );
+
+#if (__clang__) || ((__GNUC__ == 4) && (__GNUC_MINOR__ > 6))
+        XRAY_TRAIT_INFO(Tp, is_default_constructible             );
+        XRAY_TRAIT_INFO(Tp, is_nothrow_default_constructible     );
+        XRAY_TRAIT_INFO(Tp, is_copy_constructible                );
+        XRAY_TRAIT_INFO(Tp, is_nothrow_copy_constructible        );
+        XRAY_TRAIT_INFO(Tp, is_move_constructible                );
+        XRAY_TRAIT_INFO(Tp, is_nothrow_move_constructible        );
+        XRAY_TRAIT_INFO(Tp, is_copy_assignable                   );
+        XRAY_TRAIT_INFO(Tp, is_nothrow_copy_assignable           );
+        XRAY_TRAIT_INFO(Tp, is_nothrow_move_assignable           );
+        XRAY_TRAIT_INFO(Tp, is_destructible                      );
+        XRAY_TRAIT_INFO(Tp, is_move_assignable                   );
+#endif
+       
+#if (__clang__) || ((__GNUC__ == 4) && (__GNUC_MINOR__ > 7))
+        XRAY_TRAIT_INFO(Tp, is_trivially_destructible            );
+        XRAY_TRAIT_INFO(Tp, is_nothrow_destructible              );
+#endif
+        XRAY_TRAIT_INFO(Tp, has_virtual_destructor               );
+        
+        std::cout << "sizeof   : " << sizeof(Tp) << std::endl;
+        std::cout << "alignment: " << std::alignment_of<Tp>::value << std::endl;
+        std::cout << "default  : {" << show( ass::xray_ptr<Tp>::make_default() ) << '}' << std::endl;
+        std::cout << "uniform  : {" << show( ass::xray_ptr<Tp>::make_uniform() ) << '}' << std::endl;
+        std::cout << "value    : {" << show( ass::xray_ptr<Tp>::make_value() )   << '}' << std::endl;
     }
 
 } // namespace ass_inline

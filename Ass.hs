@@ -381,7 +381,7 @@ buildCompileAndRun :: Source -> Source -> Bool -> Bool -> [Compiler] -> [String]
 buildCompileAndRun code main_code preload verbose clist cargs targs = do 
     cwd' <- getCurrentDirectory
     name <- getEffectiveUserName 
-    let boost = let ns = getQualifiedNamespace main_code in any (`elem` ns) ["b","boost"]
+    let boost = let ns = getQualifiedNamespace (code `C.append` main_code) in any (`elem` ns) ["b","boost"]
     let bin   = tmpDir </> snippet ++ "-" ++ name
     let src   = bin `addExtension` "cpp"
     writeSource src $ makeSourceCode code main_code (getDeclaredNamespace code) preload boost
@@ -410,7 +410,8 @@ useThreadOrAsync src =  any (`elem` identifiers) ["thread", "async"]
 
 getQualifiedNamespace :: Source -> [String]
 getQualifiedNamespace src = [ Cpp.toString t1 | [t1,t2] <- grps, 
-                                Cpp.isOperOrPunct t2 && Cpp.toString t2 == "::" ]  
+                                Cpp.isOperOrPunct t2,
+                                Cpp.toString t2 == "::" ]  
         where grps = spanGroup 2 $ Cpp.tokenizer $ sourceCodeFilter src
  
 

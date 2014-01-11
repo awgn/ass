@@ -293,6 +293,98 @@ namespace ass
         return std::string(ret.get());
     }
 
+    // xray pointer
+    //
+    
+    template <typename Tp>
+    struct xray_ptr
+    {
+        std::unique_ptr<Tp> v1;
+        std::unique_ptr<Tp> v2;
+
+        static std::pair<void *, void *>
+        get_memory()
+        {
+            auto p1 = malloc(sizeof(Tp));
+            auto p2 = malloc(sizeof(Tp));
+
+            auto fill = [](void * start, size_t len, size_t init) 
+            {
+                auto p = static_cast<char *>(start);
+                for(auto n = init; n < init + len ; ++n)
+                    *p++ = n;
+            };
+
+            fill(p1, sizeof(Tp), 0);
+            fill(p2, sizeof(Tp), sizeof(Tp));
+
+            return std::make_pair(p1, p2);
+        }
+
+        template <typename ...Ts>
+        static xray_ptr<Tp>
+        make_default()
+        {
+            void *p1, *p2; std::tie(p1,p2) = get_memory();
+
+            new (p1) Tp;
+            new (p2) Tp;
+
+            return { std::unique_ptr<Tp>(reinterpret_cast<Tp *>(p1)),
+                std::unique_ptr<Tp>(reinterpret_cast<Tp *>(p2)) };
+        }
+
+        template <typename ...Ts>
+        static xray_ptr<Tp>
+        make_value(Ts && ... args)
+        {
+            void *p1, *p2; std::tie(p1,p2) = get_memory();
+
+            new (p1) Tp (std::forward<Ts>(args)...);
+            new (p2) Tp (std::forward<Ts>(args)...);
+
+            return { std::unique_ptr<Tp>(reinterpret_cast<Tp *>(p1)),
+                std::unique_ptr<Tp>(reinterpret_cast<Tp *>(p2)) };
+        }
+
+        template <typename ...Ts>
+        static xray_ptr<Tp>
+        make_uniform(Ts && ... args)
+        {
+            void *p1, *p2; std::tie(p1,p2) = get_memory();
+
+            new (p1) Tp { std::forward<Ts>(args)... };
+            new (p2) Tp { std::forward<Ts>(args)... };
+
+            return { std::unique_ptr<Tp>(reinterpret_cast<Tp *>(p1)),
+                std::unique_ptr<Tp>(reinterpret_cast<Tp *>(p2)) };
+        }
+    };
+
+    template<typename Tp>
+    inline std::string
+    show(xray_ptr<Tp> const&  value)
+    {
+        std::string ret; ret.reserve(8);
+
+        const char * p1 = reinterpret_cast<char const *>(value.v1.get());    
+        const char * p2 = reinterpret_cast<char const *>(value.v2.get());    
+
+        for(size_t n = 0; n < sizeof(Tp); ++n)
+        {
+            if (p1[n] == p2[n])
+            {
+                ret += (p1[n] == 0 ? '0' : '.');
+            }
+            else
+            {
+                ret += '?';
+            }
+        }
+
+        return ret;
+    }
+
 } // namespace ass 
 
 
@@ -1117,6 +1209,15 @@ inline namespace ass_inline {
         return __type_of<Tp>(std::forward<Tp>(arg));
     }
 
+    ////////////////////////////////////////////////////////////// Xray<Type>(): make xray
+
+    template <typename Tp>
+    void Xray()
+    {
+        std::cout << "default: {" << show( ass::xray_ptr<Tp>::make_default() ) << '}' << std::endl;
+        std::cout << "uniform: {" << show( ass::xray_ptr<Tp>::make_uniform() ) << '}' << std::endl;
+        std::cout << "value  : {" << show( ass::xray_ptr<Tp>::make_value() )   << '}' << std::endl;
+    }
 
 } // namespace ass_inline
 

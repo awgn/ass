@@ -228,9 +228,10 @@ getStringIdentifiers =
     C.pack . unlines 
 
 
-commands :: [String]
+commands, assIdentifiers :: [String]
 commands = [ ":load", ":include", ":reload", ":edit", ":show", ":clear", ":next", ":args", ":run", ":preload", ":verbose", ":quit" ]
 
+assIdentifiers = [ "hex", "oct", "bin", "T<", "type_name<", "type_of(", "SHOW(", "R(" , "P(" , "Xray<" ]
 
 cliCompletion :: String -> String -> StateIO [Completion]
 cliCompletion l w = do 
@@ -240,7 +241,7 @@ cliCompletion l w = do
        _ | "l:" `isSuffixOf` l ->  return $ map simpleCompletion (filter (w `isPrefixOf`) files  )    
        _ | "i:" `isSuffixOf` l ->  return $ map simpleCompletion (filter (w `isPrefixOf`) files  )    
        _ | ":" `isPrefixOf`  w ->  return $ map simpleCompletion (filter (w `isPrefixOf`) commands ) 
-       _                       ->  return $ map simpleCompletion (filter (w `isPrefixOf`) (getStringIdentifiers $ s^.stateCode)) 
+       _                       ->  return $ map simpleCompletion (filter (w `isPrefixOf`) $ (getStringIdentifiers $ s^.stateCode) ++ assIdentifiers) 
     
 
 mainLoop :: [String] -> [Compiler] -> IO ()
@@ -330,6 +331,7 @@ printHelp =  lift $ putStrLn $ "Commands available from the prompt:\n\n" ++
                         "  type_of(v)                deduce the type of a given expression\n" ++
                         "  R(1,2,5)                  range: initializer_list<int> {1,2,3,4,5}\n" ++
                         "  S(v),SHOW(v)              stringify a value\n" ++
+                        "  Xray<type>()              show the raw-memory for the constructed type\n" ++
                         "  hex(v), oct(v), bin(v)    show manipulators\n" ++
                         "  class O                   oracle class.\n"
 

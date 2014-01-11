@@ -301,7 +301,7 @@ mainLoop args clist = do
                                                   lift (put $ stateBanner.~ False $ s) >> loop
 
                      Just (":xray":xs)      -> do e <- liftIO $ buildCompileAndRun (C.pack (unlines (s^.statePrepList) ++ unlines (s^.stateCode))) 
-                                                                    (C.pack $ "return Xray<" ++ head xs ++ ">();") 
+                                                                    (C.pack $ "return Xray<" ++ unwords xs ++ ">();") 
                                                                     (s^.statePreload) 
                                                                     (s^.stateVerbose) 
                                                                     (compFilterType (s^.stateCompType) clist) 

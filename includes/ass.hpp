@@ -278,15 +278,30 @@ namespace ass
 
     } // namespace traits
 
+
+    // utilities 
+    //
+
+    inline std::string
+    demangle(const char * name)
+    {
+        int status;
+        std::unique_ptr<char, void(*)(void *)> ret(abi::__cxa_demangle(name,0,0, &status), ::free);
+        if (status < 0) {
+            return std::string(1,'?');
+        }
+        return std::string(ret.get());
+    }
+
 } // namespace ass 
 
 
-///////////////// libmore show:
+///////////////// show (from lib more):
 
 #ifndef MORE_SHOW
 #define MORE_SHOW
  
-inline namespace more_show {
+inline namespace ass_inline {
 
     // manipulators
     //
@@ -326,7 +341,6 @@ inline namespace more_show {
     {
         return _bin<T>{value};
     }
-
 
     // forward declarations:
     //
@@ -414,56 +428,37 @@ inline namespace more_show {
         (std::rank<T>::value > 0 && !std::is_same<char, typename std::remove_cv<typename std::remove_all_extents<T>::type>::type>::value)),
     std::string>::type 
     show(const T &v);
+              
+    // show_on policy 
+    //
 
-    namespace details
+    template <typename T, int N>
+    struct show_on
     {
-        // utilities 
-        //
-
-        inline std::string
-        demangle(const char * name)
+        static inline
+        void apply(std::string &out, const T &tupl)
         {
-            int status;
-            std::unique_ptr<char, void(*)(void *)> ret(abi::__cxa_demangle(name,0,0, &status), ::free);
-            if (status < 0) {
-                return std::string(1,'?');
-            }
-            return std::string(ret.get());
+            out += show(std::get< std::tuple_size<T>::value - N>(tupl)) + ' ';
+            show_on<T,N-1>::apply(out,tupl);
         }
+    }; 
+    template <typename T>
+    struct show_on<T, 0>
+    {
+        static inline
+        void apply(std::string&, const T &)
+        {}
+    };
 
-        // show_on policy 
-        //
+    template <typename T>
+    struct duration_traits;
+    template <> struct duration_traits<std::chrono::nanoseconds>  { static constexpr const char *str = "_ns"; };
+    template <> struct duration_traits<std::chrono::microseconds> { static constexpr const char *str = "_us"; };
+    template <> struct duration_traits<std::chrono::milliseconds> { static constexpr const char *str = "_ms"; };
+    template <> struct duration_traits<std::chrono::seconds>      { static constexpr const char *str = "_s"; };
+    template <> struct duration_traits<std::chrono::minutes>      { static constexpr const char *str = "_min"; };
+    template <> struct duration_traits<std::chrono::hours>        { static constexpr const char *str = "_h"; };
 
-        template <typename T, int N>
-        struct show_on
-        {
-            static inline
-            void apply(std::string &out, const T &tupl)
-            {
-                out += show(std::get< std::tuple_size<T>::value - N>(tupl)) + ' ';
-                show_on<T,N-1>::apply(out,tupl);
-            }
-        }; 
-        template <typename T>
-        struct show_on<T, 0>
-        {
-            static inline
-            void apply(std::string&, const T &)
-            {}
-        };
-
-        template <typename T>
-        struct duration_traits;
-        template <> struct duration_traits<std::chrono::nanoseconds>  { static constexpr const char *str = "_ns"; };
-        template <> struct duration_traits<std::chrono::microseconds> { static constexpr const char *str = "_us"; };
-        template <> struct duration_traits<std::chrono::milliseconds> { static constexpr const char *str = "_ms"; };
-        template <> struct duration_traits<std::chrono::seconds>      { static constexpr const char *str = "_s"; };
-        template <> struct duration_traits<std::chrono::minutes>      { static constexpr const char *str = "_min"; };
-        template <> struct duration_traits<std::chrono::hours>        { static constexpr const char *str = "_h"; };
-
-    } // namespace details
-
-    
     ///////////////////////////////////////
     // show with additional header/type:
     //
@@ -473,7 +468,7 @@ inline namespace more_show {
     show(Tp &&type, const char *n)
     {
         auto hdr = n == nullptr ? "" :
-                   n[0] == '\0' ? details::demangle(typeid(Tp).name()) : n;
+                   n[0] == '\0' ? ass::demangle(typeid(Tp).name()) : n;
         
         return std::move(hdr) + ' ' + show(std::forward<Tp>(type));
     }
@@ -642,7 +637,7 @@ inline namespace more_show {
     show(std::array<T,N> const &a)
     {
         std::string out("[");
-        details::show_on<std::array<T,N>, N>::apply(out,a);
+        show_on<std::array<T,N>, N>::apply(out,a);
         return std::move(out) + ']';
     }
 
@@ -654,7 +649,7 @@ inline namespace more_show {
     show(std::tuple<Ts...> const &t)
     {
         std::string out("( ");
-        details::show_on<std::tuple<Ts...>, sizeof...(Ts)>::apply(out,t);
+        show_on<std::tuple<Ts...>, sizeof...(Ts)>::apply(out,t);
         return std::move(out) + ')';
     }                                              
 
@@ -666,7 +661,7 @@ inline namespace more_show {
     show(std::chrono::duration<Rep, Period> const &dur)
     {
         std::string out(std::to_string(dur.count()));
-        return std::move(out) + details::duration_traits<std::chrono::duration<Rep,Period>>::str;
+        return std::move(out) + duration_traits<std::chrono::duration<Rep,Period>>::str;
     }
 
     template <typename Clock, typename Dur>
@@ -707,7 +702,7 @@ inline namespace more_show {
         return std::move(out) + ']';
     }
 
-} // namespace more_show
+} // namespace ass_inline
 
 #endif  // MORE_SHOW
 
@@ -732,17 +727,10 @@ namespace std
 
 inline namespace ass_inline {
 
-    static inline 
-    std::string
-    demangle(const char *name)
-    {
-        return more_show::details::demangle(name);    
-    }
-
     template <typename Tp>
     std::string __type_of(typename std::remove_reference<Tp>::type &&)
     {
-        auto name = demangle(typeid(Tp).name());
+        auto name = ass::demangle(typeid(Tp).name());
         if (std::is_const<
              typename std::remove_reference<Tp>::type>::value)
             name.append(" const");
@@ -757,7 +745,7 @@ inline namespace ass_inline {
     template <typename Tp>
     std::string __type_of(typename std::remove_reference<Tp>::type &)
     {
-        auto name = demangle(typeid(Tp).name());
+        auto name = ass::demangle(typeid(Tp).name());
         if (std::is_const<
              typename std::remove_reference<Tp>::type>::value)
             name.append(" const");
@@ -773,7 +761,7 @@ inline namespace ass_inline {
     template <typename Tp>
     std::string type_name()
     {
-        return demangle(typeid(Tp).name());
+        return ass::demangle(typeid(Tp).name());
     }
 
     ////////////////////////////////////////////////////////////// simple Oracle class

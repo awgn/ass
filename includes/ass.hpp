@@ -327,8 +327,8 @@ namespace ass
         {
             void *p1, *p2; std::tie(p1,p2) = get_memory();
 
-            new (p1) Tp;
-            new (p2) Tp;
+            new (p1) typename std::remove_cv<Tp>::type;
+            new (p2) typename std::remove_cv<Tp>::type;
 
             return { std::unique_ptr<Tp>(reinterpret_cast<Tp *>(p1)),
                 std::unique_ptr<Tp>(reinterpret_cast<Tp *>(p2)) };

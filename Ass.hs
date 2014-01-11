@@ -229,7 +229,7 @@ getStringIdentifiers =
 
 
 commands, assIdentifiers :: [String]
-commands = [ ":load", ":include", ":reload", ":edit", ":show", ":clear", ":next", ":args", ":run", ":preload", ":verbose", ":quit" ]
+commands = [ ":load", ":include", ":reload", ":edit", ":list", ":clear", ":next", ":args", ":run", ":xray", ":preload", ":verbose", ":quit" ]
 
 assIdentifiers = [ "hex", "oct", "bin", "T<", "type_name<", "type_of(", "SHOW(", "R(" , "P(" , "Xray<" ]
 
@@ -240,8 +240,9 @@ cliCompletion l w = do
     case () of
        _ | "l:" `isSuffixOf` l ->  return $ map simpleCompletion (filter (w `isPrefixOf`) files  )    
        _ | "i:" `isSuffixOf` l ->  return $ map simpleCompletion (filter (w `isPrefixOf`) files  )    
+       _ | "x:" `isSuffixOf` l ->  return $ map simpleCompletion (filter (w `isPrefixOf`) $ getStringIdentifiers (s^.stateCode))    
        _ | ":" `isPrefixOf`  w ->  return $ map simpleCompletion (filter (w `isPrefixOf`) commands ) 
-       _                       ->  return $ map simpleCompletion (filter (w `isPrefixOf`) $ (getStringIdentifiers $ s^.stateCode) ++ assIdentifiers) 
+       _                       ->  return $ map simpleCompletion (filter (w `isPrefixOf`) $ getStringIdentifiers (s^.stateCode) ++ assIdentifiers) 
     
 
 mainLoop :: [String] -> [Compiler] -> IO ()
@@ -276,7 +277,7 @@ mainLoop args clist = do
                                                lift (put $ over stateVerbose not s) >> loop 
                      Just (":clear":_)      -> outputStrLn "Buffer clean." >> 
                                                lift (put s { _stateBanner = True, _stateFile = "", _statePrepList = [], _stateCode = [] }) >> loop 
-                     Just (":show":_)       -> mapM_ outputStrLn (s^.statePrepList) >> mapM_ outputStrLn (s^.stateCode) >> 
+                     Just (":list":_)       -> mapM_ outputStrLn (s^.statePrepList) >> mapM_ outputStrLn (s^.stateCode) >> 
                                                lift (put $ stateBanner.~ False $ s) >> loop
                      Just (":edit":_)       -> mapM_ outputStrLn (s^.statePrepList) >> mapM_ outputStrLn (s^.stateCode) >> 
                                                getCode >>= \xs -> lift (put s{ _stateBanner = False, _stateCode = s^.stateCode ++ xs }) >> loop
@@ -290,14 +291,35 @@ mainLoop args clist = do
                      Just (":next":_)       -> lift (put $ stateBanner.~ True $ over stateCompType next s) >> loop
                      Just (":?":_)          -> lift printHelp >> lift (put $ stateBanner.~ True $ s) >> loop
                      Just (":run" :xs)      -> do e <- liftIO $ buildCompileAndRun (C.pack(unlines (s^.statePrepList) ++ unlines (s^.stateCode))) 
-                                                        "" (s^.statePreload) (s^.stateVerbose) (compFilterType (s^.stateCompType) clist) (getCompilerArgs args) 
-                                                        (if null xs then s^.stateArgs else xs)
+                                                                    "" 
+                                                                    (s^.statePreload) 
+                                                                    (s^.stateVerbose) 
+                                                                    (compFilterType (s^.stateCompType) clist) 
+                                                                    (getCompilerArgs args) 
+                                                                    (if null xs then s^.stateArgs else xs)
                                                   outputStrLn $ show e  
                                                   lift (put $ stateBanner.~ False $ s) >> loop
 
-                     Just input | isPreprocessor (C.pack $ unwords input) -> lift (put s{ _stateBanner = False, _statePrepList = s^.statePrepList ++ [unwords input] }) >> loop
+                     Just (":xray":xs)      -> do e <- liftIO $ buildCompileAndRun (C.pack (unlines (s^.statePrepList) ++ unlines (s^.stateCode))) 
+                                                                    (C.pack $ "return Xray<" ++ head xs ++ ">();") 
+                                                                    (s^.statePreload) 
+                                                                    (s^.stateVerbose) 
+                                                                    (compFilterType (s^.stateCompType) clist) 
+                                                                    (getCompilerArgs args) 
+                                                                    (s^.stateArgs) 
+                                                  outputStrLn $ show e  
+                                                  lift (put $ stateBanner .~ False $ s) >> loop
+
+                     Just input | ":" `isPrefixOf` (unwords input) -> outputStrLn("unknown command '" ++ unwords input ++ "'") >> 
+                                                                      outputStrLn("use :? for help.") >> lift (put $ stateBanner .~ False $ s) >> loop
+                                | isPreprocessor (C.pack $ unwords input) -> lift (put s{ _stateBanner = False, _statePrepList = s^.statePrepList ++ [unwords input] }) >> loop
                                 | otherwise -> do e <- liftIO $ buildCompileAndRun (C.pack(unlines (s^.statePrepList) ++ unlines (s^.stateCode))) 
-                                                    (C.pack(unwords input)) (s^.statePreload) (s^.stateVerbose) (compFilterType (s^.stateCompType) clist) (getCompilerArgs args) (s^.stateArgs) 
+                                                                    (C.pack(unwords input)) 
+                                                                    (s^.statePreload) 
+                                                                    (s^.stateVerbose) 
+                                                                    (compFilterType (s^.stateCompType) clist) 
+                                                                    (getCompilerArgs args) 
+                                                                    (s^.stateArgs) 
                                                   outputStrLn $ show e  
                                                   lift (put $ stateBanner .~ False $ s) >> loop
 
@@ -314,11 +336,12 @@ printHelp =  lift $ putStrLn $ "Commands available from the prompt:\n\n" ++
                         "  :load file                load file in the buffer\n" ++ 
                         "  :reload                   reload the file\n" ++ 
                         "  :edit                     edit the buffer\n" ++ 
-                        "  :show                     show the buffer\n" ++
+                        "  :list                     list the buffer\n" ++
                         "  :clear                    clear the buffer\n" ++ 
                         "  :next                     switch to next compiler\n" ++ 
                         "  :args ARG1 ARG2...        set runtime arguments\n" ++ 
                         "  :run [ARG1 ARG2...]       run main function\n" ++ 
+                        "  :xray TYPE                show info about the given TYPE\n" ++
                         "  :preload                  toggle preload std headers\n" ++
                         "  :verbose                  show additional information\n" ++
                         "  :quit                     quit\n" ++
@@ -331,7 +354,6 @@ printHelp =  lift $ putStrLn $ "Commands available from the prompt:\n\n" ++
                         "  type_of(v)                deduce the type of a given expression\n" ++
                         "  R(1,2,5)                  range: initializer_list<int> {1,2,3,4,5}\n" ++
                         "  S(v),SHOW(v)              stringify a value\n" ++
-                        "  Xray<type>()              show the raw-memory for the constructed type\n" ++
                         "  hex(v), oct(v), bin(v)    show manipulators\n" ++
                         "  class O                   oracle class.\n"
 

@@ -80,7 +80,7 @@ compilerList = [
 banner, snippet, assrc, ass_history :: String 
 tmpDir, includeDir :: FilePath
 
-banner      = "ASSi, version 2.6"
+banner      = "ASSi, version 2.7"
 snippet     = "ass-snippet" 
 tmpDir      =  "/tmp" 
 includeDir  =  "/usr/local/include"
@@ -412,8 +412,8 @@ makeSourceCode code cmd_code ns preload boost
          [main']
       where (code', cmd_code') = foldl parseCodeLine ([], []) (zipSourceCode code) 
             main'   | hasMain code = [] 
-                    | otherwise    = [ CodeLine 1 "int main() {}" ]
-            exit                   = [ CodeLine 1 "auto __EXIT__ = ass::eval([]() { std::exit(0); }); "]                            
+                    | otherwise    = [ CodeLine 0 "int main() {}" ]
+            exit                   = [ CodeLine 0 "auto __EXIT__ = ass::eval([]() { std::exit(0); }); "]                            
             headers                = makeInclude "<ass.hpp>" : [ makeInclude "<ass-boost.hpp>" | boost ]
 
 
@@ -430,8 +430,8 @@ makeInclude s = CodeLine 1 (C.pack $ "#include " ++ s)
 makeCmdCode :: SourceCode -> [SourceCode]
 makeCmdCode [] = []
 makeCmdCode code = [cmdHeader, code, cmdFooter] 
-    where cmdHeader = [ CodeLine 1 "auto XPASTE(__VOID_, __COUNTER__) = ass::eval([] {" ] 
-          cmdFooter = [ CodeLine 1 "});" ]
+    where cmdHeader = [ CodeLine 0 "auto XPASTE(__VOID_, __COUNTER__) = ass::eval([] {" ] 
+          cmdFooter = [ CodeLine 0 "});" ]
 
 
 makeNamespaces :: [String] -> [SourceCode]

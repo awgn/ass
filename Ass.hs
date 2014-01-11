@@ -229,20 +229,20 @@ getStringIdentifiers =
 
 
 commands, assIdentifiers :: [String]
-commands = [ ":load", ":include", ":reload", ":edit", ":list", ":clear", ":next", ":args", ":run", ":xray", ":preload", ":verbose", ":quit" ]
+commands = [ ":load", ":include", ":reload", ":edit", ":list", ":clear", ":next", ":args", ":run", ":info", ":preload", ":verbose", ":quit" ]
 
-assIdentifiers = [ "hex", "oct", "bin", "T<", "type_name<", "type_of(", "SHOW(", "R(" , "P(" , "Xray<" ]
+assIdentifiers = [ "hex", "oct", "bin", "T<", "type_name<", "type_of(", "type_info_<", "SHOW(", "R(" , "P(" ]
 
 cliCompletion :: String -> String -> StateIO [Completion]
 cliCompletion l w = do 
     s <- get 
     files  <- liftIO $ filter (\f -> f /= "." && f /= "..") <$> getDirectoryContents "."
     case () of
-       _ | "l:" `isSuffixOf` l ->  return $ map simpleCompletion (filter (w `isPrefixOf`) files  )    
-       _ | "i:" `isSuffixOf` l ->  return $ map simpleCompletion (filter (w `isPrefixOf`) files  )    
-       _ | "x:" `isSuffixOf` l ->  return $ map simpleCompletion (filter (w `isPrefixOf`) $ getStringIdentifiers (s^.stateCode))    
-       _ | ":" `isPrefixOf`  w ->  return $ map simpleCompletion (filter (w `isPrefixOf`) commands ) 
-       _                       ->  return $ map simpleCompletion (filter (w `isPrefixOf`) $ getStringIdentifiers (s^.stateCode) ++ assIdentifiers) 
+       _ | "fni:" `isSuffixOf` l ->  return $ map simpleCompletion (filter (w `isPrefixOf`) $ getStringIdentifiers (s^.stateCode))    
+       _ | "l:" `isSuffixOf`   l ->  return $ map simpleCompletion (filter (w `isPrefixOf`) files  )    
+       _ | "i:" `isSuffixOf`   l ->  return $ map simpleCompletion (filter (w `isPrefixOf`) files  )    
+       _ | ":" `isPrefixOf`    w ->  return $ map simpleCompletion (filter (w `isPrefixOf`) commands ) 
+       _                         ->  return $ map simpleCompletion (filter (w `isPrefixOf`) $ getStringIdentifiers (s^.stateCode) ++ assIdentifiers) 
     
 
 mainLoop :: [String] -> [Compiler] -> IO ()
@@ -300,8 +300,8 @@ mainLoop args clist = do
                                                   outputStrLn $ show e  
                                                   lift (put $ stateBanner.~ False $ s) >> loop
 
-                     Just (":xray":xs)      -> do e <- liftIO $ buildCompileAndRun (C.pack (unlines (s^.statePrepList) ++ unlines (s^.stateCode))) 
-                                                                    (C.pack $ "return Xray<" ++ unwords xs ++ ">();") 
+                     Just (":info":xs)      -> do e <- liftIO $ buildCompileAndRun (C.pack (unlines (s^.statePrepList) ++ unlines (s^.stateCode))) 
+                                                                    (C.pack $ "return type_info_<" ++ unwords xs ++ ">();") 
                                                                     (s^.statePreload) 
                                                                     (s^.stateVerbose) 
                                                                     (compFilterType (s^.stateCompType) clist) 
@@ -341,7 +341,7 @@ printHelp =  lift $ putStrLn $ "Commands available from the prompt:\n\n" ++
                         "  :next                     switch to next compiler\n" ++ 
                         "  :args ARG1 ARG2...        set runtime arguments\n" ++ 
                         "  :run [ARG1 ARG2...]       run main function\n" ++ 
-                        "  :xray TYPE                show info about the given TYPE\n" ++
+                        "  :info TYPE                show info about the given TYPE\n" ++
                         "  :preload                  toggle preload std headers\n" ++
                         "  :verbose                  show additional information\n" ++
                         "  :quit                     quit\n" ++

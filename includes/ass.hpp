@@ -1210,67 +1210,67 @@ inline namespace ass_inline {
         return __type_of<Tp>(std::forward<Tp>(arg));
     }
 
-    ////////////////////////////////////////////////////////////// Xray<Type>(): make xray
+    ////////////////////////////////////////////////////////////// type_info_<Type>(): dump info about the given type 
 
-#define XRAY_TRAIT_INFO(Tp,trait)   std::cout << # trait ": " << std::trait<Tp>::value << std::endl
+#define ASS_TRAIT_INFO(Tp,trait)   std::cout << # trait ": " << std::trait<Tp>::value << std::endl
 
     template <typename Tp>
-    void Xray()
+    void type_info_()
     {
-        std::cout << std::boolalpha;
+        std::cout << "type name: " << type_name<Tp>() << std::boolalpha << std::endl;
         
-        XRAY_TRAIT_INFO(Tp, is_const           );
-        XRAY_TRAIT_INFO(Tp, is_volatile        );
-        XRAY_TRAIT_INFO(Tp, is_trivial         );
-        XRAY_TRAIT_INFO(Tp, is_standard_layout );
-        XRAY_TRAIT_INFO(Tp, is_pod             );
-        XRAY_TRAIT_INFO(Tp, is_literal_type    );
-        XRAY_TRAIT_INFO(Tp, is_empty           );
-        XRAY_TRAIT_INFO(Tp, is_polymorphic     );
-        XRAY_TRAIT_INFO(Tp, is_abstract        );
-        XRAY_TRAIT_INFO(Tp, is_signed          );
-        XRAY_TRAIT_INFO(Tp, is_unsigned        );
+        ASS_TRAIT_INFO(Tp, is_const           );
+        ASS_TRAIT_INFO(Tp, is_volatile        );
+        ASS_TRAIT_INFO(Tp, is_trivial         );
+        ASS_TRAIT_INFO(Tp, is_standard_layout );
+        ASS_TRAIT_INFO(Tp, is_pod             );
+        ASS_TRAIT_INFO(Tp, is_literal_type    );
+        ASS_TRAIT_INFO(Tp, is_empty           );
+        ASS_TRAIT_INFO(Tp, is_polymorphic     );
+        ASS_TRAIT_INFO(Tp, is_abstract        );
+        ASS_TRAIT_INFO(Tp, is_signed          );
+        ASS_TRAIT_INFO(Tp, is_unsigned        );
  
-        XRAY_TRAIT_INFO(Tp, is_constructible         );
-        XRAY_TRAIT_INFO(Tp, is_nothrow_constructible );
+        ASS_TRAIT_INFO(Tp, is_constructible         );
+        ASS_TRAIT_INFO(Tp, is_nothrow_constructible );
       
 #if (__GNUC__ == 4) && (__GNUC_MINOR__ > 6)
-        XRAY_TRAIT_INFO(Tp, has_trivial_default_constructor); 
-        XRAY_TRAIT_INFO(Tp, has_trivial_copy_constructor   );
-        XRAY_TRAIT_INFO(Tp, has_trivial_copy_assign        );
+        ASS_TRAIT_INFO(Tp, has_trivial_default_constructor); 
+        ASS_TRAIT_INFO(Tp, has_trivial_copy_constructor   );
+        ASS_TRAIT_INFO(Tp, has_trivial_copy_assign        );
 #endif
 
 #if (__clang__) && defined(_LIBCPP_VERSION)
-        XRAY_TRAIT_INFO(Tp, is_trivially_copyable              ); 
-        XRAY_TRAIT_INFO(Tp, is_trivially_constructible         );
-        XRAY_TRAIT_INFO(Tp, is_trivially_default_constructible );
-        XRAY_TRAIT_INFO(Tp, is_trivially_copy_constructible    );
-        XRAY_TRAIT_INFO(Tp, is_trivially_move_constructible    );
-        XRAY_TRAIT_INFO(Tp, is_trivially_copy_assignable       );
-        XRAY_TRAIT_INFO(Tp, is_trivially_move_assignable       );
+        ASS_TRAIT_INFO(Tp, is_trivially_copyable              ); 
+        ASS_TRAIT_INFO(Tp, is_trivially_constructible         );
+        ASS_TRAIT_INFO(Tp, is_trivially_default_constructible );
+        ASS_TRAIT_INFO(Tp, is_trivially_copy_constructible    );
+        ASS_TRAIT_INFO(Tp, is_trivially_move_constructible    );
+        ASS_TRAIT_INFO(Tp, is_trivially_copy_assignable       );
+        ASS_TRAIT_INFO(Tp, is_trivially_move_assignable       );
 
 #endif
 
 #if (__clang__) || ((__GNUC__ == 4) && (__GNUC_MINOR__ > 6))
-        XRAY_TRAIT_INFO(Tp, is_default_constructible         );
-        XRAY_TRAIT_INFO(Tp, is_nothrow_default_constructible );
-        XRAY_TRAIT_INFO(Tp, is_copy_constructible            );
-        XRAY_TRAIT_INFO(Tp, is_nothrow_copy_constructible    );
-        XRAY_TRAIT_INFO(Tp, is_move_constructible            );
-        XRAY_TRAIT_INFO(Tp, is_nothrow_move_constructible    );
-        XRAY_TRAIT_INFO(Tp, is_copy_assignable               );
-        XRAY_TRAIT_INFO(Tp, is_nothrow_copy_assignable       );
-        XRAY_TRAIT_INFO(Tp, is_nothrow_move_assignable       );
-        XRAY_TRAIT_INFO(Tp, is_destructible                  );
-        XRAY_TRAIT_INFO(Tp, is_move_assignable               );
+        ASS_TRAIT_INFO(Tp, is_default_constructible         );
+        ASS_TRAIT_INFO(Tp, is_nothrow_default_constructible );
+        ASS_TRAIT_INFO(Tp, is_copy_constructible            );
+        ASS_TRAIT_INFO(Tp, is_nothrow_copy_constructible    );
+        ASS_TRAIT_INFO(Tp, is_move_constructible            );
+        ASS_TRAIT_INFO(Tp, is_nothrow_move_constructible    );
+        ASS_TRAIT_INFO(Tp, is_copy_assignable               );
+        ASS_TRAIT_INFO(Tp, is_nothrow_copy_assignable       );
+        ASS_TRAIT_INFO(Tp, is_nothrow_move_assignable       );
+        ASS_TRAIT_INFO(Tp, is_destructible                  );
+        ASS_TRAIT_INFO(Tp, is_move_assignable               );
 #endif
        
 #if (__clang__) || ((__GNUC__ == 4) && (__GNUC_MINOR__ > 7))
-        XRAY_TRAIT_INFO(Tp, is_trivially_destructible        );
-        XRAY_TRAIT_INFO(Tp, is_nothrow_destructible          );
+        ASS_TRAIT_INFO(Tp, is_trivially_destructible        );
+        ASS_TRAIT_INFO(Tp, is_nothrow_destructible          );
 #endif
 
-        XRAY_TRAIT_INFO(Tp, has_virtual_destructor           );
+        ASS_TRAIT_INFO(Tp, has_virtual_destructor           );
         
         std::cout << "sizeof   : " << sizeof(Tp) << std::endl;
         std::cout << "alignment: " << std::alignment_of<Tp>::value << std::endl;

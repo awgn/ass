@@ -416,7 +416,10 @@ getQualifiedNamespace src = [ Cpp.toString t1 | [t1,t2] <- grps,
 
 getDeclaredNamespace :: Source -> [String]
 getDeclaredNamespace src =  [ t | [t1,t2] <- grps, let t = Cpp.toString t2, 
-                                            Cpp.isKeyword t1 && Cpp.toString t1 == "namespace", t /= "{"] 
+                                            Cpp.isKeyword t1,
+                                            Cpp.toString t1 == "namespace", 
+                                            t /= "{",
+                                            not ("detail" `isInfixOf` t)] 
         where grps = spanGroup 2 $ Cpp.tokenizer $ sourceCodeFilter src
 
 

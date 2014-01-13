@@ -394,6 +394,18 @@ namespace ass
 #ifndef MORE_SHOW
 #define MORE_SHOW
  
+#define MAKE_SHOW_PAIR(a, b) std::make_pair(std::string(#b), &UNPACK(a)::b)            
+
+#define MAKE_GENERIC_SHOW(type, ...) make_generic_show<UNPACK(type)>(FOR2_EACH_COMMA(MAKE_SHOW_PAIR, type, __VA_ARGS__))
+
+#define MAKE_SHOW(type, ...) \
+inline std::string \
+show(UNPACK(type) const &t) \
+{ \
+    static auto _show = MAKE_GENERIC_SHOW(type, __VA_ARGS__); \
+    return _show(t); \
+}
+
 inline namespace ass_inline {
 
     // manipulators
@@ -512,6 +524,22 @@ inline namespace ass_inline {
     inline std::string
     show(std::chrono::time_point<Clock, Dur> const &r);
 
+    // initializer list
+    
+    template <typename T>
+    inline std::string
+    show(std::initializer_list<T> const &);
+
+    // integral_constant
+
+    template <typename Tp, Tp Value>
+    inline std::string
+    show(std::integral_constant<Tp,Value>);
+    
+    template <bool Value>
+    inline std::string
+    show(std::integral_constant<bool,Value>);
+
     // containers
    
     template <typename T>
@@ -521,37 +549,67 @@ inline namespace ass_inline {
         (std::rank<T>::value > 0 && !std::is_same<char, typename std::remove_cv<typename std::remove_all_extents<T>::type>::type>::value)),
     std::string>::type 
     show(const T &v);
-              
-    // show_on policy 
-    //
 
-    template <typename T, int N>
-    struct show_on
+    namespace details
     {
-        static inline
-        void apply(std::string &out, const T &tupl)
+        // show_on policy 
+        //
+
+        template <typename T, int N>
+        struct show_on
         {
-            out += show(std::get< std::tuple_size<T>::value - N>(tupl)) + ' ';
-            show_on<T,N-1>::apply(out,tupl);
-        }
-    }; 
-    template <typename T>
-    struct show_on<T, 0>
-    {
-        static inline
-        void apply(std::string&, const T &)
-        {}
-    };
+            static inline
+            void apply(std::string &out, const T &tupl)
+            {
+                out += show(std::get< std::tuple_size<T>::value - N>(tupl)) + ' ';
+                show_on<T,N-1>::apply(out,tupl);
+            }
+        }; 
+        template <typename T>
+        struct show_on<T, 0>
+        {
+            static inline
+            void apply(std::string&, const T &)
+            {}
+        };
 
-    template <typename T>
-    struct duration_traits;
-    template <> struct duration_traits<std::chrono::nanoseconds>  { static constexpr const char *str = "_ns"; };
-    template <> struct duration_traits<std::chrono::microseconds> { static constexpr const char *str = "_us"; };
-    template <> struct duration_traits<std::chrono::milliseconds> { static constexpr const char *str = "_ms"; };
-    template <> struct duration_traits<std::chrono::seconds>      { static constexpr const char *str = "_s"; };
-    template <> struct duration_traits<std::chrono::minutes>      { static constexpr const char *str = "_min"; };
-    template <> struct duration_traits<std::chrono::hours>        { static constexpr const char *str = "_h"; };
+        // generic_show_on...
+        //
+        
+        template <typename T, typename Tp, int N>
+        struct generic_show_on
+        {
+            static inline
+            void apply(std::string &out, const T &tupl, const Tp &value)
+            {
+                auto p = std::get< std::tuple_size<T>::value - N>(tupl);
 
+                out += p.first + " = " +  show (std::bind(p.second, value)());
+                if (N > 1) 
+                    out += ", ";
+                generic_show_on<T, Tp, N-1>::apply(out,tupl, value);
+            }
+        }; 
+        template <typename T, typename Tp>
+        struct generic_show_on<T, Tp, 0>
+        {
+            static inline
+            void apply(std::string&, const T &, const Tp &)
+            {}
+        };
+
+        template <typename T>
+        struct duration_traits;
+        template <> struct duration_traits<std::chrono::nanoseconds>  { static constexpr const char *str = "_ns"; };
+        template <> struct duration_traits<std::chrono::microseconds> { static constexpr const char *str = "_us"; };
+        template <> struct duration_traits<std::chrono::milliseconds> { static constexpr const char *str = "_ms"; };
+        template <> struct duration_traits<std::chrono::seconds>      { static constexpr const char *str = "_s"; };
+        template <> struct duration_traits<std::chrono::minutes>      { static constexpr const char *str = "_m"; };
+        template <> struct duration_traits<std::chrono::hours>        { static constexpr const char *str = "_h"; };
+
+    } // namespace details
+
+    
     ///////////////////////////////////////
     // show with additional header/type:
     //
@@ -590,7 +648,10 @@ inline namespace ass_inline {
     inline std::string
     show(const char *v)
     {
-        return '"' + std::string(v) + '"';
+        if (v != nullptr)
+            return '"' + std::string(v) + '"';
+        else
+            return "\"nullptr\"";
     }
 
     ///////////////////////////////////////
@@ -719,7 +780,7 @@ inline namespace ass_inline {
     inline std::string
     show(const std::pair<U,V> &r)
     {
-        return  '(' + show(r.first) + ',' + show(r.second) + ')';
+        return  '(' + show(r.first) + ' ' + show(r.second) + ')';
     }
 
     ///////////////////////////
@@ -730,7 +791,7 @@ inline namespace ass_inline {
     show(std::array<T,N> const &a)
     {
         std::string out("[");
-        show_on<std::array<T,N>, N>::apply(out,a);
+        details::show_on<std::array<T,N>, N>::apply(out,a);
         return std::move(out) + ']';
     }
 
@@ -742,7 +803,7 @@ inline namespace ass_inline {
     show(std::tuple<Ts...> const &t)
     {
         std::string out("( ");
-        show_on<std::tuple<Ts...>, sizeof...(Ts)>::apply(out,t);
+        details::show_on<std::tuple<Ts...>, sizeof...(Ts)>::apply(out,t);
         return std::move(out) + ')';
     }                                              
 
@@ -754,7 +815,7 @@ inline namespace ass_inline {
     show(std::chrono::duration<Rep, Period> const &dur)
     {
         std::string out(std::to_string(dur.count()));
-        return std::move(out) + duration_traits<std::chrono::duration<Rep,Period>>::str;
+        return std::move(out) + details::duration_traits<std::chrono::duration<Rep,Period>>::str;
     }
 
     template <typename Clock, typename Dur>
@@ -764,6 +825,8 @@ inline namespace ass_inline {
         return show(r.time_since_epoch());
     }
 
+    // initializer list
+    
     template <typename T>
     inline std::string
     show(std::initializer_list<T> const &init)
@@ -774,6 +837,26 @@ inline namespace ass_inline {
             out += show(e) + ' ';
         }
         return std::move(out) + '}';
+    }
+    
+    // integral_constant
+
+    template <typename Tp, Tp Value>
+    inline std::string
+    show(std::integral_constant<Tp,Value>)
+    {
+        std::string out(std::to_string(Value));
+        
+        return out + "_" + ass::demangle(typeid(Tp).name());
+    }
+
+    template <bool Value>
+    inline std::string
+    show(std::integral_constant<bool,Value>)
+    {
+        std::string out(Value ? "true" : "false");
+
+        return std::string(Value ? "true" : "false") + "_type";
     }
 
     ///////////////////////////////////////
@@ -794,6 +877,38 @@ inline namespace ass_inline {
         }
         return std::move(out) + ']';
     }
+    
+    //////////////////////////////////////////
+    // generic_show for user defined types...
+    
+    template <typename Tp, typename ...Ps>
+    struct generic_show
+    {
+        template <typename ...Ts>
+        generic_show(Ts && ...args)
+        : data_(std::forward<Ts>(args)...)
+        {}
+
+        std::string
+        operator()(Tp const &value)
+        {
+            auto out = ass::demangle(typeid(Tp).name()) + "{";
+        
+            details::generic_show_on<std::tuple<Ps...>, Tp, sizeof...(Ps)>::apply(out, data_, value); 
+
+            return out + "}"; 
+        }
+
+        std::tuple<Ps...> data_;
+    };
+    
+    template <typename Tp, typename ...Ts>
+    generic_show<Tp, Ts...>
+    make_generic_show(Ts && ... args)
+    {
+        return generic_show<Tp, Ts...>(std::forward<Ts>(args)...);
+    }
+
 
 } // namespace ass_inline
 

@@ -1348,11 +1348,21 @@ inline namespace ass_inline {
  
         ASS_TRAIT_INFO(Tp, is_constructible         );
         ASS_TRAIT_INFO(Tp, is_nothrow_constructible );
-      
-#if (__GNUC__ == 4) && (__GNUC_MINOR__ > 6)
-        ASS_TRAIT_INFO(Tp, has_trivial_default_constructor); 
+
+#if (__GNUC__ == 4) && (__GNUC_MINOR__ == 6)
+        ASS_TRAIT_INFO(Tp, has_trivial_default_constructor);
         ASS_TRAIT_INFO(Tp, has_trivial_copy_constructor   );
         ASS_TRAIT_INFO(Tp, has_trivial_copy_assign        );
+        ASS_TRAIT_INFO(Tp, has_trivial_destructor         );
+        ASS_TRAIT_INFO(Tp, has_nothrow_default_constructor);
+        ASS_TRAIT_INFO(Tp, has_nothrow_copy_constructor   );
+        ASS_TRAIT_INFO(Tp, has_nothrow_copy_assign        );
+
+#elif (__GNUC__ == 4) && (__GNUC_MINOR__ == 7)
+        ASS_TRAIT_INFO(Tp, has_trivial_default_constructor);
+        ASS_TRAIT_INFO(Tp, has_trivial_copy_constructor   );
+        ASS_TRAIT_INFO(Tp, has_trivial_copy_assign        );
+        ASS_TRAIT_INFO(Tp, has_trivial_destructor         );
 #endif
 
 #if (__clang__) && defined(_LIBCPP_VERSION)

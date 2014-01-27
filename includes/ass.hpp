@@ -1,26 +1,26 @@
 //
 //  Copyright (c) 2011 Bonelli Nicola <bonelli@antifork.org>
-// 
+//
 //  This program is free software; you can redistribute it and/or modify
 //  it under the terms of the GNU General Public License as published by
 //  the Free Software Foundation; either version 2 of the License, or
 //  (at your option) any later version.
-// 
+//
 //  This program is distributed in the hope that it will be useful,
 //  but WITHOUT ANY WARRANTY; without even the implied warranty of
 //  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 //  GNU General Public License for more details.
-// 
+//
 //  You should have received a copy of the GNU General Public License
 //  along with this program; if not, write to the Free Software
 //  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
-// 
+//
 //  ass: C++11 code ass'istant
 //
 
 
-#ifndef __ASS_HPP__ 
-#define __ASS_HPP__ 
+#ifndef __ASS_HPP__
+#define __ASS_HPP__
 
 #include <cxxabi.h>
 
@@ -102,7 +102,7 @@
 #include <future>
 #include <atomic>
 
-namespace ass 
+namespace ass
 {
 
 #ifndef PASTE
@@ -133,7 +133,7 @@ namespace ass
     template <typename T>
     struct is_class_or_union : public std::integral_constant<bool, __is_class_or_union_helper<T>::value>
     {};
-    
+
     // has member type helper (using SFINAE... Vandevoorde/Josuttis)
     #define __has_member_type_helper(abc) \
     template <typename T>   \
@@ -185,7 +185,7 @@ namespace ass
     template <typename T>
     struct has_const_pointer : public std::integral_constant<bool, __has_const_pointer_helper<T>::value>
     {};
-    
+
     template <typename T>
     struct has_reference : public std::integral_constant<bool, __has_reference_helper<T>::value>
     {};
@@ -209,32 +209,32 @@ namespace ass
     template <typename T>
     struct has_const_reverse_iterator : public std::integral_constant<bool, __has_const_reverse_iterator_helper<T>::value>
     {};
-    
+
     template <typename T>
     struct has_size_type : public std::integral_constant<bool, __has_size_type_helper<T>::value>
     {};
-    
+
     template <typename T>
     struct has_difference_type : public std::integral_constant<bool, __has_difference_type_helper<T>::value>
     {};
-    
 
-    // is_container 
-    
+
+    // is_container
+
     template <typename T>
-    struct is_container : public std::integral_constant<bool, __has_value_type_helper<T>::value && 
-                                                              __has_reference_helper<T>::value &&  
-                                                              __has_const_reference_helper<T>::value &&  
-                                                              __has_iterator_helper<T>::value && 
-                                                              __has_const_iterator_helper<T>::value && 
-                                                              __has_pointer_helper<T>::value &&  
-                                                              __has_const_pointer_helper<T>::value &&  
-                                                              __has_size_type_helper<T>::value &&  
-                                                              __has_difference_type_helper<T>::value 
+    struct is_container : public std::integral_constant<bool, __has_value_type_helper<T>::value &&
+                                                              __has_reference_helper<T>::value &&
+                                                              __has_const_reference_helper<T>::value &&
+                                                              __has_iterator_helper<T>::value &&
+                                                              __has_const_iterator_helper<T>::value &&
+                                                              __has_pointer_helper<T>::value &&
+                                                              __has_const_pointer_helper<T>::value &&
+                                                              __has_size_type_helper<T>::value &&
+                                                              __has_difference_type_helper<T>::value
                                                                >
     {};
 
-    // is_tuple 
+    // is_tuple
 
     template <typename T>
     struct is_tuple : public std::integral_constant<bool, false>
@@ -256,31 +256,31 @@ namespace ass
 
 
     // has_insertion_operator: operator<<()
-    
+
     template <typename T>
     class has_insertion_operator : public __sfinae_types
     {
         template <typename C> static __one test(typename std::remove_reference<decltype((std::cout << std::declval<C>()))>::type *);
         template <typename C> static __two test(...);
-    public:    
+    public:
         enum { value = sizeof(test<T>(0)) == sizeof(__one) };
     };
 
     // has_extraction_operator: operator>>()
-    
+
     template <typename T>
     class has_extraction_operator : public __sfinae_types
     {
         template <typename C> static __one test(typename std::remove_reference<decltype((std::cin >> std::declval<C &>()))>::type *);
         template <typename C> static __two test(...);
-    public:    
+    public:
         enum { value = sizeof(test<T>(0)) == sizeof(__one) };
     };
 
     } // namespace traits
 
 
-    // utilities 
+    // utilities
     //
 
     inline std::string
@@ -296,7 +296,7 @@ namespace ass
 
     // xray pointer
     //
-    
+
     template <typename Tp>
     struct xray_ptr
     {
@@ -309,7 +309,7 @@ namespace ass
             auto p1 = malloc(sizeof(Tp));
             auto p2 = malloc(sizeof(Tp));
 
-            auto fill = [](void * start, size_t len, size_t init) 
+            auto fill = [](void * start, size_t len, size_t init)
             {
                 auto p = static_cast<char *>(start);
                 for(auto n = init; n < init + len ; ++n)
@@ -368,8 +368,8 @@ namespace ass
     {
         std::string ret; ret.reserve(8);
 
-        auto p1 = reinterpret_cast<char const *>(value.v1.get());    
-        auto p2 = reinterpret_cast<char const *>(value.v2.get());    
+        auto p1 = reinterpret_cast<char const *>(value.v1.get());
+        auto p2 = reinterpret_cast<char const *>(value.v2.get());
 
         for(size_t n = 0; n < sizeof(Tp); ++n)
         {
@@ -386,15 +386,15 @@ namespace ass
         return ret;
     }
 
-} // namespace ass 
+} // namespace ass
 
 
 ///////////////// show (from lib more):
 
 #ifndef MORE_SHOW
 #define MORE_SHOW
- 
-#define MAKE_SHOW_PAIR(a, b) std::make_pair(std::string(#b), &UNPACK(a)::b)            
+
+#define MAKE_SHOW_PAIR(a, b) std::make_pair(std::string(#b), &UNPACK(a)::b)
 
 #define MAKE_GENERIC_SHOW(type, ...) make_generic_show<UNPACK(type)>(FOR2_EACH_COMMA(MAKE_SHOW_PAIR, type, __VA_ARGS__))
 
@@ -410,9 +410,9 @@ inline namespace ass_inline {
 
     // manipulators
     //
-    
+
     template <typename T>
-    struct _hex 
+    struct _hex
     {
         T value;
     };
@@ -424,7 +424,7 @@ inline namespace ass_inline {
     }
 
     template <typename T>
-    struct _oct 
+    struct _oct
     {
         T value;
     };
@@ -436,7 +436,7 @@ inline namespace ass_inline {
     }
 
     template <typename T>
-    struct _bin 
+    struct _bin
     {
         T value;
     };
@@ -450,30 +450,30 @@ inline namespace ass_inline {
     // forward declarations:
     //
 
-    inline std::string 
+    inline std::string
     show(char c);
-    
-    inline std::string 
+
+    inline std::string
     show(bool);
 
-    inline std::string 
+    inline std::string
     show(const char *v);
 
-    inline std::string 
+    inline std::string
     show(std::string const &s);
 
     // numeric like...
-    
-    template <typename T> 
-    inline typename std::enable_if<std::is_arithmetic<T>::value || (std::is_enum<T>::value && std::is_convertible<T,int>::value), std::string>::type 
+
+    template <typename T>
+    inline typename std::enable_if<std::is_arithmetic<T>::value || (std::is_enum<T>::value && std::is_convertible<T,int>::value), std::string>::type
     show(T const &value);
 
     // manipulators...
-   
+
     template <typename T>
     inline typename std::enable_if<std::is_integral<T>::value, std::string>::type
     show(_hex<T> const &value);
-    
+
     template <typename T>
     inline typename std::enable_if<std::is_integral<T>::value, std::string>::type
     show(_oct<T> const &value);
@@ -483,39 +483,39 @@ inline namespace ass_inline {
     show(_bin<T> const &value);
 
     // pointers...
-   
+
     template <typename T>
-    inline std::string 
+    inline std::string
     show(T const *p);
 
     template <typename T>
-    inline std::string 
+    inline std::string
     show(std::unique_ptr<T> const &);
-    
+
     template <typename T>
-    inline std::string 
+    inline std::string
     show(std::shared_ptr<T> const &);
 
     // pair<>
-    
+
     template <typename U, typename V>
     inline std::string
     show(std::pair<U,V> const &r);
 
     // array...
-    
+
     template <typename T, std::size_t N>
     inline std::string
     show(std::array<T,N> const &a);
 
     // tuple<>
-    
+
     template <typename ...Ts>
     inline std::string
     show(std::tuple<Ts...> const &t);
 
     // chrono types
-   
+
     template <typename Rep, typename Period>
     inline std::string
     show(std::chrono::duration<Rep, Period> const &dur);
@@ -525,7 +525,7 @@ inline namespace ass_inline {
     show(std::chrono::time_point<Clock, Dur> const &r);
 
     // initializer list
-    
+
     template <typename T>
     inline std::string
     show(std::initializer_list<T> const &);
@@ -535,24 +535,24 @@ inline namespace ass_inline {
     template <typename Tp, Tp Value>
     inline std::string
     show(std::integral_constant<Tp,Value>);
-    
+
     template <bool Value>
     inline std::string
     show(std::integral_constant<bool,Value>);
 
     // containers
-   
+
     template <typename T>
     inline typename std::enable_if<
     (!std::is_pointer<T>::value) && (
         (ass::traits::is_container<T>::value && !std::is_same<typename std::string,T>::value) ||
         (std::rank<T>::value > 0 && !std::is_same<char, typename std::remove_cv<typename std::remove_all_extents<T>::type>::type>::value)),
-    std::string>::type 
+    std::string>::type
     show(const T &v);
 
     namespace details
     {
-        // show_on policy 
+        // show_on policy
         //
 
         template <typename T, int N>
@@ -564,7 +564,7 @@ inline namespace ass_inline {
                 out += show(std::get< std::tuple_size<T>::value - N>(tupl)) + ' ';
                 show_on<T,N-1>::apply(out,tupl);
             }
-        }; 
+        };
         template <typename T>
         struct show_on<T, 0>
         {
@@ -575,7 +575,7 @@ inline namespace ass_inline {
 
         // generic_show_on...
         //
-        
+
         template <typename T, typename Tp, int N>
         struct generic_show_on
         {
@@ -585,11 +585,11 @@ inline namespace ass_inline {
                 auto p = std::get< std::tuple_size<T>::value - N>(tupl);
 
                 out += p.first + " = " +  show (std::bind(p.second, value)());
-                if (N > 1) 
+                if (N > 1)
                     out += ", ";
                 generic_show_on<T, Tp, N-1>::apply(out,tupl, value);
             }
-        }; 
+        };
         template <typename T, typename Tp>
         struct generic_show_on<T, Tp, 0>
         {
@@ -609,7 +609,7 @@ inline namespace ass_inline {
 
     } // namespace details
 
-    
+
     ///////////////////////////////////////
     // show with additional header/type:
     //
@@ -620,28 +620,28 @@ inline namespace ass_inline {
     {
         auto hdr = n == nullptr ? "" :
                    n[0] == '\0' ? ass::demangle(typeid(Tp).name()) : n;
-        
+
         return std::move(hdr) + ' ' + show(std::forward<Tp>(type));
     }
 
     ///////////////////////////////////////
-    // show for char 
+    // show for char
 
     inline std::string
     show(char c)
     {
         return std::string(1, c);
     }
-    
+
     ///////////////////////////////////////
-    // show for bool 
+    // show for bool
 
     inline std::string
     show(bool v)
     {
         return v ? "true" : "false";
     }
-    
+
     ///////////////////////////////////////
     // show for const char *
 
@@ -689,7 +689,7 @@ inline namespace ass_inline {
             out << value.value;
 
         return out.str();
-    }                                               
+    }
 
     /////////////////////////////////////////////
     // show for arithmetic types as oct values...
@@ -705,7 +705,7 @@ inline namespace ass_inline {
             out << static_cast<uint32_t>(value.value);
         else
             out << value.value;
-        
+
         return out.str();
     }
 
@@ -718,7 +718,7 @@ inline namespace ass_inline {
     {
         std::ostringstream out;
 
-        std::function<void(T)> binary = [&] (T value) 
+        std::function<void(T)> binary = [&] (T value)
         {
             T rem;
 
@@ -726,9 +726,9 @@ inline namespace ass_inline {
                 out << value;
                 return;
             }
-            
-            rem = value % 2; 
-            binary(value >> 1);    
+
+            rem = value % 2;
+            binary(value >> 1);
 
             out << rem;
         };
@@ -740,7 +740,7 @@ inline namespace ass_inline {
     ///////////////////////////////////////
     // show for pointers *
 
-    template <typename T> 
+    template <typename T>
     inline std::string
     show(T const *p)
     {
@@ -748,11 +748,11 @@ inline namespace ass_inline {
         out << static_cast<const void *>(p);
         return out.str();
     }
-    
+
     ///////////////////////////////////////
     // show for unique_ptr
 
-    template <typename T> 
+    template <typename T>
     inline std::string
     show(std::unique_ptr<T> const &p)
     {
@@ -764,7 +764,7 @@ inline namespace ass_inline {
     ///////////////////////////////////////
     // show for shared_ptr
 
-    template <typename T> 
+    template <typename T>
     inline std::string
     show(std::shared_ptr<T> const &p)
     {
@@ -796,7 +796,7 @@ inline namespace ass_inline {
     }
 
     ////////////////////////////////////////////////////////
-    // show for tuple... 
+    // show for tuple...
 
     template <typename ...Ts>
     inline std::string
@@ -805,10 +805,10 @@ inline namespace ass_inline {
         std::string out("( ");
         details::show_on<std::tuple<Ts...>, sizeof...(Ts)>::apply(out,t);
         return std::move(out) + ')';
-    }                                              
+    }
 
     ////////////////////////////////////////////////////////
-    // show for chrono types... 
+    // show for chrono types...
 
     template <typename Rep, typename Period>
     inline std::string
@@ -821,12 +821,12 @@ inline namespace ass_inline {
     template <typename Clock, typename Dur>
     inline std::string
     show(std::chrono::time_point<Clock, Dur> const &r)
-    {    
+    {
         return show(r.time_since_epoch());
     }
 
     // initializer list
-    
+
     template <typename T>
     inline std::string
     show(std::initializer_list<T> const &init)
@@ -838,7 +838,7 @@ inline namespace ass_inline {
         }
         return std::move(out) + '}';
     }
-    
+
     // integral_constant
 
     template <typename Tp, Tp Value>
@@ -846,7 +846,7 @@ inline namespace ass_inline {
     show(std::integral_constant<Tp,Value>)
     {
         std::string out(std::to_string(Value));
-        
+
         return out + "_" + ass::demangle(typeid(Tp).name());
     }
 
@@ -867,7 +867,7 @@ inline namespace ass_inline {
     (!std::is_pointer<T>::value) && (
         (ass::traits::is_container<T>::value && !std::is_same<typename std::string,T>::value) ||
         (std::rank<T>::value > 0 && !std::is_same<char, typename std::remove_cv<typename std::remove_all_extents<T>::type>::type>::value)),
-    std::string>::type 
+    std::string>::type
     show(const T &v)
     {
         std::string out("[ ");
@@ -877,10 +877,10 @@ inline namespace ass_inline {
         }
         return std::move(out) + ']';
     }
-    
+
     //////////////////////////////////////////
     // generic_show for user defined types...
-    
+
     template <typename Tp, typename ...Ps>
     struct generic_show
     {
@@ -893,15 +893,15 @@ inline namespace ass_inline {
         operator()(Tp const &value)
         {
             auto out = ass::demangle(typeid(Tp).name()) + "{";
-        
-            details::generic_show_on<std::tuple<Ps...>, Tp, sizeof...(Ps)>::apply(out, data_, value); 
 
-            return out + "}"; 
+            details::generic_show_on<std::tuple<Ps...>, Tp, sizeof...(Ps)>::apply(out, data_, value);
+
+            return out + "}";
         }
 
         std::tuple<Ps...> data_;
     };
-    
+
     template <typename Tp, typename ...Ts>
     generic_show<Tp, Ts...>
     make_generic_show(Ts && ... args)
@@ -914,13 +914,13 @@ inline namespace ass_inline {
 
 #endif  // MORE_SHOW
 
-namespace std 
+namespace std
 {
     ////////////////////////////////////////////
     // operator<< for types that can be shown...
 
     template <typename CharT, typename Traits, typename T>
-    inline typename 
+    inline typename
     std::enable_if<!::ass::traits::has_insertion_operator<T>::value,
     std::basic_ostream<CharT, Traits>>::type &
     operator<< (std::basic_ostream<CharT, Traits> &out, const T &value)
@@ -931,7 +931,7 @@ namespace std
 } // namespace std
 
 
-////////////////////////////////////////////////////////////// type utils 
+////////////////////////////////////////////////////////////// type utils
 
 inline namespace ass_inline {
 
@@ -1006,64 +1006,64 @@ inline namespace ass_inline {
 
         std::intptr_t value;
 
-        O() : 
-        value(reinterpret_cast<std::intptr_t>(this)) 
-        { 
-            print(std::cout,"O() "); 
-        } 
-
-        O(O &other) :
-        value(other.value) 
-        { 
-            print(std::cout,"O(O&) "); 
-        } 
-
-        O(const O &other) :
-        value(other.value) 
-        { 
-            print(std::cout,"O(const O&) "); 
-        } 
-
-        O &operator=(const O &other) 
-        { 
-            value = other.value;
-            print(std::cout,"op=(const O&) "); return *this; 
-        } 
-
-        ~O() 
-        { 
-            print(std::cout,"~O() "); 
+        O() :
+        value(reinterpret_cast<std::intptr_t>(this))
+        {
+            print(std::cout,"O() ");
         }
 
-        O(O &&other) noexcept 
-        : value(other.value)    
-        { 
-            other.value = 0xdeadbeef;
-            print(std::cout,"O(O&&) "); 
-        } 
+        O(O &other) :
+        value(other.value)
+        {
+            print(std::cout,"O(O&) ");
+        }
 
-        O &operator=(O &&other) noexcept 
-        { 
+        O(const O &other) :
+        value(other.value)
+        {
+            print(std::cout,"O(const O&) ");
+        }
+
+        O &operator=(const O &other)
+        {
             value = other.value;
-            other.value = 0xdeadbeef;        
-            print(std::cout,"op=(O&&) "); 
-            return *this; 
-        } 
+            print(std::cout,"op=(const O&) "); return *this;
+        }
 
-        template <typename ...Ti> 
-        explicit O(Ti&& ...arg) 
-        : value(reinterpret_cast<std::intptr_t>(this)) 
+        ~O()
+        {
+            print(std::cout,"~O() ");
+        }
+
+        O(O &&other) noexcept
+        : value(other.value)
+        {
+            other.value = 0xdeadbeef;
+            print(std::cout,"O(O&&) ");
+        }
+
+        O &operator=(O &&other) noexcept
+        {
+            value = other.value;
+            other.value = 0xdeadbeef;
+            print(std::cout,"op=(O&&) ");
+            return *this;
+        }
+
+        template <typename ...Ti>
+        explicit O(Ti&& ...arg)
+        : value(reinterpret_cast<std::intptr_t>(this))
         {
             std::ostringstream ss; ss << "O(";
             print_type(ss, std::forward<Ti>(arg)...);
             ss << ")";
-            print(std::cout,ss.str().c_str()); 
-        } 
+            print(std::cout,ss.str().c_str());
+        }
 
         void swap(O &rhs) noexcept
-        { 
+        {
             std::swap(value, rhs.value);
-            print(std::cout,"swap(O,O) "); 
+            print(std::cout,"swap(O,O) ");
         }
 
         bool operator<(const O &rhs) const
@@ -1074,7 +1074,7 @@ inline namespace ass_inline {
         bool operator>=(const O &rhs) const
         {
             print(std::cout,">= ");
-            return !(*this < rhs);   
+            return !(*this < rhs);
         }
         bool operator>(const O &rhs) const
         {
@@ -1084,7 +1084,7 @@ inline namespace ass_inline {
         bool operator<=(const O &rhs) const
         {
             print(std::cout,"<= ");
-            return !(rhs < *this);   
+            return !(rhs < *this);
         }
 
         bool operator==(const O &rhs) const
@@ -1097,7 +1097,7 @@ inline namespace ass_inline {
             print(std::cout,"!= ");
             return !(*this == rhs);
         }
-    };  
+    };
 
     inline std::string
     show(const O &that)
@@ -1129,16 +1129,16 @@ inline namespace ass_inline {
 
     inline std::basic_string<char>
     operator "" _s(const char* str, size_t len)
-    { 
-        return std::basic_string<char>{str, len}; 
-    } 
+    {
+        return std::basic_string<char>{str, len};
+    }
 
     constexpr
     std::chrono::hours operator"" _h(unsigned long long n)
     {
         return std::chrono::hours{n};
     }
-    
+
     constexpr
     std::chrono::minutes operator"" _min(unsigned long long n)
     {
@@ -1150,19 +1150,19 @@ inline namespace ass_inline {
     {
         return std::chrono::seconds{n};
     }
-    
+
     constexpr
     std::chrono::milliseconds operator"" _ms(unsigned long long n)
     {
         return std::chrono::milliseconds{n};
     }
-    
+
     constexpr
     std::chrono::microseconds operator"" _us(unsigned long long n)
     {
         return std::chrono::microseconds{n};
     }
-    
+
     constexpr
     std::chrono::nanoseconds operator"" _ns(unsigned long long n)
     {
@@ -1176,7 +1176,7 @@ inline namespace ass_inline {
 
 namespace std
 {
-    template <>   
+    template <>
     void swap<O>(O & lhs, O & rhs) noexcept
     {
         lhs.swap(rhs);
@@ -1184,10 +1184,10 @@ namespace std
 }
 
 
-////////////////////////////////////////////////////////////// R(): Ranges ala Haskell 
+////////////////////////////////////////////////////////////// R(): Ranges ala Haskell
 
 // The following implementation mimics the std::initializer_list, only it and can be constructed
-// by the user. This is *not* guaranteed to work by the standard (my initializer_list and the standard 
+// by the user. This is *not* guaranteed to work by the standard (my initializer_list and the standard
 // initializer list have indeed different layouts).
 // Although, it works with gcc and clang, and there's no better way to implement it at the moment (Nicola).
 
@@ -1228,7 +1228,7 @@ namespace ass {
       const_iterator
       end() const noexcept { return begin() + size(); }
     };
-        
+
     static_assert(sizeof(initializer_list<int>) == sizeof(std::initializer_list<int>), "ass::initializer_list<_E>");
 }
 
@@ -1236,22 +1236,22 @@ namespace ass {
 inline namespace ass_inline {
 
     template <typename Tp = int>
-    std::initializer_list<Tp> 
+    std::initializer_list<Tp>
     R(Tp a0, Tp a1, Tp b)
-    {                                 
+    {
         auto step = a1 - a0;
         if (step == 0)
             throw std::runtime_error("Range error: step == 0");
-        
+
         auto size  = (b - a0 + step) / step;
-        
+
         size = (size > 0 ? size : 0);
 
         Tp * leak = nullptr;   // leak! a per-thread static should be a viable option...
         if (size) {
             leak = static_cast<Tp *>(realloc(leak, size * sizeof(Tp)));
             for(int n = 0; n < size && (step > 0  ? a0 <= b : a0 >= b); a0 += step, n++)
-                new (leak+n) Tp(a0);  
+                new (leak+n) Tp(a0);
         }
 
         ass::initializer_list<Tp> ret(leak,size);
@@ -1259,7 +1259,7 @@ inline namespace ass_inline {
     }
 
     template <typename Tp = int>
-    std::initializer_list<Tp> 
+    std::initializer_list<Tp>
     R(int a, int b)
     {
         return R<Tp>(a,a+1,b);
@@ -1280,7 +1280,7 @@ inline namespace ass_inline {
         P(std::forward<Ts>(args)...);
     }
 
-    ////////////////////////////////////////////////////////////// _(): build pairs and tuples 
+    ////////////////////////////////////////////////////////////// _(): build pairs and tuples
 
     template <typename T1, typename T2>
     auto _(T1 &&arg1, T2 &&arg2)
@@ -1290,7 +1290,7 @@ inline namespace ass_inline {
     }
 
     template <typename ... Ts>
-    auto _(Ts&& ...args) 
+    auto _(Ts&& ...args)
     -> decltype(std::make_tuple(std::forward<Ts>(args)...))
     {
         return std::make_tuple(std::forward<Ts>(args)...);
@@ -1310,7 +1310,7 @@ inline namespace ass_inline {
     ////////////////////////////////////////////////////////////// T<>(): get a demangled type name
 
     template <typename Tp>
-    std::string 
+    std::string
     T()
     {
         return type_name<Tp>();
@@ -1325,7 +1325,7 @@ inline namespace ass_inline {
         return __type_of<Tp>(std::forward<Tp>(arg));
     }
 
-    ////////////////////////////////////////////////////////////// type_info_<Type>(): dump info about the given type 
+    ////////////////////////////////////////////////////////////// type_info_<Type>(): dump info about the given type
 
 #define ASS_TRAIT_INFO(Tp,trait)   std::cout << # trait ": " << std::trait<Tp>::value << std::endl
 
@@ -1333,7 +1333,7 @@ inline namespace ass_inline {
     void type_info_()
     {
         std::cout << "type name: " << type_name<Tp>() << std::boolalpha << std::endl;
-        
+
         ASS_TRAIT_INFO(Tp, is_const           );
         ASS_TRAIT_INFO(Tp, is_volatile        );
         ASS_TRAIT_INFO(Tp, is_trivial         );
@@ -1345,7 +1345,7 @@ inline namespace ass_inline {
         ASS_TRAIT_INFO(Tp, is_abstract        );
         ASS_TRAIT_INFO(Tp, is_signed          );
         ASS_TRAIT_INFO(Tp, is_unsigned        );
- 
+
         ASS_TRAIT_INFO(Tp, is_constructible         );
         ASS_TRAIT_INFO(Tp, is_nothrow_constructible );
 
@@ -1366,7 +1366,7 @@ inline namespace ass_inline {
 #endif
 
 #if (__clang__) && defined(_LIBCPP_VERSION)
-        ASS_TRAIT_INFO(Tp, is_trivially_copyable              ); 
+        ASS_TRAIT_INFO(Tp, is_trivially_copyable              );
         ASS_TRAIT_INFO(Tp, is_trivially_constructible         );
         ASS_TRAIT_INFO(Tp, is_trivially_default_constructible );
         ASS_TRAIT_INFO(Tp, is_trivially_copy_constructible    );
@@ -1389,14 +1389,14 @@ inline namespace ass_inline {
         ASS_TRAIT_INFO(Tp, is_destructible                  );
         ASS_TRAIT_INFO(Tp, is_move_assignable               );
 #endif
-       
+
 #if (__clang__) || ((__GNUC__ == 4) && (__GNUC_MINOR__ > 7))
         ASS_TRAIT_INFO(Tp, is_trivially_destructible        );
         ASS_TRAIT_INFO(Tp, is_nothrow_destructible          );
 #endif
 
         ASS_TRAIT_INFO(Tp, has_virtual_destructor           );
-        
+
         std::cout << "sizeof   : " << sizeof(Tp) << std::endl;
         std::cout << "alignment: " << std::alignment_of<Tp>::value << std::endl;
         std::cout << "default  : {" << show( ass::xray_ptr<Tp>::make_default() ) << '}' << std::endl;
@@ -1410,8 +1410,8 @@ inline namespace ass_inline {
 namespace ass {
 
     ////////////////////////////////////////////////////////////// interactive: run a command line
-    
-    struct eval 
+
+    struct eval
     {
         template <typename Fun>
         eval(Fun fun)
@@ -1423,7 +1423,7 @@ namespace ass {
         struct cmdline
         {
             template <typename F>
-            static void run(F f) 
+            static void run(F f)
             { auto ret = f(); std::cout << std::boolalpha << ret << ' '; }
         };
 
@@ -1433,7 +1433,7 @@ namespace ass {
     struct eval::cmdline<void>
     {
         template <typename F>
-        static void run(F f) 
+        static void run(F f)
         { f(); std::cout << "(void) "; }
     };
 

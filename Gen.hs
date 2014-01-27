@@ -15,10 +15,10 @@
 -- Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 --
 -- gen: C++ code ass'istant for vim
- 
- 
+
+
 {-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE FlexibleInstances #-} 
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 
@@ -33,15 +33,15 @@ import Cpp.Lang
 
 data Entity = ENamespace     Identifier |
               SimpleClass    Identifier |
-              TemplateClass  Identifier |     
+              TemplateClass  Identifier |
               MoveableClass  Identifier |
-              ValueClass     Identifier |   
+              ValueClass     Identifier |
               SingletonClass Identifier |
               CRTPClass      Identifier Identifier |
               YatsTest       String     |
               Streamable     Identifier |
               Showable       Identifier |
-              Readable       Identifier 
+              Readable       Identifier
                 deriving (Show)
 
 factoryEntity :: Code -> [String] -> (Entity, [String])
@@ -76,193 +76,193 @@ helpString = "     n  ID       namespace\n" ++
              "     S  ID       show type\n" ++
              "     R  ID       read type"
 
----------------------------------- Cpp Class Models:                             
+---------------------------------- Cpp Class Models:
 
 model :: Entity -> [CppEntity]
 
-model (ENamespace name)  = 
+model (ENamespace name)  =
     cpp [ Namespace name [] ]
 
 
-model (Showable name) = 
-    cpp 
+model (Showable name) =
+    cpp
     [
         function
-        (FuncDecl [Inline] string "show" (add_lvalue_reference . add_const $ Arg (Type name) "value"))  
+        (FuncDecl [Inline] string "show" (add_lvalue_reference . add_const $ Arg (Type name) "value"))
         (Body [""])
     ]
 
-model (Readable name) = 
-    cpp 
+model (Readable name) =
+    cpp
     [
         Function (Just $ Template[Typename "CharT", Typename "Traits"])
-            (FuncDecl [] (Type "void") "read" (add_lvalue_reference $ Arg (Type name) "ret", 
+            (FuncDecl [] (Type "void") "read" (add_lvalue_reference $ Arg (Type name) "ret",
                                                Arg (Type "std::basic_istream<CharT, Traits> &") "in" ))
             (Body ["ret = ...;"])
     ]
 
-model (SimpleClass name) = 
-    cpp 
-    [ 
-        Class name NoBaseSpec 
-        [                                     
-             public                                                   
-             [                                                        
-                 ctor       name Unqualified,                            
-                 dtor       name Unqualified,                            
-                 copyCtor   name Delete,                             
-                 operAssign name Delete                            
-             ]                                                        
-        ]                                                           
-     ] ++                                                             
-     cpp                                                              
-     [                                                                
-         operInsrt Nothing name,                                      
-         operExtrc Nothing name                                       
-     ]                                      
+model (SimpleClass name) =
+    cpp
+    [
+        Class name NoBaseSpec
+        [
+             public
+             [
+                 ctor       name Unqualified,
+                 dtor       name Unqualified,
+                 copyCtor   name Delete,
+                 operAssign name Delete
+             ]
+        ]
+     ] ++
+     cpp
+     [
+         operInsrt Nothing name,
+         operExtrc Nothing name
+     ]
 
-model (MoveableClass name) = 
-    cpp 
-    [     Class name NoBaseSpec 
-          [                                                  
-               public                                                          
-               [                                                               
-                   ctor name Unqualified,                                   
-                   dtor name Unqualified,                                   
-                   copyCtor name Delete,                                    
-                   operAssign name Delete,                                  
-                   moveCtor name Unqualified,                               
-                   operMoveAssign name Unqualified                          
-               ]                                                               
-          ]                                                                   
-    ] ++                                                                       
-    cpp 
-    [                                                                      
-       operInsrt Nothing name,                                                 
-       operExtrc Nothing name                                                  
-    ]                                                 
+model (MoveableClass name) =
+    cpp
+    [     Class name NoBaseSpec
+          [
+               public
+               [
+                   ctor name Unqualified,
+                   dtor name Unqualified,
+                   copyCtor name Delete,
+                   operAssign name Delete,
+                   moveCtor name Unqualified,
+                   operMoveAssign name Unqualified
+               ]
+          ]
+    ] ++
+    cpp
+    [
+       operInsrt Nothing name,
+       operExtrc Nothing name
+    ]
 
-model (ValueClass name) = 
-    cpp 
-    [ 
-        Class name NoBaseSpec 
-        [                                         
-              public 
-              [                                                
-                  ctor name Unqualified,                           
-                  dtor name Unqualified,                           
-                  copyCtor name Unqualified,                       
-                  operAssign name Unqualified                      
-              ]                                                       
-        ]                                                           
-    ] ++                                                              
-    cpp 
-    [                                                             
-         operEq Nothing name,                                         
-         operNotEq Nothing name,                                      
-         operInsrt Nothing name,                                      
-         operExtrc Nothing name,                                      
-         operLt Nothing name,                                         
-         operLtEq Nothing name,                                       
-         operGt Nothing name,                                         
-         operGtEq Nothing name                                        
-    ]                                           
+model (ValueClass name) =
+    cpp
+    [
+        Class name NoBaseSpec
+        [
+              public
+              [
+                  ctor name Unqualified,
+                  dtor name Unqualified,
+                  copyCtor name Unqualified,
+                  operAssign name Unqualified
+              ]
+        ]
+    ] ++
+    cpp
+    [
+         operEq Nothing name,
+         operNotEq Nothing name,
+         operInsrt Nothing name,
+         operExtrc Nothing name,
+         operLt Nothing name,
+         operLtEq Nothing name,
+         operGt Nothing name,
+         operGtEq Nothing name
+    ]
 
 -- Meyers' Singleton
-model (SingletonClass name) = 
-    cpp 
-    [ 
-        Class name NoBaseSpec 
-        [                                                                               
-            private 
-            [                                                                                      
-                  ctor name Unqualified,                                                                                            
-                  dtor name Unqualified                                                                                             
-            ],                                                                                                                       
-            public 
-            [                                                                                                                 
-                  copyCtor   name Delete,                                                                                             
-                  operAssign name Delete,                                                                                           
-                  function                                                                                                             
-                      (FuncDecl [Static] (add_lvalue_reference (Type name)) "instance" ())                            
-                      (MembBody [ "static " ++ name ++ " one;", 
-                                  "return one;" ] Unqualified)                                       
-            ]                                                                                                                        
-        ]                                                                                                                              
+model (SingletonClass name) =
+    cpp
+    [
+        Class name NoBaseSpec
+        [
+            private
+            [
+                  ctor name Unqualified,
+                  dtor name Unqualified
+            ],
+            public
+            [
+                  copyCtor   name Delete,
+                  operAssign name Delete,
+                  function
+                      (FuncDecl [Static] (add_lvalue_reference (Type name)) "instance" ())
+                      (MembBody [ "static " ++ name ++ " one;",
+                                  "return one;" ] Unqualified)
+            ]
+        ]
     ]
 
 -- Template Class
-model (TemplateClass name) = 
-    cpp 
-    [ 
-        Template [Typename "T"] +++                                                  
-        Class name NoBaseSpec 
-        [                                                  
-            public 
-            [                                                                 
-               ctor         name Unqualified,                                           
-               dtor         name Unqualified,                                           
-               copyCtor     name Delete,                                            
-               operAssign   name Delete                                           
-           ]                                                                   
-        ]                                                                        
-    ] ++                                                                           
-    cpp                                                                            
-    [                                                                              
-        operInsrt (Just $ Template [Typename "T"]) name,                           
-        operExtrc (Just $ Template [Typename "T"]) name                            
-    ]                                                     
-
-
-model (CRTPClass base name) = 
-    cpp 
-    [                                                                                                      
-        Template [Typename "T"] +++                                                                          
-        Class base NoBaseSpec                                                                                
-        [                                                                                                    
-            public 
-            [                                                                                             
-                ctor      base Unqualified,                                                                        
-                dtor      base Unqualified,                                                                        
-                copyCtor  base Delete,                                                                         
-                operAssign base Delete                                                                        
-            ]                                                                                                
-        ]                                                                                                    
-    ] ++                                                                                                  
-                                                                                                           
-    cpp 
-    [ 
-        Class name (BaseSpecList [ public [ R (base ++ "<" ++ name ++ ">") ]])                           
-        [                                                                                                    
-            public 
-            [                                                                                             
-                ctor name Unqualified,                                                                        
-                dtor name Unqualified                                                                         
-            ]                                                                                                
-        ]                                                                                                    
-    ]                                                                                                      
-                                                                                 
-model (YatsTest name) = 
-    cpp [ Include "yats.hpp"    ] ++                                                
-    cpp [ UsingNamespace "yats" ] ++                                         
-    cpp 
-    [ 
-        R ("Context(" ++ name ++ ")" ),                                    
-        R "{\n}\n"                                                         
-    ] ++                                                                     
-    cpp 
-    [ 
-        _main [ "return yats::run(argc, argv);" ] 
-    ]    
-
-model (Streamable name) = 
-    cpp 
-    [   
-        operInsrt Nothing name, 
-        operExtrc Nothing name 
+model (TemplateClass name) =
+    cpp
+    [
+        Template [Typename "T"] +++
+        Class name NoBaseSpec
+        [
+            public
+            [
+               ctor         name Unqualified,
+               dtor         name Unqualified,
+               copyCtor     name Delete,
+               operAssign   name Delete
+           ]
+        ]
+    ] ++
+    cpp
+    [
+        operInsrt (Just $ Template [Typename "T"]) name,
+        operExtrc (Just $ Template [Typename "T"]) name
     ]
 
-----------------------------------                         
+
+model (CRTPClass base name) =
+    cpp
+    [
+        Template [Typename "T"] +++
+        Class base NoBaseSpec
+        [
+            public
+            [
+                ctor      base Unqualified,
+                dtor      base Unqualified,
+                copyCtor  base Delete,
+                operAssign base Delete
+            ]
+        ]
+    ] ++
+
+    cpp
+    [
+        Class name (BaseSpecList [ public [ R (base ++ "<" ++ name ++ ">") ]])
+        [
+            public
+            [
+                ctor name Unqualified,
+                dtor name Unqualified
+            ]
+        ]
+    ]
+
+model (YatsTest name) =
+    cpp [ Include "yats.hpp"    ] ++
+    cpp [ UsingNamespace "yats" ] ++
+    cpp
+    [
+        R ("Context(" ++ name ++ ")" ),
+        R "{\n}\n"
+    ] ++
+    cpp
+    [
+        _main [ "return yats::run(argc, argv);" ]
+    ]
+
+model (Streamable name) =
+    cpp
+    [
+        operInsrt Nothing name,
+        operExtrc Nothing name
+    ]
+
+----------------------------------
 
 main :: IO ()
 main = getArgs >>= runRender
@@ -276,9 +276,9 @@ runRender ("":_) = return ()
 runRender (es:as) = do
                     let (e, as') = renderCode (head es) as
                     putStrLn $ render (model e)
-                    runRender (tail es : as') 
+                    runRender (tail es : as')
 
 renderCode :: Code -> [String] -> (Entity, [String])
-renderCode = factoryEntity 
+renderCode = factoryEntity
 
-           
+

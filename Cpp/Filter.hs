@@ -15,9 +15,9 @@
 -- along with this program; if not, write to the Free Software
 -- Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 --
--- C++11 code assistant library 
+-- C++11 code assistant library
 
--- {-# LANGUAGE ViewPatterns #-} 
+-- {-# LANGUAGE ViewPatterns #-}
 
 
 module Cpp.Filter (Context(..), ContextFilter(..), Cpp.Filter.filter)  where
@@ -32,21 +32,21 @@ data Context = Code | Comment | Literal
                 deriving (Eq, Show)
 
 
-data ContextFilter = ContextFilter 
-                     { 
+data ContextFilter = ContextFilter
+                     {
                         cppCode    :: Bool,
-                        cppLiteral :: Bool, 
+                        cppLiteral :: Bool,
                         cppComment :: Bool
 
                      } deriving (Eq, Show)
 
 
 filter :: ContextFilter -> Source -> Source
-filter filt src =  snd $ Cpp.mapAccumL runFilter (FiltState CodeState filt ' ') src 
+filter filt src =  snd $ Cpp.mapAccumL runFilter (FiltState CodeState filt ' ') src
 
 -- Filter State:
 
-data FiltState = FiltState 
+data FiltState = FiltState
                  {
                     cstate  :: ContextState,
                     cfilter :: ContextFilter,
@@ -56,15 +56,15 @@ data FiltState = FiltState
 
 
 
-data ContextState = CodeState       | 
-                    CommentCState   | 
-                    CommentCppState | 
+data ContextState = CodeState       |
+                    CommentCState   |
+                    CommentCppState |
                     LiteralStateS   |
                     LiteralStateC
                         deriving (Eq, Show)
 
 
-runFilter :: FiltState -> Char -> (FiltState, Char) 
+runFilter :: FiltState -> Char -> (FiltState, Char)
 runFilter filtstate c = (state', charFilter (cxtFilter cxt (cfilter filtstate)) c)
     where (cxt, state') = charParser (pchar filtstate, c) filtstate
 
@@ -77,21 +77,21 @@ charFilter  cond c
 
 
 cxtFilter :: Context -> ContextFilter -> Bool
-cxtFilter Code    = cppCode 
-cxtFilter Comment = cppComment 
-cxtFilter Literal = cppLiteral 
+cxtFilter Code    = cppCode
+cxtFilter Comment = cppComment
+cxtFilter Literal = cppLiteral
 
 
 charParser :: (Char,Char) -> FiltState -> (Context, FiltState)
 
-charParser (p,c) filtstate@(FiltState CodeState _ _) 
+charParser (p,c) filtstate@(FiltState CodeState _ _)
     | p == '/'  && c == '/'  = (Code, filtstate { cstate = CommentCppState, pchar = c })
     | p == '/'  && c == '*'  = (Code, filtstate { cstate = CommentCState,   pchar = c })
     | p /= '\\' && c == '"'  = (Code, filtstate { cstate = LiteralStateS,   pchar = c })
-    | p /= '\\' && c == '\'' = (Code, filtstate { cstate = LiteralStateC,   pchar = c }) 
+    | p /= '\\' && c == '\'' = (Code, filtstate { cstate = LiteralStateC,   pchar = c })
     | p == '\\' && c == '\\' = (Code, filtstate { pchar = ' ' })
     | otherwise = (Code, filtstate { pchar = c } )
-                                       
+
 charParser (_,c) filtstate@(FiltState CommentCppState _ _)
     | c == '\n' = (Comment, filtstate { cstate = CodeState, pchar = c })
     | otherwise = (Comment, filtstate { pchar = c })
@@ -103,7 +103,7 @@ charParser (p,c) filtstate@(FiltState CommentCState _ _)
 charParser (p,c) filtstate@(FiltState LiteralStateS _ _)
     | p /= '\\' && c == '"'  = (Code,    filtstate { cstate = CodeState, pchar = c})
     | p == '\\' && c == '\\' = (Literal, filtstate { pchar = ' '})
-    | otherwise = (Literal, filtstate { pchar = c }) 
+    | otherwise = (Literal, filtstate { pchar = c })
 
 charParser (p,c) filtstate@(FiltState LiteralStateC _ _)
     | p /= '\\' && c == '\'' = (Code, filtstate { cstate = CodeState, pchar = c })

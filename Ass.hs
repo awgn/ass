@@ -80,7 +80,7 @@ compilerList = [
 banner, snippet, assrc, ass_history :: String
 tmpDir, includeDir :: FilePath
 
-banner      = "ASSi, version 2.8"
+banner      = "ASSi, version 2.9"
 snippet     = "ass-snippet"
 tmpDir      =  "/tmp"
 includeDir  =  "/usr/local/include"

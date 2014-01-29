@@ -27,12 +27,11 @@ module Cpp.Token(Token(..), TokenFilter(..),
 import Data.Char
 import Data.Maybe
 import Control.Monad
+import Data.Array.Unboxed
 
 import qualified Data.HashSet as HS
 import qualified Data.HashMap.Strict as HM
 import qualified Data.ByteString.Char8 as C
-
--- import Debug.Trace
 
 
 type TokenizerState = (Source, Offset, CppState)
@@ -42,13 +41,15 @@ type Source = C.ByteString
 type Offset = Int
 
 
--- Tokenize the source code in a list of Token
--- Precondition: the C++ source code must be well-formed
---
-
-tokenizer :: Source -> [Token]
-tokenizer xs = runGetToken (ys, n, Null)
-            where (ys, n) = dropWhite xs
+data Token = TokenIdentifier  { toString :: String, offset :: Int  } |
+             TokenDirective   { toString :: String, offset :: Int  } |
+             TokenKeyword     { toString :: String, offset :: Int  } |
+             TokenNumber      { toString :: String, offset :: Int  } |
+             TokenHeaderName  { toString :: String, offset :: Int  } |
+             TokenString      { toString :: String, offset :: Int  } |
+             TokenChar        { toString :: String, offset :: Int  } |
+             TokenOperOrPunct { toString :: String, offset :: Int  }
+                deriving (Show, Eq, Ord)
 
 
 data TokenFilter = TokenFilter
@@ -64,9 +65,16 @@ data TokenFilter = TokenFilter
 
                    } deriving (Show,Read,Eq)
 
+-- Tokenize the source code in a list of Token
+-- Precondition: the C++ source code must be well-formed
+--
+
+tokenizer :: Source -> [Token]
+tokenizer xs = runGetToken (ys, n, Null)
+            where (ys, n) = dropWhite xs
+
 
 tokenFilter :: TokenFilter -> Token -> Bool
-
 tokenFilter filt (TokenIdentifier{})  = filtIdentifier filt
 tokenFilter filt (TokenDirective{})   = filtDirective  filt
 tokenFilter filt (TokenKeyword{})     = filtKeyword    filt
@@ -75,17 +83,6 @@ tokenFilter filt (TokenNumber{})      = filtNumber     filt
 tokenFilter filt (TokenString{})      = filtString     filt
 tokenFilter filt (TokenChar{})        = filtChar       filt
 tokenFilter filt (TokenOperOrPunct{}) = filtOper       filt
-
-
-data Token = TokenIdentifier  { toString :: String, offset :: Int  } |
-             TokenDirective   { toString :: String, offset :: Int  } |
-             TokenKeyword     { toString :: String, offset :: Int  } |
-             TokenNumber      { toString :: String, offset :: Int  } |
-             TokenHeaderName  { toString :: String, offset :: Int  } |
-             TokenString      { toString :: String, offset :: Int  } |
-             TokenChar        { toString :: String, offset :: Int  } |
-             TokenOperOrPunct { toString :: String, offset :: Int  }
-                deriving (Show, Eq, Ord)
 
 
 tokenCompare :: Token -> Token -> Bool
@@ -140,12 +137,21 @@ isOperOrPunct (TokenOperOrPunct {})  = True
 isOperOrPunct _ = False
 
 
+isIdentifierChar' :: Char -> Bool
+isIdentifierChar' = (((listArray ('\0', '\255') (map (\c -> isAlphaNum c || c == '_' || c == '$') ['\0'..'\255'])) :: UArray Char Bool) !)  -- GNU allows $ in identifier
+
+
+isChar' :: Char -> Bool
+isChar'= (((listArray ('\0', '\255') (map (\c -> isSpace c || c == '\\') ['\0'..'\255'])) :: UArray Char Bool) !)
+
 -- Drop leading whitespace and count them
 --
 
+{-# INLINE dropWhite #-}
+
 dropWhite :: Source -> (Source, Offset)
 dropWhite xs = (xs', doff)
-    where xs'  = C.dropWhile (\c -> isSpace c || c == '\\') xs
+    where xs'  = C.dropWhile isChar' xs
           doff = fromIntegral $ C.length xs - C.length xs'
 
 
@@ -212,7 +218,7 @@ getTokenIdOrKeyword, getTokenNumber,
 getTokenDirective xs  state
     | state == Hash = Just (TokenDirective name 0)
     | otherwise = Nothing
-    where name = C.unpack $ C.takeWhile isIdentifierChar xs
+    where name = C.unpack $ C.takeWhile isIdentifierChar' xs
 
 
 getTokenHeaderName  (C.uncons -> Nothing) _ = error "getTokenHeaderName: internal error"
@@ -220,7 +226,7 @@ getTokenHeaderName  xs@(C.uncons -> Just (x,_)) state
     | state /= Include  = Nothing
     | x == '<'          = Just $ TokenHeaderName (getLiteral '<'  '>'  False xs)   0
     | x == '"'          = Just $ TokenHeaderName (getLiteral '"'  '"'  False xs)   0
-    | otherwise         = Just $ TokenHeaderName (C.unpack $ C.takeWhile isIdentifierChar xs) 0
+    | otherwise         = Just $ TokenHeaderName (C.unpack $ C.takeWhile isIdentifierChar' xs) 0
 
 getTokenHeaderName _ _ = undefined
 
@@ -301,17 +307,17 @@ getTokenString _ _ = Nothing
 
 
 getTokenChar xs@(C.uncons -> Just (x,_)) _
-    | x == '\'' = Just $ TokenChar  (getLiteral '\'' '\'' False xs) 0
+    | x == '\'' = Just $ TokenChar (getLiteral '\'' '\'' False xs) 0
     | otherwise = Nothing
 getTokenChar (C.uncons -> Nothing) _ = Nothing
 getTokenChar _ _ = Nothing
 
 
 getTokenIdOrKeyword xs@(C.uncons -> Just (x,_)) _
-    | not $ isIdentifierChar x  = Nothing
+    | not $ isIdentifierChar' x  = Nothing
     | name `HS.member` keywords = Just $ TokenKeyword name 0
     | otherwise                 = Just $ TokenIdentifier name 0
-                                    where name = C.unpack $ C.takeWhile isIdentifierChar xs
+                                    where name = C.unpack $ C.takeWhile isIdentifierChar' xs
 getTokenIdOrKeyword (C.uncons -> Nothing) _ = Nothing
 getTokenIdOrKeyword _ _ = Nothing
 
@@ -339,10 +345,6 @@ getLiteral b e True (C.uncons -> Just (x,xs))
                         (C.uncons -> Just(x',xs')) = xs
 getLiteral _  _ _ _ = []
 
-
-
-isIdentifierChar :: Char -> Bool
-isIdentifierChar c = isAlphaNum c || c == '_' || c == '$' -- GNU allows $ in identifiers
 
 
 operOrPunct :: HS.HashSet String

@@ -26,7 +26,7 @@ Help
 Session
 -------
   
-    ASSi, version 2.9 :? for help
+    ASSi, version 2.10 :? for help
     Compilers found: /usr/bin/g++-4.8(Gcc48) /usr/bin/g++-4.7(Gcc47) /usr/bin/g++-4.6(Gcc46) /usr/bin/clang++(Clang34) 
     Using Gcc48 compiler...
     Ass Gcc48> :?
@@ -41,7 +41,8 @@ Session
       :clear                    clear the buffer
       :next                     switch to next compiler
       :args ARG1 ARG2...        set runtime arguments
-      :run [ARG1 ARG2...]       run main function
+      :run [ARG1 ARG2...]       run the main function
+      :rr                       reload and run the main function
       :xray TYPE                show info about the given TYPE
       :preload                  toggle preload std headers
       :verbose                  show additional information

@@ -80,7 +80,7 @@ compilerList = [
 banner, snippet, assrc, ass_history :: String
 tmpDir, includeDir :: FilePath
 
-banner      = "ASSi, version 2.9"
+banner      = "ASSi, version 2.10"
 snippet     = "ass-snippet"
 tmpDir      =  "/tmp"
 includeDir  =  "/usr/local/include"
@@ -229,7 +229,7 @@ getStringIdentifiers =
 
 
 commands, assIdentifiers :: [String]
-commands = [ ":load", ":include", ":reload", ":edit", ":list", ":clear", ":next", ":args", ":run", ":info", ":preload", ":verbose", ":quit" ]
+commands = [ ":load", ":include", ":reload", ":rr", ":edit", ":list", ":clear", ":next", ":args", ":run", ":info", ":preload", ":verbose", ":quit" ]
 
 assIdentifiers = [ "hex", "oct", "bin", "T<", "type_name<", "type_of(", "type_info_<", "SHOW(", "R(" , "P(" ]
 
@@ -290,6 +290,13 @@ mainLoop args clist = do
                      Just (":quit":_)       -> void (outputStrLn "Leaving ASSi.")
                      Just (":next":_)       -> lift (put $ stateBanner.~ True $ over stateCompType next s) >> loop
                      Just (":?":_)          -> lift printHelp >> lift (put $ stateBanner.~ True $ s) >> loop
+
+                     Just (":rr" :xs)       -> do outputStrLn ("Reloading " ++ s^.stateFile ++ "...")
+                                                  reloadCodeCmd >>= \ys -> lift (put s{ _stateBanner = False, _stateCode = ys})
+                                                  e <- runCmd  "" clist (getCompilerArgs args) (if null xs then s^.stateArgs else xs)
+                                                  outputStrLn $ show e
+                                                  lift (put $ stateBanner.~ False $ s) >> loop
+
                      Just (":run" :xs)      -> do e <- runCmd  "" clist (getCompilerArgs args) (if null xs then s^.stateArgs else xs)
                                                   outputStrLn $ show e
                                                   lift (put $ stateBanner.~ False $ s) >> loop
@@ -322,7 +329,8 @@ printHelp =  lift $ putStrLn $ "Commands available from the prompt:\n\n" ++
                         "  :clear                    clear the buffer\n" ++
                         "  :next                     switch to next compiler\n" ++
                         "  :args ARG1 ARG2...        set runtime arguments\n" ++
-                        "  :run [ARG1 ARG2...]       run main function\n" ++
+                        "  :run [ARG1 ARG2...]       run the main function\n" ++
+                        "  :rr                       reload and run the main function\n" ++
                         "  :info TYPE                show info about the given TYPE\n" ++
                         "  :preload                  toggle preload std headers\n" ++
                         "  :verbose                  show additional information\n" ++

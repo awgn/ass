@@ -376,6 +376,16 @@ reloadCodeCmd = lift get >>= \s ->
     if null (s^.stateFile) then error "No file loaded!"
                            else loadCodeCmd $ s^.stateFile
 
+runCmd :: String -> [Compiler] -> [String] -> [String] -> InputT StateIO [ExitCode]
+runCmd src clist cargs args = lift get >>= \s ->
+    liftIO $ buildCompileAndRun (C.pack (unlines (s^.statePrepList) ++ unlines (s^.stateCode)))
+                  (C.pack src)
+                  (s^.statePreload)
+                  (s^.stateVerbose)
+                  (compFilterType (s^.stateCompType) clist)
+                  (cargs)
+                  (args)
+
 
 buildCompileAndRun :: Source -> Source -> Bool -> Bool -> [Compiler] -> [String] -> [String] -> IO [ExitCode]
 buildCompileAndRun code main_code preload verbose clist cargs targs = do

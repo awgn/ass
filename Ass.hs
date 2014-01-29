@@ -290,36 +290,18 @@ mainLoop args clist = do
                      Just (":quit":_)       -> void (outputStrLn "Leaving ASSi.")
                      Just (":next":_)       -> lift (put $ stateBanner.~ True $ over stateCompType next s) >> loop
                      Just (":?":_)          -> lift printHelp >> lift (put $ stateBanner.~ True $ s) >> loop
-                     Just (":run" :xs)      -> do e <- liftIO $ buildCompileAndRun (C.pack(unlines (s^.statePrepList) ++ unlines (s^.stateCode)))
-                                                                    ""
-                                                                    (s^.statePreload)
-                                                                    (s^.stateVerbose)
-                                                                    (compFilterType (s^.stateCompType) clist)
-                                                                    (getCompilerArgs args)
-                                                                    (if null xs then s^.stateArgs else xs)
+                     Just (":run" :xs)      -> do e <- runCmd  "" clist (getCompilerArgs args) (if null xs then s^.stateArgs else xs)
                                                   outputStrLn $ show e
                                                   lift (put $ stateBanner.~ False $ s) >> loop
 
-                     Just (":info":xs)      -> do e <- liftIO $ buildCompileAndRun (C.pack (unlines (s^.statePrepList) ++ unlines (s^.stateCode)))
-                                                                    (C.pack $ if null xs then "" else "return type_info_<" ++ unwords xs ++ ">();")
-                                                                    (s^.statePreload)
-                                                                    (s^.stateVerbose)
-                                                                    (compFilterType (s^.stateCompType) clist)
-                                                                    (getCompilerArgs args)
-                                                                    (s^.stateArgs)
+                     Just (":info":xs)      -> do e <- runCmd (if null xs then "" else "return type_info_<" ++ unwords xs ++ ">();") clist (getCompilerArgs args) (s^.stateArgs)
                                                   outputStrLn $ show e
                                                   lift (put $ stateBanner .~ False $ s) >> loop
 
                      Just input | ":" `isPrefixOf` (unwords input) -> outputStrLn("unknown command '" ++ unwords input ++ "'") >>
                                                                       outputStrLn("use :? for help.") >> lift (put $ stateBanner .~ False $ s) >> loop
                                 | isPreprocessor (C.pack $ unwords input) -> lift (put s{ _stateBanner = False, _statePrepList = s^.statePrepList ++ [unwords input] }) >> loop
-                                | otherwise -> do e <- liftIO $ buildCompileAndRun (C.pack(unlines (s^.statePrepList) ++ unlines (s^.stateCode)))
-                                                                    (C.pack(unwords input))
-                                                                    (s^.statePreload)
-                                                                    (s^.stateVerbose)
-                                                                    (compFilterType (s^.stateCompType) clist)
-                                                                    (getCompilerArgs args)
-                                                                    (s^.stateArgs)
+                                | otherwise -> do e <- runCmd (unwords input) clist (getCompilerArgs args) (s^.stateArgs)
                                                   outputStrLn $ show e
                                                   lift (put $ stateBanner .~ False $ s) >> loop
 

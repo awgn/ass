@@ -280,13 +280,13 @@ mainLoop args clist = do
                      Just (":list":_)       -> mapM_ outputStrLn (s^.statePrepList) >> mapM_ outputStrLn (s^.stateCode) >>
                                                lift (put $ stateBanner.~ False $ s) >> loop
                      Just (":edit":_)       -> mapM_ outputStrLn (s^.statePrepList) >> mapM_ outputStrLn (s^.stateCode) >>
-                                               getCode >>= \xs -> lift (put s{ _stateBanner = False, _stateCode = s^.stateCode ++ xs }) >> loop
+                                               getCodeCmd >>= \xs -> lift (put s{ _stateBanner = False, _stateCode = s^.stateCode ++ xs }) >> loop
                      Just (":include":h:[]) -> outputStrLn ("Including " ++ h ++ "...") >>
                                                lift (put $ s{ _stateBanner = False, _stateCode = s^.stateCode ++ ["#include <" ++ h ++ ">"] }) >> loop
                      Just (":load":f:[])    -> outputStrLn ("loading " ++ f ++ "...") >>
-                                               loadCode f >>= \xs -> lift (put s{ _stateBanner = False, _stateFile = f, _stateCode = xs }) >> loop
+                                               loadCodeCmd f >>= \xs -> lift (put s{ _stateBanner = False, _stateFile = f, _stateCode = xs }) >> loop
                      Just (":reload":_)     -> outputStrLn ("Reloading " ++ s^.stateFile ++ "...") >>
-                                               reloadCode >>= \xs -> lift (put s{ _stateBanner = False, _stateCode = xs }) >> loop
+                                               reloadCodeCmd >>= \xs -> lift (put s{ _stateBanner = False, _stateCode = xs }) >> loop
                      Just (":quit":_)       -> void (outputStrLn "Leaving ASSi.")
                      Just (":next":_)       -> lift (put $ stateBanner.~ True $ over stateCompType next s) >> loop
                      Just (":?":_)          -> lift printHelp >> lift (put $ stateBanner.~ True $ s) >> loop
@@ -358,23 +358,23 @@ printHelp =  lift $ putStrLn $ "Commands available from the prompt:\n\n" ++
                         "  class O                   oracle class.\n"
 
 
-getCode :: InputT StateIO [String]
-getCode = do
+getCodeCmd :: InputT StateIO [String]
+getCodeCmd = do
     line <- getInputLine "code> "
     case line of
          Nothing    -> return []
-         Just []    -> getCode
-         Just input -> (input :) <$> getCode
+         Just []    -> getCodeCmd
+         Just input -> (input :) <$> getCodeCmd
 
 
-loadCode :: FilePath -> InputT StateIO [String]
-loadCode f = liftIO $ filter (not . ("#pragma" `isPrefixOf`) . dropWhite) <$> lines <$> readFile f
+loadCodeCmd :: FilePath -> InputT StateIO [String]
+loadCodeCmd f = liftIO $ filter (not . ("#pragma" `isPrefixOf`) . dropWhite) <$> lines <$> readFile f
 
 
-reloadCode :: InputT StateIO [String]
-reloadCode = lift get >>= \s ->
+reloadCodeCmd :: InputT StateIO [String]
+reloadCodeCmd = lift get >>= \s ->
     if null (s^.stateFile) then error "No file loaded!"
-                           else loadCode $ s^.stateFile
+                           else loadCodeCmd $ s^.stateFile
 
 
 buildCompileAndRun :: Source -> Source -> Bool -> Bool -> [Compiler] -> [String] -> [String] -> IO [ExitCode]

@@ -454,7 +454,7 @@ operMoveAssign name qual =
 
 _main :: [String] -> Function
 _main impl =  function
-    (FuncDecl [] int "main" (Arg int "argc", Arg (add_pointer(char)) "argv[]"))
+    (FuncDecl [] int "main" (Arg int "argc", Arg (add_pointer char) "argv[]"))
     (Body impl)
 
 operEq :: Maybe Template -> Identifier -> Function

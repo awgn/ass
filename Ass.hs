@@ -305,8 +305,8 @@ mainLoop args clist = do
                                                   outputStrLn $ show e
                                                   lift (put $ stateBanner .~ False $ s) >> loop
 
-                     Just input | ":" `isPrefixOf` (unwords input) -> outputStrLn("unknown command '" ++ unwords input ++ "'") >>
-                                                                      outputStrLn("use :? for help.") >> lift (put $ stateBanner .~ False $ s) >> loop
+                     Just input | ":" `isPrefixOf` unwords input -> outputStrLn("unknown command '" ++ unwords input ++ "'") >>
+                                                                    outputStrLn "use :? for help." >> lift (put $ stateBanner .~ False $ s) >> loop
                                 | isPreprocessor (C.pack $ unwords input) -> lift (put s{ _stateBanner = False, _statePrepList = s^.statePrepList ++ [unwords input] }) >> loop
                                 | otherwise -> do e <- runCmd (unwords input) clist (getCompilerArgs args) (s^.stateArgs)
                                                   outputStrLn $ show e
@@ -373,8 +373,8 @@ runCmd src clist cargs args = lift get >>= \s ->
                   (s^.statePreload)
                   (s^.stateVerbose)
                   (compFilterType (s^.stateCompType) clist)
-                  (cargs)
-                  (args)
+                  cargs
+                  args
 
 
 buildCompileAndRun :: Source -> Source -> Bool -> Bool -> [Compiler] -> [String] -> [String] -> IO [ExitCode]

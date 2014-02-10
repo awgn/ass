@@ -153,11 +153,11 @@ getAvailCompilers = filterM (doesFileExist . getCompilerExec)
 
 
 validCompilers :: [Compiler] -> IO [Compiler]
-validCompilers = filterM (\c -> (getCompilerVersion c `isPrefixOf`) <$> getRealCompilerVersion c)
+validCompilers = filterM (\c -> (getCompilerVersion c `isPrefixOf`) <$> askCompilerVersion c)
 
 
-getRealCompilerVersion :: Compiler -> IO String
-getRealCompilerVersion comp
+askCompilerVersion :: Compiler -> IO String
+askCompilerVersion comp
     | Gcc <- getCompilerFamily comp = last . words . head . lines <$> readProcess (getCompilerExec comp) ["--version"] ""
     | otherwise                     = last . words . head . lines <$> readProcess (getCompilerExec comp) ["--version"] ""
 

@@ -1424,7 +1424,7 @@ namespace ass {
         {
             template <typename F>
             static void run(F f)
-            { auto ret = f(); std::cout << std::boolalpha << ret << ' '; }
+            { auto ret = f(); std::cout << std::boolalpha << ret << std::endl; }
         };
 
     };

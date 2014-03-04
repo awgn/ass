@@ -124,10 +124,19 @@ if [ -x /usr/bin/clang++ ]; then
     if [ ! -z "$CLANG_LIBC" ] || [ -d "/usr/include/c++/v1" ]; then
         echo -e "${ASS} Precompiling headers for clang++... (libc++)"
         mkdir -p /usr/local/include/clang-libc++
+        mkdir -p /usr/local/include/clang-libc++1y
 
         sudo /usr/bin/clang++ includes/ass.hpp -std=c++11 -stdlib=libc++ -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -pthread -x c++-header -o /usr/local/include/clang-libc++/ass.hpp.pch
         if [ -d "/usr/include/boost" ]; then 
         sudo /usr/bin/clang++ includes/ass-boost.hpp -std=c++11 -stdlib=libc++ -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -pthread -x c++-header -o /usr/local/include/clang-libc++/ass-boost.hpp.pch
+        fi
+        
+        if /usr/bin/clang++ --version | grep -q 3.4; then
+            echo -e "${ASS} Precompiling headers for clang++1y... (libc++)"
+            sudo /usr/bin/clang++ includes/ass.hpp -std=c++1y -stdlib=libc++ -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -pthread -x c++-header -o /usr/local/include/clang-libc++1y/ass.hpp.pch
+            if [ -d "/usr/include/boost" ]; then 
+            sudo /usr/bin/clang++ includes/ass-boost.hpp -std=c++1y -stdlib=libc++ -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -pthread -x c++-header -o /usr/local/include/clang-libc++1y/ass-boost.hpp.pch
+            fi
         fi
     fi 
 

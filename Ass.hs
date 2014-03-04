@@ -48,6 +48,7 @@ import qualified Cpp.Source as Cpp
 import qualified Cpp.Filter as Cpp
 import qualified Cpp.Token  as Cpp
 
+-- import Debug.Trace
 
 type Source          = Cpp.Source
 data CodeLine        = CodeLine Int Source
@@ -509,22 +510,24 @@ zipSourceCode src = zipWith CodeLine [2..] (C.lines src)
 getCompilerOpt :: Compiler -> [String]
 getCompilerOpt (Compiler ver _ _ opts) =
         case ver of
-         Gcc49   -> gcc_opt ++ opts ++ ["-std=c++11", "-I" ++ includeDir </> "4.9" ]
-         Gcc48   -> gcc_opt ++ opts ++ ["-std=c++11", "-I" ++ includeDir </> "4.8" ]
-         Gcc47   -> gcc_opt ++ opts ++ ["-std=c++11", "-I" ++ includeDir </> "4.7" ]
-         Gcc46   -> gcc_opt ++ opts ++ ["-std=c++0x", "-I" ++ includeDir </> "4.6" ]
-         Clang31 -> clg_opt ++ opts ++ ["-std=c++11"] ++ pch
-         Clang32 -> clg_opt ++ opts ++ ["-std=c++11"] ++ pch
-         Clang33 -> clg_opt ++ opts ++ ["-std=c++11"] ++ pch
-         Clang34 -> clg_opt ++ opts ++ ["-std=c++11"] ++ pch
+         Gcc49   -> gcc_opt ++ opts ++ ["-I" ++ includeDir </> "4.9" ]
+         Gcc48   -> gcc_opt ++ opts ++ ["-I" ++ includeDir </> "4.8" ]
+         Gcc47   -> gcc_opt ++ opts ++ ["-I" ++ includeDir </> "4.7" ]
+         Gcc46   -> gcc_opt ++ opts ++ ["-I" ++ includeDir </> "4.6" ]
+         Clang31 -> clg_opt ++ opts ++ pch
+         Clang32 -> clg_opt ++ opts ++ pch
+         Clang33 -> clg_opt ++ opts ++ pch
+         Clang34 -> clg_opt ++ opts ++ pch
     where gcc_opt = [ "-O0", "-D_GLIBCXX_DEBUG", "-pthread", "-Wall", "-Wextra", "-Wno-unused-parameter", "-Wno-unused-value", "-Winvalid-pch" ]
           clg_opt = [ "-O0", "-D_GLIBCXX_DEBUG", "-pthread", "-Wall", "-Wextra", "-Wno-unused-parameter", "-Wno-unused-value", "-Wno-unneeded-internal-declaration"]
           pch     = ["-include ", getCompilerPchPath opts </> "ass.hpp" ]
 
 
 getCompilerPchPath :: [String] -> String
-getCompilerPchPath opts |  "-stdlib=libc++" `elem` opts = includeDir </> "clang-libc++"
-                        |  otherwise                    = includeDir </> "clang"
+getCompilerPchPath opts
+    |  "-std=c++1y" `elem` opts && "-stdlib=libc++" `elem` opts = includeDir </> "clang-libc++1y"
+    |  "-stdlib=libc++" `elem` opts                             = includeDir </> "clang-libc++"
+    |  otherwise                                                = includeDir </> "clang"
 
 
 compileWith :: Compiler -> FilePath -> FilePath -> Bool -> [String] -> IO ExitCode

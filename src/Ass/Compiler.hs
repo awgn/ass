@@ -21,7 +21,6 @@ module Ass.Compiler where
 
 import Ass.Types
 
-import System.FilePath
 import System.Directory
 import System.Process
 import System.Environment

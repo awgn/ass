@@ -20,10 +20,7 @@
 module Ass.Types where
 
 import qualified Data.ByteString.Char8 as C
-
 import qualified Cpp.Source as Cpp
-import qualified Cpp.Filter as Cpp
-import qualified Cpp.Token  as Cpp
 
 
 type Source          = Cpp.Source

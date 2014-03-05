@@ -15,7 +15,7 @@
 -- along with this program; if not, write to the Free Software
 -- Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 --
--- ass: C++11 code ass'istant for vim
+-- ass: C++11 code assistant for vim
 
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
@@ -26,14 +26,14 @@ import Data.List
 import Data.Functor
 import Safe (tailSafe)
 
-import System.Environment(getArgs, getProgName)
-import System.Process(system, readProcess)
+import System.Environment(getArgs)
+import System.Process(system)
 import System.IO
 
 import System.Exit
+import System.Posix.User(getEffectiveUserName)
 import System.FilePath
 import System.Directory
-import System.Posix.User(getEffectiveUserName)
 
 import System.Console.Haskeline
 
@@ -44,143 +44,16 @@ import Control.Monad.State.Strict
 
 import qualified Data.ByteString.Char8 as C
 
-import qualified Cpp.Source as Cpp
 import qualified Cpp.Filter as Cpp
 import qualified Cpp.Token  as Cpp
 
+import Config
+
+import Ass.Compiler
+import Ass.Types
+
+
 -- import Debug.Trace
-
-type Source          = Cpp.Source
-data CodeLine        = CodeLine Int Source
-
-type SourceCode      = [CodeLine]
-type TranslationUnit = SourceCode
-type MainFunction    = SourceCode
-type ParserState     = (TranslationUnit, MainFunction)
-
-instance Show CodeLine where
-    show (CodeLine n xs)
-        | "\\" `C.isSuffixOf` xs = C.unpack xs
-        | otherwise              = C.unpack xs ++ "\n#line " ++ show n
-
--- default compiler list (overridden by ~/.assrc)
---
-
-compilerList :: [Compiler]
-compilerList = [
-                 Compiler Gcc48   "/usr/bin/g++-4.8" "g++-4.8" [],
-                 Compiler Gcc47   "/usr/bin/g++-4.7" "g++-4.7" [],
-                 Compiler Gcc46   "/usr/bin/g++-4.6" "g++-4.6" [],
-                 Compiler Clang31 "/usr/bin/clang++" "clang++" [],
-                 Compiler Clang32 "/usr/bin/clang++" "clang++" [],
-                 Compiler Clang33 "/usr/bin/clang++" "clang++" [],
-                 Compiler Clang34 "/usr/bin/clang++" "clang++" []
-               ]
-
-
-banner, snippet, assrc, ass_history :: String
-tmpDir, includeDir :: FilePath
-
-banner      = "ASSi, version 2.10"
-snippet     = "ass-snippet"
-tmpDir      =  "/tmp"
-includeDir  =  "/usr/local/include"
-assrc       =  ".assrc"
-ass_history = ".ass_history"
-
-
--- Compiler:
-
-data CompilerType = Gcc46 | Gcc47 | Gcc48 | Gcc49 | Clang31 | Clang32 | Clang33 | Clang34
-                    deriving (Eq,Show,Read,Enum)
-
-
-next :: CompilerType -> CompilerType
-next Clang34 = Gcc46
-next x = succ x
-
-
-data CompilerFamily = Gcc | Clang
-    deriving (Eq,Show,Read,Enum)
-
-
-data Compiler = Compiler CompilerType FilePath String [String]
-    deriving (Read, Eq)
-
-
-instance Show Compiler where
-    show (Compiler _ _ name opt) = name ++ " (" ++ show opt ++ ")"
-
-
-getCompilerType :: Compiler -> CompilerType
-getCompilerType (Compiler t _ _ _) = t
-
-
-getCompilerVersion :: Compiler -> String
-getCompilerVersion (Compiler Gcc46   _ _ _ ) = "4.6"
-getCompilerVersion (Compiler Gcc47   _ _ _ ) = "4.7"
-getCompilerVersion (Compiler Gcc48   _ _ _ ) = "4.8"
-getCompilerVersion (Compiler Gcc49   _ _ _ ) = "4.9"
-getCompilerVersion (Compiler Clang31 _ _ _ ) = "3.1"
-getCompilerVersion (Compiler Clang32 _ _ _ ) = "3.2"
-getCompilerVersion (Compiler Clang33 _ _ _ ) = "3.3"
-getCompilerVersion (Compiler Clang34 _ _ _ ) = "3.4"
-
-getCompilerFamily :: Compiler -> CompilerFamily
-getCompilerFamily (Compiler Gcc46   _ _ _ ) = Gcc
-getCompilerFamily (Compiler Gcc47   _ _ _ ) = Gcc
-getCompilerFamily (Compiler Gcc48   _ _ _ ) = Gcc
-getCompilerFamily (Compiler Gcc49   _ _ _ ) = Gcc
-getCompilerFamily (Compiler Clang31 _ _ _ ) = Clang
-getCompilerFamily (Compiler Clang32 _ _ _ ) = Clang
-getCompilerFamily (Compiler Clang33 _ _ _ ) = Clang
-getCompilerFamily (Compiler Clang34 _ _ _ ) = Clang
-
-
-getCompilerExec :: Compiler -> FilePath
-getCompilerExec (Compiler _ e _ _) = e
-
-
-getCompilerName :: Compiler -> FilePath
-getCompilerName (Compiler _ _ n _) = n
-
-
-getCompilerExtraOpt :: Compiler -> [String]
-getCompilerExtraOpt (Compiler _ _ _ xs) = xs
-
-
-getAvailCompilers :: [Compiler] -> IO [Compiler]
-getAvailCompilers = filterM (doesFileExist . getCompilerExec)
-
-
-validCompilers :: [Compiler] -> IO [Compiler]
-validCompilers = filterM (\c -> (getCompilerVersion c `isPrefixOf`) <$> askCompilerVersion c)
-
-
-askCompilerVersion :: Compiler -> IO String
-askCompilerVersion comp
-    | Gcc <- getCompilerFamily comp = last . words . head . lines <$> readProcess (getCompilerExec comp) ["--version"] ""
-    | otherwise                     = last . words . head . lines <$> readProcess (getCompilerExec comp) ["--version"] ""
-
-
-getCompilerFamilyByName :: IO CompilerFamily
-getCompilerFamilyByName = getProgName >>= \n ->
-    return $ if n `isSuffixOf` "clang" then Clang else Gcc
-
-
-compFilter :: CompilerFamily -> [Compiler] -> [Compiler]
-compFilter t = filter $ (== t) . getCompilerFamily
-
-
-compFilterType :: CompilerType -> [Compiler] -> [Compiler]
-compFilterType t = filter $ (== t) . getCompilerType
-
-
-getCompilerConf :: FilePath -> IO [Compiler]
-getCompilerConf conf =
-    doesFileExist conf >>= \b ->
-        if b then read <$> readFile conf
-             else return compilerList
 
 
 usage :: IO ()
@@ -230,9 +103,14 @@ getStringIdentifiers =
 
 
 commands, assIdentifiers :: [String]
-commands = [ ":load", ":include", ":reload", ":rr", ":edit", ":list", ":clear", ":next", ":args", ":run", ":info", ":preload", ":verbose", ":quit" ]
 
-assIdentifiers = [ "hex", "oct", "bin", "T<", "type_name<", "type_of(", "type_info_<", "SHOW(", "R(" , "P(" ]
+commands = [ ":load", ":include", ":reload", ":rr", ":edit",
+             ":list", ":clear", ":next", ":args", ":run",
+             ":info", ":preload", ":verbose", ":quit" ]
+
+assIdentifiers = [ "hex", "oct", "bin", "T<", "type_name<", "type_of(",
+                   "type_info_<", "SHOW(", "R(" , "P(" ]
+
 
 cliCompletion :: String -> String -> StateIO [Completion]
 cliCompletion l w = do

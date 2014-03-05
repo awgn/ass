@@ -68,8 +68,13 @@ fi
 
 echo -e "${ASS} Compiling Haskell binaries..."
 
-sudo /usr/bin/ghc -O -Wall Ass.hs -o /usr/local/bin/ass
-sudo /usr/bin/ghc -O -Wall Gen.hs -o /usr/local/bin/gen
+cd src;
+
+sudo /usr/bin/ghc --make -O -Wall Ass.hs -o /usr/local/bin/ass
+sudo /usr/bin/ghc --make -O -Wall Gen.hs -o /usr/local/bin/gen
+
+cd -
+
 sudo /bin/ln -f -s /usr/local/bin/ass  /usr/local/bin/ass-clang
 
 echo -e "${ASS} Installing rc file..."

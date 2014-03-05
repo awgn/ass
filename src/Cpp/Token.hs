@@ -19,10 +19,10 @@
 {-# LANGUAGE ViewPatterns #-}
 
 module Cpp.Token(Token(..), TokenFilter(..),
-                       Offset, tokenizer, tokenFilter, tokenCompare,
-                       isIdentifier, isKeyword, isDirective, isLiteralNumber,
-                       isHeaderName, isString, isChar, isOperOrPunct
-                       )  where
+                 Offset, tokenizer, tokenFilter, tokenCompare,
+                 isIdentifier, isKeyword, isDirective, isLiteralNumber,
+                 isHeaderName, isString, isChar, isOperOrPunct
+                 )  where
 
 import Data.Char
 import Data.Maybe

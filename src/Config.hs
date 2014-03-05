@@ -19,30 +19,17 @@
 
 module Config where
 
-import Ass.Types
-
--- default compiler list (overridden by ~/.assrc)
---
-
-compilerList :: [Compiler]
-compilerList = [
-                 Compiler Gcc48   "/usr/bin/g++-4.8" "g++-4.8" [],
-                 Compiler Gcc47   "/usr/bin/g++-4.7" "g++-4.7" [],
-                 Compiler Gcc46   "/usr/bin/g++-4.6" "g++-4.6" [],
-                 Compiler Clang31 "/usr/bin/clang++" "clang++" [],
-                 Compiler Clang32 "/usr/bin/clang++" "clang++" [],
-                 Compiler Clang33 "/usr/bin/clang++" "clang++" [],
-                 Compiler Clang34 "/usr/bin/clang++" "clang++" []
-               ]
-
 banner, snippet, assrc, ass_history :: String
-tmpDir, includeDir :: FilePath
+tmpDir, includeAssDir :: FilePath
 
-banner      = "ASSi, version 2.10"
-snippet     = "ass-snippet"
-tmpDir      =  "/tmp"
-includeDir  =  "/usr/local/include"
-assrc       =  ".assrc"
-ass_history = ".ass_history"
+banner          = "ASSi, version 2.11"
+
+includeAssDir   =  "/usr/local/include/ass"
+
+tmpDir          =  "/tmp"
+
+snippet         = "ass-snippet"
+assrc           =  ".assrc"
+ass_history     = ".ass_history"
 
 

@@ -82,8 +82,10 @@ echo -e "${ASS} Installing rc file..."
 
 echo -e "${ASS} Installing headers..."
 
-sudo /bin/cp includes/ass.hpp          /usr/local/include/
-sudo /bin/cp includes/ass-boost.hpp    /usr/local/include/
+mkdir -p /usr/local/include/ass/
+
+sudo /bin/cp includes/ass.hpp          /usr/local/include/ass/
+sudo /bin/cp includes/ass-boost.hpp    /usr/local/include/ass/
 
 if [ $INSTALL_PCH = "Y" ];
 then
@@ -93,31 +95,31 @@ Linux)
 
     if [ -x /usr/bin/g++-4.8 ]; then
         echo -e "${ASS} Precompiling headers for g++-4.8..."
-        mkdir -p /usr/local/include/4.8
+        mkdir -p /usr/local/include/ass/4.8
         
-        sudo /usr/bin/g++-4.8 includes/ass.hpp -std=c++11 -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -pthread -o        /usr/local/include/4.8/ass.hpp.gch
+        sudo /usr/bin/g++-4.8 includes/ass.hpp -std=c++11 -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -pthread -o        /usr/local/include/ass/4.8/ass.hpp.gch
         if [ -d "/usr/include/boost" ]; then 
-            sudo /usr/bin/g++-4.8 includes/ass-boost.hpp -std=c++11 -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -pthread -o  /usr/local/include/4.8/ass-boost.hpp.gch
+            sudo /usr/bin/g++-4.8 includes/ass-boost.hpp -std=c++11 -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -pthread -o  /usr/local/include/ass/4.8/ass-boost.hpp.gch
         fi
     fi
 
     if [ -x /usr/bin/g++-4.7 ]; then
         echo -e "${ASS} Precompiling headers for g++-4.7..."
-        mkdir -p /usr/local/include/4.7
+        mkdir -p /usr/local/include/ass/4.7
         
-        sudo /usr/bin/g++-4.7 includes/ass.hpp -std=c++11 -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -pthread -o    /usr/local/include/4.7/ass.hpp.gch
+        sudo /usr/bin/g++-4.7 includes/ass.hpp -std=c++11 -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -pthread -o    /usr/local/include/ass/4.7/ass.hpp.gch
         if [ -d "/usr/include/boost" ]; then 
-            sudo /usr/bin/g++-4.7 includes/ass-boost.hpp -std=c++11 -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -pthread -o    /usr/local/include/4.7/ass-boost.hpp.gch
+            sudo /usr/bin/g++-4.7 includes/ass-boost.hpp -std=c++11 -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -pthread -o    /usr/local/include/ass/4.7/ass-boost.hpp.gch
         fi
     fi
 
     if [ -x /usr/bin/g++-4.6 ]; then
         echo -e "${ASS} Precompiling headers for g++-4.6..."
-        mkdir -p /usr/local/include/4.6
+        mkdir -p /usr/local/include/ass/4.6
 
-        sudo /usr/bin/g++-4.6 includes/ass.hpp -std=c++0x -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -pthread -o  /usr/local/include/4.6/ass.hpp.gch
+        sudo /usr/bin/g++-4.6 includes/ass.hpp -std=c++0x -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -pthread -o  /usr/local/include/ass/4.6/ass.hpp.gch
         if [ -d "/usr/include/boost" ]; then 
-            sudo /usr/bin/g++-4.6 includes/ass-boost.hpp -std=c++0x -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -pthread -o  /usr/local/include/4.6/ass-boost.hpp.gch
+            sudo /usr/bin/g++-4.6 includes/ass-boost.hpp -std=c++0x -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -pthread -o  /usr/local/include/ass/4.6/ass-boost.hpp.gch
         fi
     fi
 
@@ -126,34 +128,35 @@ esac
 
 if [ -x /usr/bin/clang++ ]; then
 
+    if [ -z "$CLANG_LIBC" ]; then
+        echo -e "${ASS} Precompiling headers for clang++... (glibcxx)"
+        mkdir -p /usr/local/include/ass/clang
+
+        sudo /usr/bin/clang++ includes/ass.hpp -std=c++11 -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -pthread -x c++-header -o /usr/local/include/ass/clang/ass.hpp.pch
+        if [ -d "/usr/include/boost" ]; then 
+        sudo /usr/bin/clang++ includes/ass-boost.hpp -std=c++11 -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -pthread -x c++-header -o /usr/local/include/ass/clang/ass-boost.hpp.pch
+        fi
+    fi
+
     if [ ! -z "$CLANG_LIBC" ] || [ -d "/usr/include/c++/v1" ]; then
         echo -e "${ASS} Precompiling headers for clang++... (libc++)"
-        mkdir -p /usr/local/include/clang-libc++
-        mkdir -p /usr/local/include/clang-libc++1y
+        mkdir -p /usr/local/include/ass/clang-libc++
+        mkdir -p /usr/local/include/ass/clang-libc++1y
 
-        sudo /usr/bin/clang++ includes/ass.hpp -std=c++11 -stdlib=libc++ -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -pthread -x c++-header -o /usr/local/include/clang-libc++/ass.hpp.pch
+        sudo /usr/bin/clang++ includes/ass.hpp -std=c++11 -stdlib=libc++ -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -pthread -x c++-header -o /usr/local/include/ass/clang-libc++/ass.hpp.pch
         if [ -d "/usr/include/boost" ]; then 
-        sudo /usr/bin/clang++ includes/ass-boost.hpp -std=c++11 -stdlib=libc++ -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -pthread -x c++-header -o /usr/local/include/clang-libc++/ass-boost.hpp.pch
+        sudo /usr/bin/clang++ includes/ass-boost.hpp -std=c++11 -stdlib=libc++ -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -pthread -x c++-header -o /usr/local/include/ass/clang-libc++/ass-boost.hpp.pch
         fi
         
         if /usr/bin/clang++ --version | grep -q 3.4; then
-            echo -e "${ASS} Precompiling headers for clang++1y... (libc++)"
-            sudo /usr/bin/clang++ includes/ass.hpp -std=c++1y -stdlib=libc++ -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -pthread -x c++-header -o /usr/local/include/clang-libc++1y/ass.hpp.pch
+            echo -e "${ASS} Precompiling headers for clang++... (libc++1y)"
+            sudo /usr/bin/clang++ includes/ass.hpp -std=c++1y -stdlib=libc++ -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -pthread -x c++-header -o /usr/local/include/ass/clang-libc++1y/ass.hpp.pch
             if [ -d "/usr/include/boost" ]; then 
-            sudo /usr/bin/clang++ includes/ass-boost.hpp -std=c++1y -stdlib=libc++ -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -pthread -x c++-header -o /usr/local/include/clang-libc++1y/ass-boost.hpp.pch
+            sudo /usr/bin/clang++ includes/ass-boost.hpp -std=c++1y -stdlib=libc++ -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -pthread -x c++-header -o /usr/local/include/ass/clang-libc++1y/ass-boost.hpp.pch
             fi
         fi
     fi 
 
-    if [ -z "$CLANG_LIBC" ]; then
-        echo -e "${ASS} Precompiling headers for clang++... (glibcxx)"
-        mkdir -p /usr/local/include/clang
-
-        sudo /usr/bin/clang++ includes/ass.hpp -std=c++11 -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -pthread -x c++-header -o /usr/local/include/clang/ass.hpp.pch
-        if [ -d "/usr/include/boost" ]; then 
-        sudo /usr/bin/clang++ includes/ass-boost.hpp -std=c++11 -O0 -D_GLIBCXX_DEBUG -Wall -Wextra -pthread -x c++-header -o /usr/local/include/clang/ass-boost.hpp.pch
-        fi
-    fi
 fi
 
 fi

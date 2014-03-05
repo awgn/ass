@@ -86,8 +86,8 @@ main = do args    <- getArgs
             ("-?":_)        -> usage
             ("-v":_)        -> putStrLn banner
             ("--version":_) -> putStrLn banner
-            ("-i":_)        -> getAvailCompilers clist >>= validCompilers >>= mainLoop (tail args)
-            _               -> liftM (head . compFilter cfamily) (getAvailCompilers clist >>= validCompilers) >>= mainFun args
+            ("-i":_)        -> getAvailCompilers clist >>= getValidCompilers >>= mainLoop (tail args)
+            _               -> liftM (head . compilerFilter cfamily) (getAvailCompilers clist >>= getValidCompilers) >>= mainFun args
 
 
 type StateIO = StateT CliState IO
@@ -127,10 +127,10 @@ cliCompletion l w = do
 mainLoop :: [String] -> [Compiler] -> IO ()
 mainLoop args clist = do
     putStrLn $ banner ++ " :? for help"
-    putStr "Compilers found: " >> mapM_ (\c -> putStr (getCompilerExec c ++ "(" ++ show (getCompilerType c) ++ ") ")) clist >> putChar '\n'
+    putStr "Compilers found: " >> mapM_ (\c -> putStr $ (compilerName c) ++ " " ) clist >> putChar '\n'
     home <- getHomeDirectory
 
-    let startingState = CliState True False False "" (getCompilerType $ head clist) (getRuntimeArgs args) [] []
+    let startingState = CliState True False False "" (compilerType $ head clist) (getRuntimeArgs args) [] []
     let settings      = setComplete (completeWordWithPrev Nothing " \t" cliCompletion) defaultSettings { historyFile = Just $ home </> ".ass_history" }
 
     evalStateT (runInputT settings loop) startingState
@@ -141,7 +141,7 @@ mainLoop args clist = do
         handle (\e -> let msg = show (e :: SomeException) in
                           if msg /= "user interrupt" then outputStrLn msg >> loop
                                                      else loop) $
-            if null $ compFilterType (s^.stateCompType) clist
+            if null $ compilerFilterType (s^.stateCompType) clist
             then lift (put $ over stateCompType next s) >> loop
             else do
                 when (s^.stateBanner) $ outputStrLn $ "Using " ++ show (s^.stateCompType) ++ " compiler..."
@@ -251,7 +251,7 @@ runCmd src clist cargs args = lift get >>= \s ->
                   (C.pack src)
                   (s^.statePreload)
                   (s^.stateVerbose)
-                  (compFilterType (s^.stateCompType) clist)
+                  (compilerFilterType (s^.stateCompType) clist)
                   cargs
                   args
 
@@ -265,12 +265,12 @@ buildCompileAndRun code main_code preload verbose clist cargs targs = do
     let src   = bin `addExtension` "cpp"
     writeSource src $ makeSourceCode code main_code (getDeclaredNamespace code) preload boost
     forM clist $ \cxx -> do
-        when (length clist > 1) $ putStr (show cxx ++ " -> ") >> hFlush stdout
-        e <- compileWith cxx src (binary bin cxx) verbose (["-I", cwd', "-I",  cwd' </> ".."] ++ cargs)
+        when (length clist > 1) $ putStr (compilerName cxx ++ " -> ") >> hFlush stdout
+        e <- runCompiler cxx src (binary bin cxx) verbose (["-I", cwd', "-I",  cwd' </> ".."] ++ cargs)
         if e == ExitSuccess
             then system (binary bin cxx ++ " " ++ unwords targs)
             else return e
-        where binary n c = n ++ "-" ++ show (getCompilerType c)
+        where binary n c = n ++ "-" ++ show (compilerType c)
 
 
 writeSource :: FilePath -> [SourceCode] -> IO ()
@@ -383,34 +383,4 @@ parseCodeLine (t,m) (CodeLine n l)
 
 zipSourceCode :: Source -> SourceCode
 zipSourceCode src = zipWith CodeLine [2..] (C.lines src)
-
-
-getCompilerOpt :: Compiler -> [String]
-getCompilerOpt (Compiler ver _ _ opts) =
-        case ver of
-         Gcc49   -> gcc_opt ++ opts ++ ["-I" ++ includeDir </> "4.9" ]
-         Gcc48   -> gcc_opt ++ opts ++ ["-I" ++ includeDir </> "4.8" ]
-         Gcc47   -> gcc_opt ++ opts ++ ["-I" ++ includeDir </> "4.7" ]
-         Gcc46   -> gcc_opt ++ opts ++ ["-I" ++ includeDir </> "4.6" ]
-         Clang31 -> clg_opt ++ opts ++ pch
-         Clang32 -> clg_opt ++ opts ++ pch
-         Clang33 -> clg_opt ++ opts ++ pch
-         Clang34 -> clg_opt ++ opts ++ pch
-    where gcc_opt = [ "-O0", "-D_GLIBCXX_DEBUG", "-pthread", "-Wall", "-Wextra", "-Wno-unused-parameter", "-Wno-unused-value", "-Winvalid-pch" ]
-          clg_opt = [ "-O0", "-D_GLIBCXX_DEBUG", "-pthread", "-Wall", "-Wextra", "-Wno-unused-parameter", "-Wno-unused-value", "-Wno-unneeded-internal-declaration"]
-          pch     = ["-include ", getCompilerPchPath opts </> "ass.hpp" ]
-
-
-getCompilerPchPath :: [String] -> String
-getCompilerPchPath opts
-    |  "-std=c++1y" `elem` opts && "-stdlib=libc++" `elem` opts = includeDir </> "clang-libc++1y"
-    |  "-stdlib=libc++" `elem` opts                             = includeDir </> "clang-libc++"
-    |  otherwise                                                = includeDir </> "clang"
-
-
-compileWith :: Compiler -> FilePath -> FilePath -> Bool -> [String] -> IO ExitCode
-compileWith cxx source binary verbose user_opt =
-    when verbose (putStrLn cmd) >> system cmd
-        where cmd = unwords . concat $ [[getCompilerExec cxx], getCompilerOpt cxx, user_opt, [source], ["-o"], [binary]]
-
 

@@ -19,11 +19,11 @@
 
 module Ass.Compiler where
 
-import Ass.Types
-
+import System.FilePath
 import System.Directory
 import System.Process
 import System.Environment
+import System.Exit
 
 import Control.Monad
 import Control.Applicative
@@ -32,8 +32,41 @@ import Data.List
 import Config
 
 
-getCompilerType :: Compiler -> CompilerType
-getCompilerType (Compiler t _ _ _) = t
+compilerList :: [Compiler]
+compilerList = [
+                 Compiler Gcc49   "/usr/bin/g++-4.9" "g++-4.9" [],
+                 Compiler Gcc48   "/usr/bin/g++-4.8" "g++-4.8" [],
+                 Compiler Gcc47   "/usr/bin/g++-4.7" "g++-4.7" [],
+                 Compiler Gcc46   "/usr/bin/g++-4.6" "g++-4.6" [],
+                 Compiler Clang34 "/usr/bin/clang++" "clang++" [],
+                 Compiler Clang33 "/usr/bin/clang++" "clang++" [],
+                 Compiler Clang32 "/usr/bin/clang++" "clang++" [],
+                 Compiler Clang31 "/usr/bin/clang++" "clang++" []
+               ]
+
+-- Compiler:
+
+data CompilerType = Gcc46 | Gcc47 | Gcc48 | Gcc49 | Clang31 | Clang32 | Clang33 | Clang34
+                    deriving (Eq,Show,Read,Enum)
+
+
+next :: CompilerType -> CompilerType
+next Clang34 = Gcc46
+next x       = succ x
+
+
+data CompilerFamily = Gcc | Clang
+    deriving (Eq,Show,Read,Enum)
+
+
+data Compiler = Compiler
+                {
+                    compilerType :: CompilerType,
+                    compilerExec :: FilePath,
+                    compilerName :: String,
+                    compilerOpts :: [String]
+                }
+    deriving (Read, Show, Eq)
 
 
 getCompilerVersion :: Compiler -> String
@@ -46,6 +79,7 @@ getCompilerVersion (Compiler Clang32 _ _ _ ) = "3.2"
 getCompilerVersion (Compiler Clang33 _ _ _ ) = "3.3"
 getCompilerVersion (Compiler Clang34 _ _ _ ) = "3.4"
 
+
 getCompilerFamily :: Compiler -> CompilerFamily
 getCompilerFamily (Compiler Gcc46   _ _ _ ) = Gcc
 getCompilerFamily (Compiler Gcc47   _ _ _ ) = Gcc
@@ -57,30 +91,25 @@ getCompilerFamily (Compiler Clang33 _ _ _ ) = Clang
 getCompilerFamily (Compiler Clang34 _ _ _ ) = Clang
 
 
-getCompilerExec :: Compiler -> FilePath
-getCompilerExec (Compiler _ e _ _) = e
-
-
-getCompilerName :: Compiler -> FilePath
-getCompilerName (Compiler _ _ n _) = n
-
-
-getCompilerExtraOpt :: Compiler -> [String]
-getCompilerExtraOpt (Compiler _ _ _ xs) = xs
+getCompilerConf :: FilePath -> IO [Compiler]
+getCompilerConf conf =
+    doesFileExist conf >>= \b ->
+        if b then read <$> readFile conf
+             else return compilerList
 
 
 getAvailCompilers :: [Compiler] -> IO [Compiler]
-getAvailCompilers = filterM (doesFileExist . getCompilerExec)
+getAvailCompilers = filterM (doesFileExist . compilerExec)
 
 
-validCompilers :: [Compiler] -> IO [Compiler]
-validCompilers = filterM (\c -> (getCompilerVersion c `isPrefixOf`) <$> askCompilerVersion c)
+getValidCompilers :: [Compiler] -> IO [Compiler]
+getValidCompilers = filterM (\c -> (getCompilerVersion c `isPrefixOf`) <$> askCompilerVersion c)
 
 
 askCompilerVersion :: Compiler -> IO String
 askCompilerVersion comp
-    | Gcc <- getCompilerFamily comp = last . words . head . lines <$> readProcess (getCompilerExec comp) ["--version"] ""
-    | otherwise                     = last . words . head . lines <$> readProcess (getCompilerExec comp) ["--version"] ""
+    | Gcc <- getCompilerFamily comp = last . words . head . lines <$> readProcess (compilerExec comp) ["--version"] ""
+    | otherwise                     = last . words . head . lines <$> readProcess (compilerExec comp) ["--version"] ""
 
 
 getCompilerFamilyByName :: IO CompilerFamily
@@ -88,17 +117,40 @@ getCompilerFamilyByName = getProgName >>= \n ->
     return $ if n `isSuffixOf` "clang" then Clang else Gcc
 
 
-compFilter :: CompilerFamily -> [Compiler] -> [Compiler]
-compFilter t = filter $ (== t) . getCompilerFamily
+compilerFilter :: CompilerFamily -> [Compiler] -> [Compiler]
+compilerFilter t = filter $ (== t) . getCompilerFamily
 
 
-compFilterType :: CompilerType -> [Compiler] -> [Compiler]
-compFilterType t = filter $ (== t) . getCompilerType
+compilerFilterType :: CompilerType -> [Compiler] -> [Compiler]
+compilerFilterType t = filter $ (== t) . compilerType
 
 
-getCompilerConf :: FilePath -> IO [Compiler]
-getCompilerConf conf =
-    doesFileExist conf >>= \b ->
-        if b then read <$> readFile conf
-             else return compilerList
+getCompilerOpt :: Compiler -> [String]
+getCompilerOpt (Compiler ver _ _ opts) =
+        case ver of
+         Gcc46   -> gcc_opt ++ opts ++ ["-I" ++ includeAssDir ] ++ [ "-I" ++ includeAssDir </> "4.6" ]
+         Gcc47   -> gcc_opt ++ opts ++ ["-I" ++ includeAssDir ] ++ [ "-I" ++ includeAssDir </> "4.7" ]
+         Gcc48   -> gcc_opt ++ opts ++ ["-I" ++ includeAssDir ] ++ [ "-I" ++ includeAssDir </> "4.8" ]
+         Gcc49   -> gcc_opt ++ opts ++ ["-I" ++ includeAssDir ] ++ [ "-I" ++ includeAssDir </> "4.9" ]
+         Clang31 -> clg_opt ++ opts ++ ["-I" ++ includeAssDir ] ++ pch
+         Clang32 -> clg_opt ++ opts ++ ["-I" ++ includeAssDir ] ++ pch
+         Clang33 -> clg_opt ++ opts ++ ["-I" ++ includeAssDir ] ++ pch
+         Clang34 -> clg_opt ++ opts ++ ["-I" ++ includeAssDir ] ++ pch
+    where gcc_opt = [ "-O0", "-D_GLIBCXX_DEBUG", "-pthread", "-Wall", "-Wextra", "-Wno-unused-parameter", "-Wno-unused-value", "-Winvalid-pch" ]
+          clg_opt = [ "-O0", "-D_GLIBCXX_DEBUG", "-pthread", "-Wall", "-Wextra", "-Wno-unused-parameter", "-Wno-unused-value", "-Wno-unneeded-internal-declaration"]
+          pch     = ["-include ", getCompilerPchPath opts </> "ass.hpp" ]
+
+
+getCompilerPchPath :: [String] -> String
+getCompilerPchPath opts
+    |  "-std=c++1y" `elem` opts && "-stdlib=libc++" `elem` opts = includeAssDir </> "clang-libc++1y"
+    |  "-stdlib=libc++" `elem` opts                             = includeAssDir </> "clang-libc++"
+    |  otherwise                                                = includeAssDir </> "clang"
+
+
+runCompiler :: Compiler -> FilePath -> FilePath -> Bool -> [String] -> IO ExitCode
+runCompiler cxx source binary verbose user_opt =
+    when verbose (putStrLn cmd) >> system cmd
+        where cmd = unwords . concat $ [[compilerExec cxx], getCompilerOpt cxx, user_opt, [source], ["-o"], [binary]]
+
 

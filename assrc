@@ -1,9 +1,49 @@
 [ 
-    Compiler Gcc46   "/usr/bin/g++-4.6" "g++ 4.6" ["-std=c++0x"],
-    Compiler Gcc47   "/usr/bin/g++-4.7" "g++ 4.7" ["-std=c++11"],
-    Compiler Gcc48   "/usr/bin/g++-4.8" "g++ 4.8" ["-std=c++11"],
-    Compiler Clang31 "/usr/bin/clang++" "clang++" ["-std=c++11", "-I /usr/local/include/", "-stdlib=libc++"],
-    Compiler Clang32 "/usr/bin/clang++" "clang++" ["-std=c++11", "-I /usr/local/include/", "-stdlib=libc++"],
-    Compiler Clang33 "/usr/bin/clang++" "clang++" ["-std=c++11", "-I /usr/local/include/", "-stdlib=libc++"],
-    Compiler Clang34 "/usr/bin/clang++" "clang++" ["-std=c++1y", "-I /usr/local/include/", "-stdlib=libc++"]
+    Compiler { compilerType = Gcc49,   
+               compilerExec = "/usr/bin/g++-4.9",
+               compilerName = "g++-4.9",
+               compilerOpts = ["-std=c++11"]
+              },
+    
+    Compiler { compilerType = Gcc48,   
+               compilerExec = "/usr/bin/g++-4.8",
+               compilerName = "g++-4.8",
+               compilerOpts = ["-std=c++11"]
+              },
+    
+    Compiler { compilerType = Gcc47,   
+               compilerExec = "/usr/bin/g++-4.7",
+               compilerName = "g++-4.7",
+               compilerOpts = ["-std=c++11"]
+              },
+
+    Compiler { compilerType = Gcc46,   
+               compilerExec = "/usr/bin/g++-4.6",
+               compilerName = "g++-4.6",
+               compilerOpts = ["-std=c++0x"]
+              },
+
+    Compiler { compilerType = Clang31,   
+               compilerExec = "/usr/bin/clang++",
+               compilerName = "clang++31",
+               compilerOpts = ["-std=c++11", "-stdlib=libc++"]
+              },
+
+    Compiler { compilerType = Clang32,   
+               compilerExec = "/usr/bin/clang++",
+               compilerName = "clang++32",
+               compilerOpts = ["-std=c++11", "-stdlib=libc++"]
+              },
+
+    Compiler { compilerType = Clang33,   
+               compilerExec = "/usr/bin/clang++",
+               compilerName = "clang++33",
+               compilerOpts = ["-std=c++11", "-stdlib=libc++"]
+              },
+    
+    Compiler { compilerType = Clang34,   
+               compilerExec = "/usr/bin/clang++",
+               compilerName = "clang++34",
+               compilerOpts = ["-std=c++1y", "-stdlib=libc++"]
+              }
 ]

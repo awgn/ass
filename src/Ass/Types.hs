@@ -36,25 +36,3 @@ type TranslationUnit = SourceCode
 type MainFunction    = SourceCode
 type ParserState     = (TranslationUnit, MainFunction)
 
--- Compiler:
-
-data CompilerType = Gcc46 | Gcc47 | Gcc48 | Gcc49 | Clang31 | Clang32 | Clang33 | Clang34
-                    deriving (Eq,Show,Read,Enum)
-
-
-next :: CompilerType -> CompilerType
-next Clang34 = Gcc46
-next x = succ x
-
-
-data CompilerFamily = Gcc | Clang
-    deriving (Eq,Show,Read,Enum)
-
-
-data Compiler = Compiler CompilerType FilePath String [String]
-    deriving (Read, Eq)
-
-
-instance Show Compiler where
-    show (Compiler _ _ name opt) = name ++ " (" ++ show opt ++ ")"
-

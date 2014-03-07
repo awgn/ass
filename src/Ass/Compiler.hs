@@ -128,29 +128,51 @@ compilerFilterType t = filter $ (== t) . compilerType
 getCompilerOpt :: Compiler -> [String]
 getCompilerOpt (Compiler ver _ _ opts) =
         case ver of
-         Gcc46   -> gcc_opt ++ opts ++ ["-I" ++ includeAssDir ] ++ [ "-I" ++ includeAssDir </> "4.6" ]
-         Gcc47   -> gcc_opt ++ opts ++ ["-I" ++ includeAssDir ] ++ [ "-I" ++ includeAssDir </> "4.7" ]
-         Gcc48   -> gcc_opt ++ opts ++ ["-I" ++ includeAssDir ] ++ [ "-I" ++ includeAssDir </> "4.8" ]
-         Gcc49   -> gcc_opt ++ opts ++ ["-I" ++ includeAssDir ] ++ [ "-I" ++ includeAssDir </> "4.9" ]
-         Clang31 -> clg_opt ++ opts ++ ["-I" ++ includeAssDir ] ++ pch
-         Clang32 -> clg_opt ++ opts ++ ["-I" ++ includeAssDir ] ++ pch
-         Clang33 -> clg_opt ++ opts ++ ["-I" ++ includeAssDir ] ++ pch
-         Clang34 -> clg_opt ++ opts ++ ["-I" ++ includeAssDir ] ++ pch
-    where gcc_opt = [ "-O0", "-D_GLIBCXX_DEBUG", "-pthread", "-Wall", "-Wextra", "-Wno-unused-parameter", "-Wno-unused-value", "-Winvalid-pch" ]
+         Gcc46   -> gcc_opt ++ opts
+         Gcc47   -> gcc_opt ++ opts
+         Gcc48   -> gcc_opt ++ opts
+         Gcc49   -> gcc_opt ++ opts
+         Clang31 -> clg_opt ++ opts
+         Clang32 -> clg_opt ++ opts
+         Clang33 -> clg_opt ++ opts
+         Clang34 -> clg_opt ++ opts
+    where gcc_opt = [ "-O0", "-D_GLIBCXX_DEBUG", "-pthread", "-Wall", "-Wextra", "-Wno-unused-parameter", "-Wno-unused-value" ]
           clg_opt = [ "-O0", "-D_GLIBCXX_DEBUG", "-pthread", "-Wall", "-Wextra", "-Wno-unused-parameter", "-Wno-unused-value", "-Wno-unneeded-internal-declaration"]
-          pch     = ["-include ", getCompilerPchPath opts </> "ass.hpp" ]
 
 
-getCompilerPchPath :: [String] -> String
-getCompilerPchPath opts
-    |  "-std=c++1y" `elem` opts && "-stdlib=libc++" `elem` opts = includeAssDir </> "clang-libc++1y"
-    |  "-stdlib=libc++" `elem` opts                             = includeAssDir </> "clang-libc++"
-    |  otherwise                                                = includeAssDir </> "clang"
+getCompilerOptPCH :: Compiler -> [String]
+getCompilerOptPCH comp@(Compiler ver _ _ _) =
+        case ver of
+         Gcc46   -> getCompilerOpt comp ++ ["-I" ++ includeAssDir ] ++ [ "-Winvalid-pch", "-I" ++ includeAssDir </> "4.6" ]
+         Gcc47   -> getCompilerOpt comp ++ ["-I" ++ includeAssDir ] ++ [ "-Winvalid-pch", "-I" ++ includeAssDir </> "4.7" ]
+         Gcc48   -> getCompilerOpt comp ++ ["-I" ++ includeAssDir ] ++ [ "-Winvalid-pch", "-I" ++ includeAssDir </> "4.8" ]
+         Gcc49   -> getCompilerOpt comp ++ ["-I" ++ includeAssDir ] ++ [ "-Winvalid-pch", "-I" ++ includeAssDir </> "4.9" ]
+         Clang31 -> getCompilerOpt comp ++ ["-I" ++ includeAssDir ] ++ ["-include ", getCompilerPchPath comp </> "ass.hpp" ]
+         Clang32 -> getCompilerOpt comp ++ ["-I" ++ includeAssDir ] ++ ["-include ", getCompilerPchPath comp </> "ass.hpp" ]
+         Clang33 -> getCompilerOpt comp ++ ["-I" ++ includeAssDir ] ++ ["-include ", getCompilerPchPath comp </> "ass.hpp" ]
+         Clang34 -> getCompilerOpt comp ++ ["-I" ++ includeAssDir ] ++ ["-include ", getCompilerPchPath comp </> "ass.hpp" ]
+
+
+getCompilerPchPath ::  Compiler -> FilePath
+getCompilerPchPath (Compiler ver _ _ opts) =
+    case ver of
+         Gcc46   -> includeAssDir </> "4.6"
+         Gcc47   -> includeAssDir </> "4.7"
+         Gcc48   -> includeAssDir </> "4.8"
+         Gcc49   -> includeAssDir </> "4.9"
+         Clang31 -> includeAssDir </> "clang31" </> clangDir
+         Clang32 -> includeAssDir </> "clang32" </> clangDir
+         Clang33 -> includeAssDir </> "clang33" </> clangDir
+         Clang34 -> includeAssDir </> "clang34" </> clangDir
+    where
+        clangDir |  "-std=c++1y" `elem` opts && "-stdlib=libc++" `elem` opts = "libc++1y"
+                 |  "-stdlib=libc++" `elem` opts                             = "libc++"
+                 |  otherwise                                                = "glibcxx"
 
 
 runCompiler :: Compiler -> FilePath -> FilePath -> Bool -> [String] -> IO ExitCode
 runCompiler cxx source binary verbose user_opt =
     when verbose (putStrLn cmd) >> system cmd
-        where cmd = unwords . concat $ [[compilerExec cxx], getCompilerOpt cxx, user_opt, [source], ["-o"], [binary]]
+        where cmd = unwords . concat $ [[compilerExec cxx], getCompilerOptPCH cxx, user_opt, [source], ["-o"], [binary]]
 
 

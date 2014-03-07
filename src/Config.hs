@@ -25,6 +25,7 @@ tmpDir, includeAssDir :: FilePath
 banner          = "ASSi, version 2.11"
 
 includeAssDir   =  "/usr/local/include/ass"
+installDir      =  "/usr/local/bin/"
 
 tmpDir          =  "/tmp"
 

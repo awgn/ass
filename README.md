@@ -1,5 +1,4 @@
 Ass++
-=====
 
 ASSi is an interactive C++11 code assistant inspired to GHCi. 
 
@@ -25,30 +24,31 @@ Help
 
 Session
 -------
-  
-    ASSi, version 2.10 :? for help
-    Compilers found: /usr/bin/g++-4.8(Gcc48) /usr/bin/g++-4.7(Gcc47) /usr/bin/g++-4.6(Gcc46) /usr/bin/clang++(Clang34) 
+
+    ASSi, version 2.12 :? for help
+    Compilers found: g++-4.8 g++-4.7 g++-4.6 clang-34 
     Using Gcc48 compiler...
+    
     Ass Gcc48> :?
     Commands available from the prompt:
-    
+
     <statement>                 evaluate/run C++ <statement>
       :include file             add include in the buffer
       :load file                load file in the buffer
       :reload                   reload the file
       :edit                     edit the buffer
-      :show                     show the buffer
+      :list                     list the buffer
       :clear                    clear the buffer
       :next                     switch to next compiler
       :args ARG1 ARG2...        set runtime arguments
       :run [ARG1 ARG2...]       run the main function
       :rr                       reload and run the main function
-      :xray TYPE                show info about the given TYPE
+      :info TYPE                show info about the given TYPE
       :preload                  toggle preload std headers
       :verbose                  show additional information
       :quit                     quit
       :?                        print this help
-    
+
     C++ goodies:
       _s _h,_min,_s,_ms,_us...  string and chrono user-defined literals
       _(1,2,3)                  tuple/pair constructor
@@ -90,12 +90,54 @@ Session
         return 0;
     }
     
-    
     Ass> :run 1 2
     argc = 3
     [ExitSuccess]
     Ass> auto x = test<int>{1,2,3}; return x;
     [ 1 2 3 ] [ExitSuccess]
     Ass>
+
+    Ass> :info int
+    type name: int
+    is_const: false
+    is_volatile: false
+    is_trivial: true
+    is_standard_layout: true
+    is_pod: true
+    is_literal_type: true
+    is_empty: false
+    is_polymorphic: false
+    is_abstract: false
+    is_signed: true
+    is_unsigned: false
+    is_constructible: true
+    is_nothrow_constructible: true
+    is_trivially_copyable: true
+    is_trivially_constructible: true
+    is_trivially_default_constructible: true
+    is_trivially_copy_constructible: true
+    is_trivially_move_constructible: true
+    is_trivially_copy_assignable: true
+    is_trivially_move_assignable: true
+    is_default_constructible: true
+    is_nothrow_default_constructible: true
+    is_copy_constructible: true
+    is_nothrow_copy_constructible: true
+    is_move_constructible: true
+    is_nothrow_move_constructible: true
+    is_copy_assignable: true
+    is_nothrow_copy_assignable: true
+    is_nothrow_move_assignable: true
+    is_destructible: true
+    is_move_assignable: true
+    is_trivially_destructible: true
+    is_nothrow_destructible: true
+    has_virtual_destructor: false
+    sizeof   : 4
+    alignment: 4
+    default  : {????}
+    uniform  : {0000}
+    value    : {0000}
+
     Ass> :quit
     Leaving ASSi. 

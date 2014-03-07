@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2011 Bonelli Nicola <bonelli@antifork.org>
+# Copyright (c) 2014 Bonelli Nicola <bonelli@antifork.org>
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by

@@ -75,15 +75,11 @@ installBinaries = do
 
 
 getPchExtension :: Compiler -> String
-getPchExtension (Compiler Gcc46   _ _ _) = "gch"
-getPchExtension (Compiler Gcc47   _ _ _) = "gch"
-getPchExtension (Compiler Gcc48   _ _ _) = "gch"
-getPchExtension (Compiler Gcc49   _ _ _) = "gch"
-getPchExtension (Compiler Clang31 _ _ _) = "pch"
-getPchExtension (Compiler Clang32 _ _ _) = "pch"
-getPchExtension (Compiler Clang33 _ _ _) = "pch"
-getPchExtension (Compiler Clang34 _ _ _) = "pch"
 
+getPchExtension (Compiler typ _ _ _) =
+        if typ `elem` [Gcc46, Gcc47, Gcc48, Gcc49]
+            then "gch"
+            else "pch"
 
 installPch:: IO ()
 installPch = do

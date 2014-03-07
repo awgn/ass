@@ -87,18 +87,16 @@ installPch = do
         home  <- getHomeDirectory
         list  <- getCompilerConf (home </> assrc) >>= getAvailCompilers >>= getValidCompilers
 
-        forM_ list $ \comp -> do
+        void $ flip mapConcurrently list $ \comp -> do
             putMsg $ "Installing pch for " ++ (compilerName comp) ++ "..."
 
             let pchDir = getCompilerPchPath comp
             let opts   = getCompilerOpt comp
 
             createDirectoryIfMissing True pchDir
-            system $ compilerExec comp ++ " ../includes/ass.hpp " ++ unwords opts ++ " -o " ++ pchDir </> "ass.hpp." ++ getPchExtension comp
+            void $ system $ compilerExec comp ++ " ../includes/ass.hpp " ++ unwords opts ++ " -o " ++ pchDir </> "ass.hpp." ++ getPchExtension comp
             doesDirectoryExist "/usr/include/boost" >>= \boost ->
                 when boost $ void $ system $ compilerExec comp ++ " ../includes/ass-boost.hpp " ++ unwords opts ++ " -o " ++ pchDir </> "ass-boost.hpp." ++ getPchExtension comp
-
-
 main = do
     putMsg "Installing C++11/14 assistant."
     installVimPlugin

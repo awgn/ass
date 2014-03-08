@@ -1,4 +1,5 @@
 Ass++
+-----
 
 ASSi is an interactive C++11 code assistant inspired to GHCi. 
 
@@ -76,7 +77,7 @@ Session
     Ass>
     Ass> :load test.cpp 
     loading test.cpp...
-    Ass> :show 
+    Ass> :list 
     #include <iostream>
     #include <vector>
     

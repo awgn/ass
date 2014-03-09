@@ -364,7 +364,7 @@ namespace ass
 
     template<typename Tp>
     inline std::string
-    show(xray_ptr<Tp> const&  value)
+    show(xray_ptr<Tp> const& value)
     {
         std::string ret; ret.reserve(8);
 
@@ -379,7 +379,7 @@ namespace ass
             }
             else
             {
-                ret += '?';
+                ret += (p1[n] == static_cast<char>(n) && p2[n] == static_cast<char>(n + sizeof(Tp)) ? '_' : '?');
             }
         }
 

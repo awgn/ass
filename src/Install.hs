@@ -27,12 +27,15 @@ import System.Directory
 import System.FilePath
 import System.Posix.User
 import System.Console.ANSI
+import System.Environment
+import System.Exit
 
 import Control.Monad
 import Control.Concurrent.Async
 
 bold    = setSGRCode [SetConsoleIntensity BoldIntensity]
 reset   = setSGRCode []
+
 
 putMsg :: String -> IO ()
 putMsg msg = putStrLn $ bold ++ "[ass] "++ reset ++ msg
@@ -97,11 +100,18 @@ installPch = do
             void $ system $ compilerExec comp ++ " ../includes/ass.hpp " ++ unwords opts ++ " -o " ++ pchDir </> "ass.hpp." ++ getPchExtension comp
             doesDirectoryExist "/usr/include/boost" >>= \boost ->
                 when boost $ void $ system $ compilerExec comp ++ " ../includes/ass-boost.hpp " ++ unwords opts ++ " -o " ++ pchDir </> "ass-boost.hpp." ++ getPchExtension comp
+
+usage :: IO ()
+usage = putStrLn "Install.hs [--help][--ass][--vim][--pch][--all]" >> (void exitSuccess)
+
+
 main = do
+    args <- getArgs
+    when (null args || "--help" `elem` args) usage
+
     putMsg "Installing C++11/14 assistant."
-    installVimPlugin
-    installrc
-    installHdr
-    installBinaries
-    installPch
+    when ("--ass" `elem` args || "--all" `elem` args) $ do { installrc ; installBinaries ; installHdr }
+    when ("--vim" `elem` args || "--all" `elem` args) $ do installVimPlugin
+    when ("--pch" `elem` args || "--all" `elem` args) $ do installPch
+
     putMsg "done."

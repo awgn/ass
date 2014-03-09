@@ -143,14 +143,14 @@ getCompilerOpt (Compiler ver _ _ opts) =
 getCompilerOptPCH :: Compiler -> [String]
 getCompilerOptPCH comp@(Compiler ver _ _ _) =
         case ver of
-         Gcc46   -> getCompilerOpt comp ++ ["-I" ++ includeAssDir ] ++ [ "-Winvalid-pch", "-I" ++ includeAssDir </> "4.6" ]
-         Gcc47   -> getCompilerOpt comp ++ ["-I" ++ includeAssDir ] ++ [ "-Winvalid-pch", "-I" ++ includeAssDir </> "4.7" ]
-         Gcc48   -> getCompilerOpt comp ++ ["-I" ++ includeAssDir ] ++ [ "-Winvalid-pch", "-I" ++ includeAssDir </> "4.8" ]
-         Gcc49   -> getCompilerOpt comp ++ ["-I" ++ includeAssDir ] ++ [ "-Winvalid-pch", "-I" ++ includeAssDir </> "4.9" ]
-         Clang31 -> getCompilerOpt comp ++ ["-I" ++ includeAssDir ] ++ ["-include ", getCompilerPchPath comp </> "ass.hpp" ]
-         Clang32 -> getCompilerOpt comp ++ ["-I" ++ includeAssDir ] ++ ["-include ", getCompilerPchPath comp </> "ass.hpp" ]
-         Clang33 -> getCompilerOpt comp ++ ["-I" ++ includeAssDir ] ++ ["-include ", getCompilerPchPath comp </> "ass.hpp" ]
-         Clang34 -> getCompilerOpt comp ++ ["-I" ++ includeAssDir ] ++ ["-include ", getCompilerPchPath comp </> "ass.hpp" ]
+         Gcc46   -> getCompilerOpt comp ++ [ "-Winvalid-pch", "-I" ++ includeAssDir </> "4.6" ]  ++ ["-I" ++ includeAssDir ]
+         Gcc47   -> getCompilerOpt comp ++ [ "-Winvalid-pch", "-I" ++ includeAssDir </> "4.7" ]  ++ ["-I" ++ includeAssDir ]
+         Gcc48   -> getCompilerOpt comp ++ [ "-Winvalid-pch", "-I" ++ includeAssDir </> "4.8" ]  ++ ["-I" ++ includeAssDir ]
+         Gcc49   -> getCompilerOpt comp ++ [ "-Winvalid-pch", "-I" ++ includeAssDir </> "4.9" ]  ++ ["-I" ++ includeAssDir ]
+         Clang31 -> getCompilerOpt comp ++ ["-include ", getCompilerPchPath comp </> "ass.hpp" ] ++ ["-I" ++ includeAssDir ]
+         Clang32 -> getCompilerOpt comp ++ ["-include ", getCompilerPchPath comp </> "ass.hpp" ] ++ ["-I" ++ includeAssDir ]
+         Clang33 -> getCompilerOpt comp ++ ["-include ", getCompilerPchPath comp </> "ass.hpp" ] ++ ["-I" ++ includeAssDir ]
+         Clang34 -> getCompilerOpt comp ++ ["-include ", getCompilerPchPath comp </> "ass.hpp" ] ++ ["-I" ++ includeAssDir ]
 
 
 getCompilerPchPath ::  Compiler -> FilePath

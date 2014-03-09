@@ -303,25 +303,6 @@ namespace ass
         std::unique_ptr<Tp> v1;
         std::unique_ptr<Tp> v2;
 
-        static std::pair<void *, void *>
-        get_memory()
-        {
-            auto p1 = malloc(sizeof(Tp));
-            auto p2 = malloc(sizeof(Tp));
-
-            auto fill = [](void * start, size_t len, size_t init)
-            {
-                auto p = static_cast<char *>(start);
-                for(auto n = init; n < init + len ; ++n)
-                    *p++ = n;
-            };
-
-            fill(p1, sizeof(Tp), 0);
-            fill(p2, sizeof(Tp), sizeof(Tp));
-
-            return std::make_pair(p1, p2);
-        }
-
         template <typename ...Ts>
         static xray_ptr<Tp>
         make_default()
@@ -359,6 +340,27 @@ namespace ass
 
             return { std::unique_ptr<Tp>(reinterpret_cast<Tp *>(p1)),
                 std::unique_ptr<Tp>(reinterpret_cast<Tp *>(p2)) };
+        }
+
+    private:
+
+        static std::pair<void *, void *>
+        get_memory()
+        {
+            auto p1 = malloc(sizeof(Tp));
+            auto p2 = malloc(sizeof(Tp));
+
+            auto fill = [](void * start, size_t len, size_t init)
+            {
+                auto p = static_cast<char *>(start);
+                for(auto n = init; n < init + len ; ++n)
+                    *p++ = n;
+            };
+
+            fill(p1, sizeof(Tp), 0);
+            fill(p2, sizeof(Tp), sizeof(Tp));
+
+            return std::make_pair(p1, p2);
         }
     };
 
@@ -1441,7 +1443,7 @@ namespace ass {
     {
         template <typename F>
         static void run(F f)
-        { f(); std::cout << "(void) "; }
+        { f(); std::cout << "(void)"; }
     };
 
 

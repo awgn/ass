@@ -1325,6 +1325,13 @@ inline namespace ass_inline {
         return __type_of<Tp>(std::forward<Tp>(arg));
     }
 
+    ////////////////////////////////////////////////////////////// X<Type>::make_default(), X<Type>::make_value(..) etc.
+
+#if (__clang__) || ((__GNUC__ == 4) && (__GNUC_MINOR__ > 6))
+    template <typename Tp>
+    using X = ass::xray_ptr<Tp>;
+#endif
+
     ////////////////////////////////////////////////////////////// type_info_<Type>(): dump info about the given type
 
 #define ASS_TRAIT_INFO(Tp,trait)   std::cout << # trait ": " << std::trait<Tp>::value << std::endl

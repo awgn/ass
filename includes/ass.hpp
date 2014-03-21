@@ -1179,7 +1179,7 @@ inline namespace ass_inline {
 namespace std
 {
     template <>
-    void swap<O>(O & lhs, O & rhs) noexcept
+    inline void swap<O>(O & lhs, O & rhs) noexcept
     {
         lhs.swap(rhs);
     }

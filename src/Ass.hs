@@ -104,7 +104,7 @@ getStringIdentifiers =
 
 commands, assIdentifiers :: [String]
 
-commands = [ ":load", ":include", ":reload", ":rr", ":edit",
+commands = [ ":load", ":include", ":check", ":reload", ":rr", ":edit",
              ":list", ":clear", ":next", ":args", ":run",
              ":info", ":preload", ":verbose", ":quit" ]
 
@@ -120,6 +120,7 @@ cliCompletion l w = do
        _ | "fni:" `isSuffixOf` l ->  return $ map simpleCompletion (filter (w `isPrefixOf`) $ getStringIdentifiers (s^.stateCode))
        _ | "l:" `isSuffixOf`   l ->  return $ map simpleCompletion (filter (w `isPrefixOf`) files  )
        _ | "i:" `isSuffixOf`   l ->  return $ map simpleCompletion (filter (w `isPrefixOf`) files  )
+       _ | "hc:" `isSuffixOf`  l ->  return $ map simpleCompletion (filter (w `isPrefixOf`) files  )
        _ | ":" `isPrefixOf`    w ->  return $ map simpleCompletion (filter (w `isPrefixOf`) commands )
        _                         ->  return $ map simpleCompletion (filter (w `isPrefixOf`) $ getStringIdentifiers (s^.stateCode) ++ assIdentifiers)
 
@@ -162,8 +163,9 @@ mainLoop args clist = do
                                                getCodeCmd >>= \xs -> lift (put s{ _stateBanner = False, _stateCode = s^.stateCode ++ xs }) >> loop
                      Just (":include":h:[]) -> outputStrLn ("Including " ++ h ++ "...") >>
                                                lift (put $ s{ _stateBanner = False, _stateCode = s^.stateCode ++ ["#include <" ++ h ++ ">"] }) >> loop
-                     Just (":load":f:[])    -> outputStrLn ("loading " ++ f ++ "...") >>
+                     Just (":load":f:[])    -> outputStrLn ("Loading " ++ f ++ "...") >>
                                                loadCodeCmd f >>= \xs -> lift (put s{ _stateBanner = False, _stateFile = f, _stateCode = xs }) >> loop
+                     Just (":check":f:[])   -> outputStrLn ("Checking " ++ f ++ "...") >> checkHeaderCmd f clist (getCompilerArgs args) >> loop
                      Just (":reload":_)     -> outputStrLn ("Reloading " ++ s^.stateFile ++ "...") >>
                                                reloadCodeCmd >>= \xs -> lift (put s{ _stateBanner = False, _stateCode = xs }) >> loop
                      Just (":quit":_)       -> void (outputStrLn "Leaving ASSi.")
@@ -172,11 +174,11 @@ mainLoop args clist = do
 
                      Just (":rr" :xs)       -> do outputStrLn ("Reloading " ++ s^.stateFile ++ "...")
                                                   reloadCodeCmd >>= \ys -> lift (put s{ _stateBanner = False, _stateCode = ys})
-                                                  e <- runCmd  "" clist (getCompilerArgs args) (if null xs then s^.stateArgs else xs)
+                                                  e <- runCmd "" clist (getCompilerArgs args) (if null xs then s^.stateArgs else xs)
                                                   outputStrLn $ show e
                                                   lift (put $ stateBanner.~ False $ s) >> loop
 
-                     Just (":run" :xs)      -> do e <- runCmd  "" clist (getCompilerArgs args) (if null xs then s^.stateArgs else xs)
+                     Just (":run" :xs)      -> do e <- runCmd "" clist (getCompilerArgs args) (if null xs then s^.stateArgs else xs)
                                                   outputStrLn $ show e
                                                   lift (put $ stateBanner.~ False $ s) >> loop
 
@@ -184,7 +186,7 @@ mainLoop args clist = do
                                                   outputStrLn $ show e
                                                   lift (put $ stateBanner .~ False $ s) >> loop
 
-                     Just input | ":" `isPrefixOf` unwords input -> outputStrLn("unknown command '" ++ unwords input ++ "'") >>
+                     Just input | ":" `isPrefixOf` unwords input -> outputStrLn("Unknown command '" ++ unwords input ++ "'") >>
                                                                     outputStrLn "use :? for help." >> lift (put $ stateBanner .~ False $ s) >> loop
                                 | isPreprocessor (C.pack $ unwords input) -> lift (put s{ _stateBanner = False, _statePrepList = s^.statePrepList ++ [unwords input] }) >> loop
                                 | otherwise -> do e <- runCmd (unwords input) clist (getCompilerArgs args) (s^.stateArgs)
@@ -202,6 +204,7 @@ printHelp =  lift $ putStrLn $ "Commands available from the prompt:\n\n" ++
                         "<statement>                 evaluate/run C++ <statement>\n" ++
                         "  :include file             add include in the buffer\n" ++
                         "  :load file                load file in the buffer\n" ++
+                        "  :check header             perform compile test on cpp header\n" ++
                         "  :reload                   reload the file\n" ++
                         "  :edit                     edit the buffer\n" ++
                         "  :list                     list the buffer\n" ++
@@ -245,6 +248,16 @@ reloadCodeCmd = lift get >>= \s ->
     if null (s^.stateFile) then error "No file loaded!"
                            else loadCodeCmd $ s^.stateFile
 
+
+checkHeaderCmd :: FilePath -> [Compiler] -> [String] -> InputT StateIO [ExitCode]
+checkHeaderCmd src clist cargs = do
+    code <- loadCodeCmd src
+    lift get >>= \s ->
+        liftIO $ testCompileHeader ((C.pack . unlines) code)
+                    (s^.stateVerbose)
+                    (compilerFilterType (s^.stateCompType) clist)
+                    cargs
+
 runCmd :: FilePath -> [Compiler] -> [String] -> [String] -> InputT StateIO [ExitCode]
 runCmd src clist cargs args = lift get >>= \s ->
     liftIO $ buildCompileAndRun (C.pack (unlines (s^.statePrepList) ++ unlines (s^.stateCode)))
@@ -254,6 +267,20 @@ runCmd src clist cargs args = lift get >>= \s ->
                   (compilerFilterType (s^.stateCompType) clist)
                   cargs
                   args
+
+
+testCompileHeader :: Source -> Bool -> [Compiler] -> [String] -> IO [ExitCode]
+testCompileHeader code verbose clist cargs = do
+    cwd' <- getCurrentDirectory
+    name <- getEffectiveUserName
+    let bin = tmpDir </> snippet ++ "-" ++ name
+    let src1 = bin `addExtension` "cpp"
+    let src2 = (bin ++ "-2") `addExtension` "cpp"
+    writeSource src1 $ makeSourceCode code "" (getDeclaredNamespace code) False False
+    C.writeFile src2 code
+    forM clist $ \ cxx ->
+        runCompiler cxx [src1, src2] (binary bin cxx) verbose (["-I", cwd', "-I",  cwd' </> ".."] ++ cargs)
+        where binary n c = n ++ "-" ++ show (compilerType c)
 
 
 buildCompileAndRun :: Source -> Source -> Bool -> Bool -> [Compiler] -> [String] -> [String] -> IO [ExitCode]

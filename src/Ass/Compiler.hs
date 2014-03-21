@@ -170,9 +170,9 @@ getCompilerPchPath (Compiler ver _ _ opts) =
                  |  otherwise                                                = "glibcxx"
 
 
-runCompiler :: Compiler -> FilePath -> FilePath -> Bool -> [String] -> IO ExitCode
-runCompiler cxx source binary verbose user_opt =
+runCompiler :: Compiler -> [FilePath] -> FilePath -> Bool -> [String] -> IO ExitCode
+runCompiler cxx sources binary verbose user_opt =
     when verbose (putStrLn cmd) >> system cmd
-        where cmd = unwords . concat $ [[compilerExec cxx], getCompilerOptPCH cxx, user_opt, [source], ["-o"], [binary]]
+        where cmd = unwords . concat $ [[compilerExec cxx], getCompilerOptPCH cxx, user_opt, sources, ["-o"], [binary]]
 
 

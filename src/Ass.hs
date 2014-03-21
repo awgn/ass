@@ -245,7 +245,7 @@ reloadCodeCmd = lift get >>= \s ->
     if null (s^.stateFile) then error "No file loaded!"
                            else loadCodeCmd $ s^.stateFile
 
-runCmd :: String -> [Compiler] -> [String] -> [String] -> InputT StateIO [ExitCode]
+runCmd :: FilePath -> [Compiler] -> [String] -> [String] -> InputT StateIO [ExitCode]
 runCmd src clist cargs args = lift get >>= \s ->
     liftIO $ buildCompileAndRun (C.pack (unlines (s^.statePrepList) ++ unlines (s^.stateCode)))
                   (C.pack src)
@@ -266,7 +266,7 @@ buildCompileAndRun code main_code preload verbose clist cargs targs = do
     writeSource src $ makeSourceCode code main_code (getDeclaredNamespace code) preload boost
     forM clist $ \cxx -> do
         when (length clist > 1) $ putStr (compilerName cxx ++ " -> ") >> hFlush stdout
-        e <- runCompiler cxx src (binary bin cxx) verbose (["-I", cwd', "-I",  cwd' </> ".."] ++ cargs)
+        e <- runCompiler cxx [src] (binary bin cxx) verbose (["-I", cwd', "-I",  cwd' </> ".."] ++ cargs)
         if e == ExitSuccess
             then system (binary bin cxx ++ " " ++ unwords targs)
             else return e

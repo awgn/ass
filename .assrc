@@ -2,7 +2,7 @@
     Compiler { compilerType = Gcc49,   
                compilerExec = "/usr/bin/g++-4.9",
                compilerName = "g++-4.9",
-               compilerOpts = ["-std=c++11"]
+               compilerOpts = ["-std=c++11", "-fdiagnostics-color=always"]
               },
     
     Compiler { compilerType = Gcc48,   

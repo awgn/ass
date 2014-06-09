@@ -971,7 +971,12 @@ inline namespace ass_inline {
     template <typename Tp>
     std::string type_name()
     {
-        return ass::demangle(typeid(Tp).name());
+        auto name = ass::demangle(typeid(Tp).name());
+        if (std::is_lvalue_reference<Tp>::value)
+            name += "&";
+        else if (std::is_rvalue_reference<Tp>::value)
+            name += "&&";
+        return name;
     }
 
     ////////////////////////////////////////////////////////////// simple Oracle class

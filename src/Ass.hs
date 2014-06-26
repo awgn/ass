@@ -346,7 +346,7 @@ makeSourceCode code cmd_code ns preload boost
          [main']
       where (code', cmd_code') = foldl parseCodeLine ([], []) (zipSourceCode code)
             main'   | hasMain code = []
-                    | otherwise    = [ CodeLine 0 "int main() {}" ]
+                    | otherwise    = [ CodeLine 0 "int main() { return 0; }" ]
             exit                   = [ CodeLine 0 "auto __EXIT__ = ass::eval([]() { std::exit(0); }); "]
             headers                = makeInclude "<ass.hpp>" : [ makeInclude "<ass-boost.hpp>" | boost ]
 

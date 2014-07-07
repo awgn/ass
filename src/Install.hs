@@ -63,7 +63,7 @@ installVimPlugin = do
         bundle <- liftM (</> ".vim" </> "bundle") getHomeDirectory
         doesDirectoryExist bundle >>= \case
                     True  -> do
-                                putMsg "Installing vim-ass plungin (pathong detected)..."
+                                putMsg "Installing vim-ass plungin (pathogen detected)..."
                                 createDirectoryIfMissing False (bundle </> "vim-ass")
                                 copyFile (".." </> "plugin/ass.vim") (bundle </> "vim-ass/ass.vim")
                     False -> return ()
@@ -86,7 +86,7 @@ getPchExtension (Compiler typ _ _ _) =
 
 installPch:: IO ()
 installPch = do
-        putMsg "PCH headers..."
+        putMsg "Compiling PCH headers..."
         home  <- getHomeDirectory
         list  <- getCompilerConf (home </> assrc) >>= getAvailCompilers >>= getValidCompilers
 

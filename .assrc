@@ -45,5 +45,11 @@
                compilerExec = "/usr/bin/clang++",
                compilerName = "clang++34",
                compilerOpts = ["-std=c++1y", "-stdlib=libc++"]
+              },
+    
+    Compiler { compilerType = Clang35,   
+               compilerExec = "/usr/bin/clang++",
+               compilerName = "clang++35",
+               compilerOpts = ["-std=c++1y", "-stdlib=libc++"]
               }
 ]

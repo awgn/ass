@@ -54,8 +54,8 @@ installHdr :: IO ()
 installHdr = do
         putMsg "Copying headers..."
         createDirectoryIfMissing True includeAssDir
-        copyFile ("../includes/ass.hpp")         (includeAssDir </> "ass.hpp")
-        copyFile ("../includes/ass-boost.hpp")   (includeAssDir </> "ass-boost.hpp")
+        copyFile "../includes/ass.hpp"  (includeAssDir </> "ass.hpp")
+        copyFile "../includes/ass-boost.hpp"   (includeAssDir </> "ass-boost.hpp")
 
 
 installVimPlugin :: IO ()
@@ -91,7 +91,7 @@ installPch = do
         list  <- getCompilerConf (home </> assrc) >>= getAvailCompilers >>= getValidCompilers
 
         void $ flip mapConcurrently list $ \comp -> do
-            putMsg $ "Installing pch for " ++ (compilerName comp) ++ "..."
+            putMsg $ "Installing pch for " ++ compilerName comp ++ "..."
 
             let pchDir = getCompilerPchPath comp
             let opts   = getCompilerOpt comp
@@ -102,7 +102,7 @@ installPch = do
                 when boost $ void $ system $ compilerExec comp ++ " ../includes/ass-boost.hpp " ++ unwords opts ++ " -o " ++ pchDir </> "ass-boost.hpp." ++ getPchExtension comp
 
 usage :: IO ()
-usage = putStrLn "Install.hs [--help][--ass][--vim][--pch][--all]" >> (void exitSuccess)
+usage = putStrLn "Install.hs [--help][--ass][--vim][--pch][--all]" >> void exitSuccess
 
 
 main = do
@@ -111,7 +111,7 @@ main = do
 
     putMsg "Installing C++11/14 assistant."
     when ("--ass" `elem` args || "--all" `elem` args) $ do { installrc ; installBinaries ; installHdr }
-    when ("--vim" `elem` args || "--all" `elem` args) $ do installVimPlugin
-    when ("--pch" `elem` args || "--all" `elem` args) $ do installPch
+    when ("--vim" `elem` args || "--all" `elem` args) installVimPlugin
+    when ("--pch" `elem` args || "--all" `elem` args) installPch
 
     putMsg "done."

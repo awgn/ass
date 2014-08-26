@@ -128,7 +128,8 @@ cliCompletion l w = do
 mainLoop :: [String] -> [Compiler] -> IO ()
 mainLoop args clist = do
     putStrLn $ banner ++ " :? for help"
-    putStr "Compilers found: " >> mapM_ (\c -> putStr $ compilerName c ++ " " ) clist >> putChar '\n'
+    putStr "Compilers found: " >> forM_ clist (\c -> putStr $ compilerName c ++ " " ) >> putChar '\n'
+
     home <- getHomeDirectory
 
     let startingState = CliState True False False "" (compilerType $ head clist) (getRuntimeArgs args) [] []

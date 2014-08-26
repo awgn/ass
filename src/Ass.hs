@@ -59,6 +59,7 @@ import Ass.Types
 usage :: IO ()
 usage = putStrLn $ "usage: ass [OPTION] [COMPILER OPT] -- [ARG]\n" ++
                    "    -i              launch interactive mode\n" ++
+                   "    -l  file        launch interactive mode + load file\n" ++
                    "    -v, --version   show version\n" ++
                    "    -h, --help      print this help"
 
@@ -86,7 +87,8 @@ main = do args    <- getArgs
             ("-?":_)        -> usage
             ("-v":_)        -> putStrLn banner
             ("--version":_) -> putStrLn banner
-            ("-i":_)        -> getAvailCompilers clist >>= getValidCompilers >>= mainLoop (tail args)
+            ("-i":_)        -> getAvailCompilers clist >>= getValidCompilers >>= mainLoop (tail args) ""
+            ("-l":xs:_)     -> getAvailCompilers clist >>= getValidCompilers >>= mainLoop (tail $ tail args) xs
             _               -> liftM (head . compilerFilter cfamily) (getAvailCompilers clist >>= getValidCompilers) >>= mainFun args
 
 
@@ -125,17 +127,36 @@ cliCompletion l w = do
        _                         ->  return $ map simpleCompletion (filter (w `isPrefixOf`) $ getStringIdentifiers (s^.stateCode) ++ assIdentifiers)
 
 
-mainLoop :: [String] -> [Compiler] -> IO ()
-mainLoop args clist = do
+mainLoop :: [String] -> FilePath -> [Compiler] -> IO ()
+mainLoop args file clist = do
+
     putStrLn $ banner ++ " :? for help"
     putStr "Compilers found: " >> forM_ clist (\c -> putStr $ compilerName c ++ " " ) >> putChar '\n'
 
     home <- getHomeDirectory
 
-    let startingState = CliState True False False "" (compilerType $ head clist) (getRuntimeArgs args) [] []
-    let settings      = setComplete (completeWordWithPrev Nothing " \t" cliCompletion) defaultSettings { historyFile = Just $ home </> ".ass_history" }
+    code <- if null file
+                then return []
+                else loadCodeCmd' file
+
+    let startingState = CliState
+                        {
+                            _stateBanner   = True,
+                            _statePreload  = False,
+                            _stateVerbose  = False,
+                            _stateFile     = file,
+                            _stateCompType = compilerType $ head clist,
+                            _stateArgs     = getRuntimeArgs args,
+                            _statePrepList = [],
+                            _stateCode     = code
+                        }
+
+    let settings = setComplete (completeWordWithPrev Nothing " \t" cliCompletion) defaultSettings { historyFile = Just $ home </> ".ass_history" }
+
+    unless (null file) $ putStrLn $ "Loading " ++ file
 
     evalStateT (runInputT settings loop) startingState
+
     where
     loop :: InputIO ()
     loop = do
@@ -240,8 +261,12 @@ getCodeCmd = do
          Just input -> (input :) <$> getCodeCmd
 
 
+loadCodeCmd' :: FilePath -> IO [String]
+loadCodeCmd' f = filter (not . ("#pragma" `isPrefixOf`) . dropWhite) <$> lines <$> readFile f
+
+
 loadCodeCmd :: FilePath -> InputT StateIO [String]
-loadCodeCmd f = liftIO $ filter (not . ("#pragma" `isPrefixOf`) . dropWhite) <$> lines <$> readFile f
+loadCodeCmd f = liftIO $ loadCodeCmd' f
 
 
 reloadCodeCmd :: InputT StateIO [String]

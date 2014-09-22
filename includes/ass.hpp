@@ -102,6 +102,12 @@
 #include <future>
 #include <atomic>
 
+#if __cplusplus >= 201300L
+
+#include <experimental/optional>
+
+#endif
+
 namespace ass
 {
 
@@ -498,6 +504,12 @@ inline namespace ass_inline {
     inline std::string
     show(std::shared_ptr<T> const &);
 
+#if __cplusplus >= 201300L
+    template <typename T>
+    inline std::string
+    show(std::experimental::optional<T> const &);
+#endif
+
     // pair<>
 
     template <typename U, typename V>
@@ -774,6 +786,23 @@ inline namespace ass_inline {
         out << static_cast<const void *>(p.get()) << "_sp" << p.use_count();
         return out.str();
     }
+
+#if __cplusplus >= 201300L
+    ///////////////////////////////////////
+    // show for optional
+
+    template <typename T>
+    inline std::string
+    show(std::experimental::optional<T> const &p)
+    {
+        std::ostringstream out;
+        out << '(';
+        if (static_cast<bool>(p))
+            out << *p;
+        out << ')';
+        return out.str();
+    }
+#endif
 
     //////////////////////////
     // show for pair...
@@ -1456,6 +1485,9 @@ namespace ass {
 
 using namespace std;
 using namespace std::chrono;
+#if __cplusplus >= 201300L
+using namespace std::experimental;
+#endif
 using namespace std::placeholders;
 
 #endif /* __ASS_HPP__ */

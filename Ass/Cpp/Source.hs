@@ -17,7 +17,7 @@
 --
 
 
-module Cpp.Source (Source, SourceLine, mapAccumL) where
+module Ass.Cpp.Source (Source, SourceLine, mapAccumL) where
 
 import qualified Data.ByteString.Char8 as C
 

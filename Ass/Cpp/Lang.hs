@@ -21,7 +21,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module Cpp.Lang where
+module Ass.Cpp.Lang where
 
 import Data.Monoid
 import Data.List

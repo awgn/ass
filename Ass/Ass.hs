@@ -44,11 +44,10 @@ import Control.Monad.State.Strict
 
 import qualified Data.ByteString.Char8 as C
 
-import qualified Cpp.Filter as Cpp
-import qualified Cpp.Token  as Cpp
+import qualified Ass.Cpp.Filter as Cpp
+import qualified Ass.Cpp.Token  as Cpp
 
-import Config
-
+import Ass.Config
 import Ass.Compiler
 import Ass.Types
 

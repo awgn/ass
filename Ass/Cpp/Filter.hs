@@ -20,9 +20,9 @@
 -- {-# LANGUAGE ViewPatterns #-}
 
 
-module Cpp.Filter (Context(..), ContextFilter(..), Cpp.Filter.filter)  where
+module Ass.Cpp.Filter (Context(..), ContextFilter(..), Ass.Cpp.Filter.filter)  where
 
-import qualified Cpp.Source as Cpp
+import qualified Ass.Cpp.Source as Cpp
 
 
 type Source = Cpp.Source

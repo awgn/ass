@@ -18,7 +18,7 @@
 
 {-# LANGUAGE ViewPatterns #-}
 
-module Cpp.Token(Token(..), TokenFilter(..),
+module Ass.Cpp.Token(Token(..), TokenFilter(..),
                  Offset, tokenizer, tokenFilter, tokenCompare,
                  isIdentifier, isKeyword, isDirective, isLiteralNumber,
                  isHeaderName, isString, isChar, isOperOrPunct

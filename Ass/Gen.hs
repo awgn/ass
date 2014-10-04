@@ -25,7 +25,7 @@
 module Main where
 
 import System.Environment(getArgs)
-import Cpp.Lang
+import Ass.Cpp.Lang
 
 
 

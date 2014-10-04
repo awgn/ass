@@ -20,8 +20,7 @@
 module Ass.Types where
 
 import qualified Data.ByteString.Char8 as C
-import qualified Cpp.Source as Cpp
-
+import qualified Ass.Cpp.Source as Cpp
 
 type Source          = Cpp.Source
 data CodeLine        = CodeLine Int Source

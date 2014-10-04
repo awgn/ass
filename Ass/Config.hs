@@ -17,7 +17,7 @@
 --
 -- ass: C++11 code assistant for vim
 
-module Config where
+module Ass.Config where
 
 banner, snippet, assrc, ass_history :: String
 tmpDir, includeAssDir :: FilePath

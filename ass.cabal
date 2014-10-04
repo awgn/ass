@@ -2,7 +2,7 @@
 -- see http://haskell.org/cabal/users-guide/
 
 name:                   ass
-version:                2.16
+version:                2.17
 
 license-file:           LICENSE
 author:                 Nicola Bonelli
@@ -20,7 +20,6 @@ Executable ass
                         filepath >= 1.0, 
                         directory >= 1.0,
                         process >= 1.0,
-                        lens >= 4.0,
                         haskeline >= 0.7,
                         unix >= 2.0,
                         safe >= 0.2,

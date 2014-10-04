@@ -73,8 +73,8 @@ installBinaries :: IO ()
 installBinaries = do
         putMsg "Compiling haskell binaries..."
 
-        void $ system ("runhaskell Setup configure --user")
-        void $ system ("runhaskell Setup build")
+        void $ system "runhaskell Setup configure --user"
+        void $ system "runhaskell Setup build"
 
         copyFile "dist/build/ass/ass" (installDir </> "ass")
         copyFile "dist/build/ass/ass" (installDir </> "ass-clang")

@@ -18,7 +18,6 @@
 -- ass: C++11 code assistant for vim
 
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TemplateHaskell #-}
 
 module Main where
 
@@ -37,7 +36,6 @@ import System.Directory
 
 import System.Console.Haskeline
 
-import Control.Lens
 import Control.Monad
 import Control.Monad.Trans.Class
 import Control.Monad.State.Strict
@@ -63,16 +61,14 @@ usage = putStrLn $ "usage: ass [OPTION] [COMPILER OPT] -- [ARG]\n" ++
                    "    -h, --help      print this help"
 
 
-data CliState = CliState { _stateBanner     :: !Bool,
-                           _statePreload    :: !Bool,
-                           _stateVerbose    :: !Bool,
-                           _stateFile       :: !FilePath,
-                           _stateCompType   :: !CompilerType,
-                           _stateArgs       :: ![String],
-                           _statePrepList   :: ![String],
-                           _stateCode       :: ![String]} deriving (Show, Eq)
-
-makeLenses ''CliState
+data CliState = CliState { stateBanner     :: !Bool,
+                           statePreload    :: !Bool,
+                           stateVerbose    :: !Bool,
+                           stateFile       :: !FilePath,
+                           stateCompType   :: !CompilerType,
+                           stateArgs       :: ![String],
+                           statePrepList   :: ![String],
+                           stateCode       :: ![String]} deriving (Show, Eq)
 
 
 main :: IO ()
@@ -118,12 +114,12 @@ cliCompletion l w = do
     s <- get
     files  <- liftIO $ filter (\f -> f /= "." && f /= "..") <$> getDirectoryContents "."
     case () of
-       _ | "fni:" `isSuffixOf` l ->  return $ map simpleCompletion (filter (w `isPrefixOf`) $ getStringIdentifiers (s^.stateCode))
+       _ | "fni:" `isSuffixOf` l ->  return $ map simpleCompletion (filter (w `isPrefixOf`) $ getStringIdentifiers (stateCode s))
        _ | "l:" `isSuffixOf`   l ->  return $ map simpleCompletion (filter (w `isPrefixOf`) files  )
        _ | "i:" `isSuffixOf`   l ->  return $ map simpleCompletion (filter (w `isPrefixOf`) files  )
        _ | "hc:" `isSuffixOf`  l ->  return $ map simpleCompletion (filter (w `isPrefixOf`) files  )
        _ | ":" `isPrefixOf`    w ->  return $ map simpleCompletion (filter (w `isPrefixOf`) commands )
-       _                         ->  return $ map simpleCompletion (filter (w `isPrefixOf`) $ getStringIdentifiers (s^.stateCode) ++ assIdentifiers)
+       _                         ->  return $ map simpleCompletion (filter (w `isPrefixOf`) $ getStringIdentifiers (stateCode s) ++ assIdentifiers)
 
 
 mainLoop :: [String] -> FilePath -> [Compiler] -> IO ()
@@ -138,23 +134,22 @@ mainLoop args file clist = do
                 then return []
                 else loadCodeCmd' file
 
-    let startingState = CliState
+    let defaultState = CliState
                         {
-                            _stateBanner   = True,
-                            _statePreload  = False,
-                            _stateVerbose  = False,
-                            _stateFile     = file,
-                            _stateCompType = compilerType $ head clist,
-                            _stateArgs     = getRuntimeArgs args,
-                            _statePrepList = [],
-                            _stateCode     = code
+                            stateBanner   = True,
+                            statePreload  = False,
+                            stateVerbose  = False,
+                            stateFile     = file,
+                            stateCompType = compilerType $ head clist,
+                            stateArgs     = getRuntimeArgs args,
+                            statePrepList = [],
+                            stateCode     = code
                         }
 
     let settings = setComplete (completeWordWithPrev Nothing " \t" cliCompletion) defaultSettings { historyFile = Just $ home </> ".ass_history" }
-
     unless (null file) $ putStrLn $ "Loading " ++ file
 
-    evalStateT (runInputT settings loop) startingState
+    evalStateT (runInputT settings loop) defaultState
 
     where
     loop :: InputIO ()
@@ -163,56 +158,56 @@ mainLoop args file clist = do
         handle (\e -> let msg = show (e :: SomeException) in
                           if msg /= "user interrupt" then outputStrLn msg >> loop
                                                      else loop) $
-            if null $ compilerFilterType (s^.stateCompType) clist
-            then lift (put $ over stateCompType next s) >> loop
+            if null $ compilerFilterType (stateCompType s) clist
+            then lift (put $ s{ stateCompType = next (stateCompType s) }) >> loop
             else do
-                when (s^.stateBanner) $ outputStrLn $ "Using " ++ show (s^.stateCompType) ++ " compiler..."
-                in' <- getInputLine $ "Ass " ++ show (s^.stateCompType) ++ "> "
+                when (stateBanner s) $ outputStrLn $ "Using " ++ show (stateCompType s) ++ " compiler..."
+                in' <- getInputLine $ "Ass " ++ show (stateCompType s) ++ "> "
                 case words <$> in' of
                      Nothing -> outputStrLn "Leaving ASSi."
-                     Just []                -> lift (put $ stateBanner.~ False $ s) >> loop
-                     Just (":args":xs)      -> lift (put $ stateArgs.~ xs $ s) >> loop
-                     Just (":preload":_)    -> outputStrLn ("Preloading headers (" ++ show (not $ s^.statePreload) ++ ")") >>
-                                               lift (put $ over statePreload not s) >> loop
-                     Just (":verbose":_)    -> outputStrLn ("Verbose (" ++ show (not $ s^.stateVerbose) ++ ")") >>
-                                               lift (put $ over stateVerbose not s) >> loop
+                     Just []                -> lift (put $ s{ stateBanner = False }) >> loop
+                     Just (":args":xs)      -> lift (put $ s{ stateArgs = xs }) >> loop
+                     Just (":preload":_)    -> outputStrLn ("Preloading headers (" ++ show (not $ statePreload s) ++ ")") >>
+                                               lift (put $ s{ statePreload = not $ statePreload s}) >> loop
+                     Just (":verbose":_)    -> outputStrLn ("Verbose (" ++ show (not $ stateVerbose s) ++ ")") >>
+                                               lift (put $ s{ stateVerbose = not $ stateVerbose s}) >> loop
                      Just (":clear":_)      -> outputStrLn "Buffer clean." >>
-                                               lift (put s { _stateBanner = True, _stateFile = "", _statePrepList = [], _stateCode = [] }) >> loop
-                     Just (":list":_)       -> mapM_ outputStrLn (s^.statePrepList) >> mapM_ outputStrLn (s^.stateCode) >>
-                                               lift (put $ stateBanner.~ False $ s) >> loop
-                     Just (":edit":_)       -> mapM_ outputStrLn (s^.statePrepList) >> mapM_ outputStrLn (s^.stateCode) >>
-                                               getCodeCmd >>= \xs -> lift (put s{ _stateBanner = False, _stateCode = s^.stateCode ++ xs }) >> loop
+                                               lift (put s { stateBanner = True, stateFile = "", statePrepList = [], stateCode = [] }) >> loop
+                     Just (":list":_)       -> mapM_ outputStrLn (statePrepList s) >> mapM_ outputStrLn (stateCode s) >>
+                                               lift (put $ s {stateBanner = False }) >> loop
+                     Just (":edit":_)       -> mapM_ outputStrLn (statePrepList s) >> mapM_ outputStrLn (stateCode s) >>
+                                               getCodeCmd >>= \xs -> lift (put s{ stateBanner = False, stateCode = stateCode s ++ xs }) >> loop
                      Just [":include",h]    -> outputStrLn ("Including " ++ h ++ "...") >>
-                                               lift (put $ s{ _stateBanner = False, _stateCode = s^.stateCode ++ ["#include <" ++ h ++ ">"] }) >> loop
+                                               lift (put $ s{ stateBanner = False, stateCode = stateCode s ++ ["#include <" ++ h ++ ">"] }) >> loop
                      Just [":load",f]       -> outputStrLn ("Loading " ++ f ++ "...") >>
-                                               loadCodeCmd f >>= \xs -> lift (put s{ _stateBanner = False, _stateFile = f, _stateCode = xs }) >> loop
+                                               loadCodeCmd f >>= \xs -> lift (put s{ stateBanner = False, stateFile = f, stateCode = xs }) >> loop
                      Just [":check",f]      -> outputStrLn ("Checking " ++ f ++ "...") >> checkHeaderCmd f clist (getCompilerArgs args) >> loop
-                     Just (":reload":_)     -> outputStrLn ("Reloading " ++ s^.stateFile ++ "...") >>
-                                               reloadCodeCmd >>= \xs -> lift (put s{ _stateBanner = False, _stateCode = xs }) >> loop
+                     Just (":reload":_)     -> outputStrLn ("Reloading " ++ stateFile s ++ "...") >>
+                                               reloadCodeCmd >>= \xs -> lift (put s{ stateBanner = False, stateCode = xs }) >> loop
                      Just (":quit":_)       -> void (outputStrLn "Leaving ASSi.")
-                     Just (":next":_)       -> lift (put $ stateBanner.~ True $ over stateCompType next s) >> loop
-                     Just (":?":_)          -> lift printHelp >> lift (put $ stateBanner.~ True $ s) >> loop
+                     Just (":next":_)       -> lift (put $ s{ stateBanner = True, stateCompType = next (stateCompType s)}) >> loop
+                     Just (":?":_)          -> lift printHelp >> lift (put $ s{ stateBanner = True}) >> loop
 
-                     Just (":rr" :xs)       -> do outputStrLn ("Reloading " ++ s^.stateFile ++ "...")
-                                                  reloadCodeCmd >>= \ys -> lift (put s{ _stateBanner = False, _stateCode = ys})
-                                                  e <- runCmd "" clist (getCompilerArgs args) (if null xs then s^.stateArgs else xs)
+                     Just (":rr" :xs)       -> do outputStrLn ("Reloading " ++ stateFile s ++ "...")
+                                                  reloadCodeCmd >>= \ys -> lift (put s{ stateBanner = False, stateCode = ys})
+                                                  e <- runCmd "" clist (getCompilerArgs args) (if null xs then stateArgs s else xs)
                                                   outputStrLn $ show e
-                                                  lift (put $ stateBanner.~ False $ s) >> loop
+                                                  lift (put $ s{ stateBanner = False}) >> loop
 
-                     Just (":run" :xs)      -> do e <- runCmd "" clist (getCompilerArgs args) (if null xs then s^.stateArgs else xs)
+                     Just (":run" :xs)      -> do e <- runCmd "" clist (getCompilerArgs args) (if null xs then stateArgs s else xs)
                                                   outputStrLn $ show e
-                                                  lift (put $ stateBanner.~ False $ s) >> loop
+                                                  lift (put $ s{ stateBanner = False}) >> loop
 
-                     Just (":info":xs)      -> do e <- runCmd (if null xs then "" else "return type_info_<" ++ unwords xs ++ ">();") clist (getCompilerArgs args) (s^.stateArgs)
+                     Just (":info":xs)      -> do e <- runCmd (if null xs then "" else "return type_info_<" ++ unwords xs ++ ">();") clist (getCompilerArgs args) (stateArgs s)
                                                   outputStrLn $ show e
-                                                  lift (put $ stateBanner .~ False $ s) >> loop
+                                                  lift (put $ s{ stateBanner = False}) >> loop
 
                      Just input | ":" `isPrefixOf` unwords input -> outputStrLn("Unknown command '" ++ unwords input ++ "'") >>
-                                                                    outputStrLn "use :? for help." >> lift (put $ stateBanner .~ False $ s) >> loop
-                                | isPreprocessor (C.pack $ unwords input) -> lift (put s{ _stateBanner = False, _statePrepList = s^.statePrepList ++ [unwords input] }) >> loop
-                                | otherwise -> do e <- runCmd (unwords input) clist (getCompilerArgs args) (s^.stateArgs)
+                                                                    outputStrLn "use :? for help." >> lift (put $ s{ stateBanner = False}) >> loop
+                                | isPreprocessor (C.pack $ unwords input) -> lift (put s{ stateBanner = False, statePrepList = statePrepList s ++ [unwords input] }) >> loop
+                                | otherwise -> do e <- runCmd (unwords input) clist (getCompilerArgs args) (stateArgs s)
                                                   outputStrLn $ show e
-                                                  lift (put $ stateBanner .~ False $ s) >> loop
+                                                  lift (put $ s{ stateBanner = False}) >> loop
 
 mainFun :: [String] -> Compiler -> IO ()
 mainFun args cxx = do
@@ -270,8 +265,8 @@ loadCodeCmd f = liftIO $ loadCodeCmd' f
 
 reloadCodeCmd :: InputT StateIO [String]
 reloadCodeCmd = lift get >>= \s ->
-    if null (s^.stateFile) then error "No file loaded!"
-                           else loadCodeCmd $ s^.stateFile
+    if null (stateFile s) then error "No file loaded!"
+                           else loadCodeCmd $ stateFile s
 
 
 checkHeaderCmd :: FilePath -> [Compiler] -> [String] -> InputT StateIO [ExitCode]
@@ -279,17 +274,17 @@ checkHeaderCmd src clist cargs = do
     code <- loadCodeCmd src
     lift get >>= \s ->
         liftIO $ testCompileHeader ((C.pack . unlines) code)
-                    (s^.stateVerbose)
-                    (compilerFilterType (s^.stateCompType) clist)
+                    (stateVerbose s)
+                    (compilerFilterType (stateCompType s) clist)
                     cargs
 
 runCmd :: FilePath -> [Compiler] -> [String] -> [String] -> InputT StateIO [ExitCode]
 runCmd src clist cargs args = lift get >>= \s ->
-    liftIO $ buildCompileAndRun (C.pack (unlines (s^.statePrepList) ++ unlines (s^.stateCode)))
+    liftIO $ buildCompileAndRun (C.pack (unlines (statePrepList s) ++ unlines (stateCode s)))
                   (C.pack src)
-                  (s^.statePreload)
-                  (s^.stateVerbose)
-                  (compilerFilterType (s^.stateCompType) clist)
+                  (statePreload s)
+                  (stateVerbose s)
+                  (compilerFilterType (stateCompType s) clist)
                   cargs
                   args
 

@@ -72,6 +72,7 @@ installVimPlugin = do
 installBinaries :: IO ()
 installBinaries = do
         putMsg "Compiling haskell binaries..."
+
         void $ system ("runhaskell Setup configure --user")
         void $ system ("runhaskell Setup build")
 
@@ -88,8 +89,11 @@ getPchExtension (Compiler typ _ _ _) =
 
 installPch:: IO ()
 installPch = do
-        putMsg "Compiling PCH headers..."
         home  <- getHomeDirectory
+
+        putMsg "Compiling PCH headers:"
+        putMsg $ "Getting compilers configuration from " ++ home </> assrc ++ "..."
+
         list  <- getCompilerConf (home </> assrc) >>= getAvailCompilers >>= getValidCompilers
 
         void $ flip mapConcurrently list $ \comp -> do

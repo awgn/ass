@@ -17,7 +17,6 @@
 --
 -- ass: C++11 code assistant for vim
 
-{-# LANGUAGE LambdaCase #-}
 
 import Ass.Config
 import Ass.Compiler
@@ -45,7 +44,7 @@ installrc :: IO ()
 installrc = do
         putMsg $ "Copying " ++ assrc ++ "..."
         dest <- liftM (</> assrc) getHomeDirectory
-        doesFileExist dest >>= \case
+        doesFileExist dest >>= \n -> case n of
                 True  -> putMsg $ "~/" ++ assrc ++ " already installed."
                 False -> copyFile assrc dest
 
@@ -61,7 +60,7 @@ installHdr = do
 installVimPlugin :: IO ()
 installVimPlugin = do
         bundle <- liftM (</> ".vim" </> "bundle") getHomeDirectory
-        doesDirectoryExist bundle >>= \case
+        doesDirectoryExist bundle >>= \n -> case n of
                     True  -> do
                                 putMsg "Installing vim-ass plungin (pathogen detected)..."
                                 createDirectoryIfMissing False (bundle </> "vim-ass")

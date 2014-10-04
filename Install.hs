@@ -19,7 +19,7 @@
 
 {-# LANGUAGE LambdaCase #-}
 
-import Config
+import Ass.Config
 import Ass.Compiler
 
 import System.Process
@@ -47,15 +47,15 @@ installrc = do
         dest <- liftM (</> assrc) getHomeDirectory
         doesFileExist dest >>= \case
                 True  -> putMsg $ "~/" ++ assrc ++ " already installed."
-                False -> copyFile (".." </> assrc) dest
+                False -> copyFile assrc dest
 
 
 installHdr :: IO ()
 installHdr = do
         putMsg "Copying headers..."
         createDirectoryIfMissing True includeAssDir
-        copyFile "../includes/ass.hpp"  (includeAssDir </> "ass.hpp")
-        copyFile "../includes/ass-boost.hpp"   (includeAssDir </> "ass-boost.hpp")
+        copyFile "includes/ass.hpp"  (includeAssDir </> "ass.hpp")
+        copyFile "includes/ass-boost.hpp"   (includeAssDir </> "ass-boost.hpp")
 
 
 installVimPlugin :: IO ()
@@ -65,16 +65,16 @@ installVimPlugin = do
                     True  -> do
                                 putMsg "Installing vim-ass plungin (pathogen detected)..."
                                 createDirectoryIfMissing False (bundle </> "vim-ass")
-                                copyFile (".." </> "plugin/ass.vim") (bundle </> "vim-ass/ass.vim")
+                                copyFile "plugin/ass.vim" (bundle </> "vim-ass/ass.vim")
                     False -> return ()
 
 
 installBinaries :: IO ()
 installBinaries = do
         putMsg "Compiling haskell binaries..."
-        void $ system ("/usr/bin/ghc --make -O -Wall Ass.hs -o " ++ (installDir </> "ass"))
-        void $ system ("/usr/bin/ghc --make -O -Wall Ass.hs -o " ++ (installDir </> "ass-clang"))
-        void $ system ("/usr/bin/ghc --make -O -Wall Gen.hs -o " ++ (installDir </> "gen"))
+        void $ system ("/usr/bin/ghc --make -O -Wall Ass/Ass.hs -o " ++ (installDir </> "ass"))
+        void $ system ("/usr/bin/ghc --make -O -Wall Ass/Ass.hs -o " ++ (installDir </> "ass-clang"))
+        void $ system ("/usr/bin/ghc --make -O -Wall Ass/Gen.hs -o " ++ (installDir </> "gen"))
 
 
 getPchExtension :: Compiler -> String
@@ -97,21 +97,32 @@ installPch = do
             let opts   = getCompilerOpt comp
 
             createDirectoryIfMissing True pchDir
-            void $ system $ compilerExec comp ++ " ../includes/ass.hpp " ++ unwords opts ++ " -o " ++ pchDir </> "ass.hpp." ++ getPchExtension comp
+            void $ system $ compilerExec comp ++ " includes/ass.hpp " ++ unwords opts ++ " -o " ++ pchDir </> "ass.hpp." ++ getPchExtension comp
             doesDirectoryExist "/usr/include/boost" >>= \boost ->
-                when boost $ void $ system $ compilerExec comp ++ " ../includes/ass-boost.hpp " ++ unwords opts ++ " -o " ++ pchDir </> "ass-boost.hpp." ++ getPchExtension comp
+                when boost $ void $ system $ compilerExec comp ++ " includes/ass-boost.hpp " ++ unwords opts ++ " -o " ++ pchDir </> "ass-boost.hpp." ++ getPchExtension comp
+
 
 usage :: IO ()
-usage = putStrLn "Install.hs [--help][--ass][--vim][--pch][--all]" >> void exitSuccess
+usage = putStrLn "Install.hs [--help][--ass][--vim-plugin][--pch][--all]"
 
 
 main = do
     args <- getArgs
-    when (null args || "--help" `elem` args) usage
+
+    when (null args || "--help" `elem` args || "-h" `elem` args || "-?" `elem` args)
+        $ usage >> void exitSuccess
 
     putMsg "Installing C++11/14 assistant."
-    when ("--ass" `elem` args || "--all" `elem` args) $ do { installrc ; installBinaries ; installHdr }
-    when ("--vim" `elem` args || "--all" `elem` args) installVimPlugin
-    when ("--pch" `elem` args || "--all" `elem` args) installPch
+
+    sequence . concat $
+        [
+            [installrc        | hasOpt "--ass" args],
+            [installBinaries  | hasOpt "--ass" args],
+            [installHdr       | hasOpt "--ass" args],
+            [installVimPlugin | hasOpt "--vim-plugins" args],
+            [installPch       | hasOpt "--phc" args]
+        ]
 
     putMsg "done."
+        where hasOpt x xs = x `elem` xs || "--all" `elem` xs
+

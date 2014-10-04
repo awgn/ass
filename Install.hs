@@ -72,10 +72,12 @@ installVimPlugin = do
 installBinaries :: IO ()
 installBinaries = do
         putMsg "Compiling haskell binaries..."
-        void $ system ("/usr/bin/ghc --make -O -Wall Ass/Ass.hs -o " ++ (installDir </> "ass"))
-        void $ system ("/usr/bin/ghc --make -O -Wall Ass/Ass.hs -o " ++ (installDir </> "ass-clang"))
-        void $ system ("/usr/bin/ghc --make -O -Wall Ass/Gen.hs -o " ++ (installDir </> "gen"))
+        void $ system ("runhaskell Setup configure --user")
+        void $ system ("runhaskell Setup build")
 
+        copyFile "dist/build/ass/ass" (installDir </> "ass")
+        copyFile "dist/build/ass/ass" (installDir </> "ass-clang")
+        copyFile "dist/build/gen/gen" (installDir </> "gen")
 
 getPchExtension :: Compiler -> String
 

@@ -28,9 +28,19 @@
                compilerName = "clang++31",
                compilerOpts = ["-std=c++11", "-stdlib=libc++"]
               },
+    Compiler { compilerType = Clang31,   
+               compilerExec = "/usr/bin/clang++3.1",
+               compilerName = "clang++31",
+               compilerOpts = ["-std=c++11", "-stdlib=libc++"]
+              },
 
     Compiler { compilerType = Clang32,   
                compilerExec = "/usr/bin/clang++",
+               compilerName = "clang++32",
+               compilerOpts = ["-std=c++11", "-stdlib=libc++"]
+              },
+    Compiler { compilerType = Clang32,   
+               compilerExec = "/usr/bin/clang++3.2",
                compilerName = "clang++32",
                compilerOpts = ["-std=c++11", "-stdlib=libc++"]
               },
@@ -40,15 +50,30 @@
                compilerName = "clang++33",
                compilerOpts = ["-std=c++11", "-stdlib=libc++"]
               },
+    Compiler { compilerType = Clang33,   
+               compilerExec = "/usr/bin/clang++3.3",
+               compilerName = "clang++33",
+               compilerOpts = ["-std=c++11", "-stdlib=libc++"]
+              },
     
     Compiler { compilerType = Clang34,   
                compilerExec = "/usr/bin/clang++",
                compilerName = "clang++34",
                compilerOpts = ["-std=c++1y", "-stdlib=libc++"]
               },
+    Compiler { compilerType = Clang34,   
+               compilerExec = "/usr/bin/clang++3.4",
+               compilerName = "clang++34",
+               compilerOpts = ["-std=c++1y", "-stdlib=libc++"]
+              },
     
     Compiler { compilerType = Clang35,   
                compilerExec = "/usr/bin/clang++",
+               compilerName = "clang++35",
+               compilerOpts = ["-std=c++1y", "-stdlib=libc++"]
+              }
+    Compiler { compilerType = Clang35,   
+               compilerExec = "/usr/bin/clang++3.5",
                compilerName = "clang++35",
                compilerOpts = ["-std=c++1y", "-stdlib=libc++"]
               }

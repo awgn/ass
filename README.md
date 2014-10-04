@@ -26,7 +26,7 @@ Help
 Session
 -------
 
-    ASSi, version 2.12 :? for help
+    ASSi, version 2.16 :? for help
     Compilers found: g++-4.8 g++-4.7 g++-4.6 clang-34 
     Using Gcc48 compiler...
     

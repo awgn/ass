@@ -23,14 +23,11 @@ banner, snippet, assrc, ass_history :: String
 tmpDir, includeAssDir :: FilePath
 
 banner          = "ASSi, version 2.15"
-
 includeAssDir   =  "/usr/local/include/ass"
 installDir      =  "/usr/local/bin/"
-
 tmpDir          =  "/tmp"
-
 snippet         = "ass-snippet"
-assrc           =  ".assrc"
+assrc           = ".assrc"
 ass_history     = ".ass_history"
 
 

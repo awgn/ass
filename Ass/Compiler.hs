@@ -31,21 +31,22 @@ import Control.Monad
 import Control.Applicative
 
 import Data.List
-import Config
 
 
-compilerList :: [Compiler]
-compilerList = [
-                 Compiler Gcc49   "/usr/bin/g++-4.9" "g++-4.9" [],
-                 Compiler Gcc48   "/usr/bin/g++-4.8" "g++-4.8" [],
-                 Compiler Gcc47   "/usr/bin/g++-4.7" "g++-4.7" [],
-                 Compiler Gcc46   "/usr/bin/g++-4.6" "g++-4.6" [],
-                 Compiler Clang35 "/usr/bin/clang++" "clang++" [],
-                 Compiler Clang34 "/usr/bin/clang++" "clang++" [],
-                 Compiler Clang33 "/usr/bin/clang++" "clang++" [],
-                 Compiler Clang32 "/usr/bin/clang++" "clang++" [],
-                 Compiler Clang31 "/usr/bin/clang++" "clang++" []
-               ]
+defaultCompilerList :: [Compiler]
+defaultCompilerList =
+    [
+        Compiler Gcc49   "/usr/bin/g++-4.9" "g++-4.9" [],
+        Compiler Gcc48   "/usr/bin/g++-4.8" "g++-4.8" [],
+        Compiler Gcc47   "/usr/bin/g++-4.7" "g++-4.7" [],
+        Compiler Gcc46   "/usr/bin/g++-4.6" "g++-4.6" [],
+        Compiler Clang35 "/usr/bin/clang++" "clang++" [],
+        Compiler Clang34 "/usr/bin/clang++" "clang++" [],
+        Compiler Clang33 "/usr/bin/clang++" "clang++" [],
+        Compiler Clang32 "/usr/bin/clang++" "clang++" [],
+        Compiler Clang31 "/usr/bin/clang++" "clang++" []
+    ]
+
 
 -- Compiler:
 
@@ -100,7 +101,7 @@ getCompilerConf :: FilePath -> IO [Compiler]
 getCompilerConf conf =
     doesFileExist conf >>= \b ->
         if b then read <$> readFile conf
-             else return compilerList
+             else return defaultCompilerList
 
 
 getAvailCompilers :: [Compiler] -> IO [Compiler]

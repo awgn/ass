@@ -182,11 +182,11 @@ mainLoop args file clist = do
                                                lift (put $ stateBanner.~ False $ s) >> loop
                      Just (":edit":_)       -> mapM_ outputStrLn (s^.statePrepList) >> mapM_ outputStrLn (s^.stateCode) >>
                                                getCodeCmd >>= \xs -> lift (put s{ _stateBanner = False, _stateCode = s^.stateCode ++ xs }) >> loop
-                     Just (":include":h:[]) -> outputStrLn ("Including " ++ h ++ "...") >>
+                     Just [":include",h]    -> outputStrLn ("Including " ++ h ++ "...") >>
                                                lift (put $ s{ _stateBanner = False, _stateCode = s^.stateCode ++ ["#include <" ++ h ++ ">"] }) >> loop
-                     Just (":load":f:[])    -> outputStrLn ("Loading " ++ f ++ "...") >>
+                     Just [":load",f]       -> outputStrLn ("Loading " ++ f ++ "...") >>
                                                loadCodeCmd f >>= \xs -> lift (put s{ _stateBanner = False, _stateFile = f, _stateCode = xs }) >> loop
-                     Just (":check":f:[])   -> outputStrLn ("Checking " ++ f ++ "...") >> checkHeaderCmd f clist (getCompilerArgs args) >> loop
+                     Just [":check",f]      -> outputStrLn ("Checking " ++ f ++ "...") >> checkHeaderCmd f clist (getCompilerArgs args) >> loop
                      Just (":reload":_)     -> outputStrLn ("Reloading " ++ s^.stateFile ++ "...") >>
                                                reloadCodeCmd >>= \xs -> lift (put s{ _stateBanner = False, _stateCode = xs }) >> loop
                      Just (":quit":_)       -> void (outputStrLn "Leaving ASSi.")

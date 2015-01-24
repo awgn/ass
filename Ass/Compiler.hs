@@ -26,6 +26,7 @@ import System.Directory
 import System.Process
 import System.Environment
 import System.Exit
+import System.Posix.Files
 
 import Control.Monad
 import Control.Applicative
@@ -103,13 +104,17 @@ getCompilerConf conf =
         if b then read <$> readFile conf
              else return defaultCompilerList
 
-
 getAvailCompilers :: [Compiler] -> IO [Compiler]
-getAvailCompilers = filterM (doesFileExist . compilerExec)
+getAvailCompilers xs = do
+    ys <- filterM (doesFileExist . compilerExec) xs
+    zs <- filterM isValidCompiler ys
+    ps <- mapM (canonicalizePath . compilerExec) zs
+    let out =  map fst (nubBy (\(_,p1) (_,p2) -> p1 == p2) $ zip zs ps)
+    return out
 
 
-getValidCompilers :: [Compiler] -> IO [Compiler]
-getValidCompilers = filterM (\c -> (getCompilerVersion c `isPrefixOf`) <$> askCompilerVersion c)
+isValidCompiler :: Compiler -> IO Bool
+isValidCompiler c =  (getCompilerVersion c `isPrefixOf`) <$> askCompilerVersion c
 
 
 askCompilerVersion :: Compiler -> IO String

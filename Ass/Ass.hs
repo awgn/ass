@@ -82,9 +82,9 @@ main = do args    <- getArgs
             ("-?":_)        -> usage
             ("-v":_)        -> putStrLn banner
             ("--version":_) -> putStrLn banner
-            ("-i":_)        -> getAvailCompilers clist >>= getValidCompilers >>= mainLoop (tail args) ""
-            ("-l":xs:_)     -> getAvailCompilers clist >>= getValidCompilers >>= mainLoop (tail $ tail args) xs
-            _               -> liftM (head . compilerFilter cfamily) (getAvailCompilers clist >>= getValidCompilers) >>= mainFun args
+            ("-i":_)        -> getAvailCompilers clist >>= mainLoop (tail args) ""
+            ("-l":xs:_)     -> getAvailCompilers clist >>= mainLoop (tail $ tail args) xs
+            _               -> liftM (head . compilerFilter cfamily) (getAvailCompilers clist) >>= mainFun args
 
 
 type StateIO = StateT CliState IO

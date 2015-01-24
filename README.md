@@ -19,6 +19,7 @@ Help
 
     usage: ass [OPTION] [COMPILER OPT] -- [ARG]
         -i              launch interactive mode
+        -l  file        launch interactive mode + load file
         -v, --version   show version
         -h, --help      print this help
 

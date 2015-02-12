@@ -967,35 +967,24 @@ namespace std
 inline namespace ass_inline {
 
     template <typename Tp>
-    std::string __type_of(typename std::remove_reference<Tp>::type &&)
+    std::string __type_of(Tp &&)
     {
         auto name = ass::demangle(typeid(Tp).name());
+
         if (std::is_const<
              typename std::remove_reference<Tp>::type>::value)
             name.append(" const");
-
         if (std::is_volatile<
              typename std::remove_reference<Tp>::type>::value)
             name.append(" volatile");
 
-        return name.append("&&");
+        if (std::is_reference<Tp>::value)
+            name.append("&");
+        else
+            name.append("&&");
+
+        return name;
     }
-
-    template <typename Tp>
-    std::string __type_of(typename std::remove_reference<Tp>::type &)
-    {
-        auto name = ass::demangle(typeid(Tp).name());
-        if (std::is_const<
-             typename std::remove_reference<Tp>::type>::value)
-            name.append(" const");
-
-        if (std::is_volatile<
-             typename std::remove_reference<Tp>::type>::value)
-            name.append(" volatile");
-
-        return name.append("&");
-    }
-
 
     template <typename Tp>
     std::string type_name()

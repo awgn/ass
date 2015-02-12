@@ -79,12 +79,13 @@ installBinaries = do
         copyFile "dist/build/ass/ass" (installDir </> "ass-clang")
         copyFile "dist/build/gen/gen" (installDir </> "gen")
 
-getPchExtension :: Compiler -> String
 
+getPchExtension :: Compiler -> String
 getPchExtension (Compiler typ _ _ _) =
         if typ `elem` [Gcc46, Gcc47, Gcc48, Gcc49]
             then "gch"
             else "pch"
+
 
 installPch:: IO ()
 installPch = do
@@ -93,10 +94,12 @@ installPch = do
         putMsg "Compiling PCH headers:"
         putMsg $ "Getting compilers configuration from " ++ home </> assrc ++ "..."
 
-        list  <- getCompilerConf (home </> assrc) >>= getAvailCompilers >>= getValidCompilers
+        list  <- getCompilerConf (home </> assrc) >>= getAvailCompilers
+
+        void $ forM_ list $ \comp ->
+            putMsg $ "Installing pch for " ++ compilerName comp ++ "..."
 
         void $ flip mapConcurrently list $ \comp -> do
-            putMsg $ "Installing pch for " ++ compilerName comp ++ "..."
 
             let pchDir = getCompilerPchPath comp
             let opts   = getCompilerOpt comp

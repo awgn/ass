@@ -74,6 +74,7 @@ installBinaries = do
 
         void $ system "runhaskell Setup configure --user"
         void $ system "runhaskell Setup build"
+        void $ system "runhaskell Setup install"
 
         copyFile "dist/build/ass/ass" (installDir </> "ass")
         copyFile "dist/build/ass/ass" (installDir </> "ass-clang")

@@ -306,46 +306,52 @@ namespace ass
     template <typename Tp>
     struct xray_ptr
     {
-        std::unique_ptr<Tp> v1;
-        std::unique_ptr<Tp> v2;
+        typedef typename std::remove_reference<Tp>::type T;
+
+        std::unique_ptr<T> v1;
+        std::unique_ptr<T> v2;
 
         template <typename ...Ts>
-        static xray_ptr<Tp>
+        static xray_ptr<
+            typename std::remove_reference<T>::type>
         make_default()
         {
+
             void *p1, *p2; std::tie(p1,p2) = get_memory();
 
-            new (p1) typename std::remove_cv<Tp>::type;
-            new (p2) typename std::remove_cv<Tp>::type;
+            new (p1) typename std::remove_cv<T>::type;
+            new (p2) typename std::remove_cv<T>::type;
 
-            return { std::unique_ptr<Tp>(reinterpret_cast<Tp *>(p1)),
-                std::unique_ptr<Tp>(reinterpret_cast<Tp *>(p2)) };
+            return { std::unique_ptr<T>(reinterpret_cast<T *>(p1)),
+                        std::unique_ptr<T>(reinterpret_cast<T *>(p2)) };
         }
 
         template <typename ...Ts>
-        static xray_ptr<Tp>
+        static xray_ptr<
+            typename std::remove_reference<T>::type>
         make_value(Ts && ... args)
         {
             void *p1, *p2; std::tie(p1,p2) = get_memory();
 
-            new (p1) Tp (std::forward<Ts>(args)...);
-            new (p2) Tp (std::forward<Ts>(args)...);
+            new (p1) T (std::forward<Ts>(args)...);
+            new (p2) T (std::forward<Ts>(args)...);
 
-            return { std::unique_ptr<Tp>(reinterpret_cast<Tp *>(p1)),
-                std::unique_ptr<Tp>(reinterpret_cast<Tp *>(p2)) };
+            return { std::unique_ptr<T>(reinterpret_cast<T *>(p1)),
+                std::unique_ptr<T>(reinterpret_cast<T *>(p2)) };
         }
 
         template <typename ...Ts>
-        static xray_ptr<Tp>
+        static xray_ptr<
+            typename std::remove_reference<T>::type>
         make_uniform(Ts && ... args)
         {
             void *p1, *p2; std::tie(p1,p2) = get_memory();
 
-            new (p1) Tp { std::forward<Ts>(args)... };
-            new (p2) Tp { std::forward<Ts>(args)... };
+            new (p1) T { std::forward<Ts>(args)... };
+            new (p2) T { std::forward<Ts>(args)... };
 
-            return { std::unique_ptr<Tp>(reinterpret_cast<Tp *>(p1)),
-                std::unique_ptr<Tp>(reinterpret_cast<Tp *>(p2)) };
+            return { std::unique_ptr<T>(reinterpret_cast<T *>(p1)),
+                std::unique_ptr<T>(reinterpret_cast<T *>(p2)) };
         }
 
     private:

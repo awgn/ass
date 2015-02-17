@@ -22,7 +22,7 @@ module Ass.Config where
 banner, snippet, assrc, ass_history :: String
 tmpDir, includeAssDir :: FilePath
 
-banner          = "ASSi, version 2.19"
+banner          = "ASSi, version 2.20"
 includeAssDir   =  "/usr/local/include/ass"
 installDir      =  "/usr/local/bin/"
 tmpDir          =  "/tmp"

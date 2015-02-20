@@ -304,57 +304,22 @@ namespace ass
     //
 
     template <typename Tp>
-    struct xray_ptr
+    struct xray_base
     {
         typedef typename std::remove_reference<Tp>::type T;
 
+        xray_base()
+        : v1{}
+        , v2{}
+        { }
+
+        xray_base(std::unique_ptr<T> a1, std::unique_ptr<T> a2)
+        : v1(std::move(a1))
+        , v2(std::move(a2))
+        { }
+
         std::unique_ptr<T> v1;
         std::unique_ptr<T> v2;
-
-        template <typename ...Ts>
-        static xray_ptr<
-            typename std::remove_reference<T>::type>
-        make_default()
-        {
-
-            void *p1, *p2; std::tie(p1,p2) = get_memory();
-
-            new (p1) typename std::remove_cv<T>::type;
-            new (p2) typename std::remove_cv<T>::type;
-
-            return { std::unique_ptr<T>(reinterpret_cast<T *>(p1)),
-                        std::unique_ptr<T>(reinterpret_cast<T *>(p2)) };
-        }
-
-        template <typename ...Ts>
-        static xray_ptr<
-            typename std::remove_reference<T>::type>
-        make_value(Ts && ... args)
-        {
-            void *p1, *p2; std::tie(p1,p2) = get_memory();
-
-            new (p1) T (std::forward<Ts>(args)...);
-            new (p2) T (std::forward<Ts>(args)...);
-
-            return { std::unique_ptr<T>(reinterpret_cast<T *>(p1)),
-                std::unique_ptr<T>(reinterpret_cast<T *>(p2)) };
-        }
-
-        template <typename ...Ts>
-        static xray_ptr<
-            typename std::remove_reference<T>::type>
-        make_uniform(Ts && ... args)
-        {
-            void *p1, *p2; std::tie(p1,p2) = get_memory();
-
-            new (p1) T { std::forward<Ts>(args)... };
-            new (p2) T { std::forward<Ts>(args)... };
-
-            return { std::unique_ptr<T>(reinterpret_cast<T *>(p1)),
-                std::unique_ptr<T>(reinterpret_cast<T *>(p2)) };
-        }
-
-    private:
 
         static std::pair<void *, void *>
         get_memory()
@@ -376,25 +341,103 @@ namespace ass
         }
     };
 
+
+    template <typename Tp>
+    struct xray_ptr : xray_base<Tp>
+    {
+        typedef typename std::remove_reference<Tp>::type T;
+
+        xray_ptr()
+        : xray_base<Tp>{}
+        { }
+
+        xray_ptr(std::unique_ptr<T> a1, std::unique_ptr<T> a2)
+        : xray_base<Tp>(std::move(a1), std::move(a2))
+        { }
+
+        static xray_ptr<T>
+        make_default()
+        {
+            void *p1, *p2; std::tie(p1,p2) = xray_base<Tp>::get_memory();
+
+            new (p1) typename std::remove_cv<T>::type;
+            new (p2) typename std::remove_cv<T>::type;
+
+            return { std::unique_ptr<T>(reinterpret_cast<T *>(p1)),
+                        std::unique_ptr<T>(reinterpret_cast<T *>(p2)) };
+        }
+
+        template <typename ...Ts>
+        static xray_ptr<T>
+        make_value(Ts && ... args)
+        {
+            void *p1, *p2; std::tie(p1,p2) = xray_base<Tp>::get_memory();
+
+            new (p1) T (std::forward<Ts>(args)...);
+            new (p2) T (std::forward<Ts>(args)...);
+
+            return { std::unique_ptr<T>(reinterpret_cast<T *>(p1)),
+                        std::unique_ptr<T>(reinterpret_cast<T *>(p2)) };
+        }
+
+        template <typename ...Ts>
+        static xray_ptr<T>
+        make_uniform(Ts && ... args)
+        {
+            void *p1, *p2; std::tie(p1,p2) = xray_base<Tp>::get_memory();
+
+            new (p1) T { std::forward<Ts>(args)... };
+            new (p2) T { std::forward<Ts>(args)... };
+
+            return { std::unique_ptr<T>(reinterpret_cast<T *>(p1)),
+                        std::unique_ptr<T>(reinterpret_cast<T *>(p2)) };
+        }
+
+    };
+
+    template <>
+    struct xray_ptr<void> : xray_base<int>
+    {
+        static xray_ptr<int> make_default() { return xray_ptr<int>{}; }
+
+        template <typename ...Ts>
+        static xray_ptr<int> make_value(Ts && ... ) { return xray_ptr<int>{}; }
+
+        template <typename ...Ts>
+        static xray_ptr<int> make_uniform(Ts && ... ) { return xray_ptr<int>{}; }
+    };
+
+
+    template <typename R, typename ...Tx>
+    struct xray_ptr<R(Tx...)> : xray_base<int>
+    {
+        static xray_ptr<int> make_default() { return xray_ptr<int>{}; }
+        template <typename ...Ts>
+        static xray_ptr<int> make_value(Ts && ... ) { return xray_ptr<int>{}; }
+        template <typename ...Ts>
+        static xray_ptr<int> make_uniform(Ts && ... ) { return xray_ptr<int>{}; }
+    };
+
+
     template<typename Tp>
     inline std::string
     show(xray_ptr<Tp> const& value)
     {
-        std::string ret; ret.reserve(8);
+        std::string ret;
 
+        if (!value.v1 || !value.v2)
+            return ret;
+
+        ret.reserve(8);
         auto p1 = reinterpret_cast<char const *>(value.v1.get());
         auto p2 = reinterpret_cast<char const *>(value.v2.get());
 
         for(size_t n = 0; n < sizeof(Tp); ++n)
         {
             if (p1[n] == p2[n])
-            {
                 ret += (p1[n] == 0 ? '0' : 'X');
-            }
             else
-            {
                 ret += (p1[n] == static_cast<char>(n) && p2[n] == static_cast<char>(n + sizeof(Tp)) ? '_' : '?');
-            }
         }
 
         return ret;

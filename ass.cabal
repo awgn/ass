@@ -2,7 +2,7 @@
 -- see http://haskell.org/cabal/users-guide/
 
 name:                   ass
-version:                2.20
+version:                2.21
 
 license-file:           LICENSE
 author:                 Nicola Bonelli

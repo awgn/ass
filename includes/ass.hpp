@@ -105,6 +105,7 @@
 #if __cplusplus >= 201300L
 
 #include <experimental/optional>
+#include <experimental/string_view>
 
 #endif
 
@@ -557,6 +558,10 @@ inline namespace ass_inline {
     template <typename T>
     inline std::string
     show(std::experimental::optional<T> const &);
+
+    template <typename T>
+    inline std::string
+    show(std::experimental::string_view const &);
 #endif
 
     // pair<>
@@ -850,6 +855,16 @@ inline namespace ass_inline {
             out << *p;
         out << ')';
         return out.str();
+    }
+
+    ///////////////////////////////////////
+    // show for string_view
+
+    template <typename T>
+    inline std::string
+    show(std::experimental::string_view p)
+    {
+        return p.to_string();
     }
 #endif
 

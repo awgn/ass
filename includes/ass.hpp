@@ -1423,12 +1423,56 @@ inline namespace ass_inline {
 
     ////////////////////////////////////////////////////////////// type_info_<Type>(): dump info about the given type
 
-#define ASS_TRAIT_INFO(Tp,trait)   std::cout << # trait ": " << std::trait<Tp>::value << std::endl
+    namespace vt100
+    {
+        namespace
+        {
+            const char * const BOLD  = "\E[1m";
+            const char * const RESET = "\E[0m";
+            const char * const RED   = "\E[31m";
+            const char * const BLUE  = "\E[1;34m";
+        }
+    }
+
+#define ASS_TRAIT_INFO(Tp,trait)   do { \
+    if (std::trait<Tp>::value) \
+        std::cout << vt100::BOLD << # trait << vt100::RESET << ": " << std::trait<Tp>::value << std::endl; \
+    else \
+        std::cout << # trait ": " << std::trait<Tp>::value << std::endl; \
+    } while (0)
 
     template <typename Tp>
     void type_info_()
     {
         std::cout << "type name: " << type_name<Tp>() << std::boolalpha << std::endl;
+
+        ASS_TRAIT_INFO(Tp, is_void            );
+
+#if !((__GNUC__ == 4) && (__GNUC_MINOR__ <= 8))
+        ASS_TRAIT_INFO(Tp, is_null_pointer    );
+#endif
+
+        ASS_TRAIT_INFO(Tp, is_integral        );
+        ASS_TRAIT_INFO(Tp, is_floating_point  );
+        ASS_TRAIT_INFO(Tp, is_array           );
+        ASS_TRAIT_INFO(Tp, is_enum            );
+        ASS_TRAIT_INFO(Tp, is_union           );
+        ASS_TRAIT_INFO(Tp, is_class           );
+        ASS_TRAIT_INFO(Tp, is_function        );
+        ASS_TRAIT_INFO(Tp, is_pointer         );
+        ASS_TRAIT_INFO(Tp, is_lvalue_reference);
+        ASS_TRAIT_INFO(Tp, is_rvalue_reference);
+        ASS_TRAIT_INFO(Tp, is_member_object_pointer);
+        ASS_TRAIT_INFO(Tp, is_member_function_pointer);
+
+        ASS_TRAIT_INFO(Tp, is_fundamental       );
+        ASS_TRAIT_INFO(Tp, is_arithmetic        );
+        ASS_TRAIT_INFO(Tp, is_scalar            );
+        ASS_TRAIT_INFO(Tp, is_object            );
+        ASS_TRAIT_INFO(Tp, is_compound          );
+        ASS_TRAIT_INFO(Tp, is_reference         );
+        ASS_TRAIT_INFO(Tp, is_member_pointer    );
+
 
         ASS_TRAIT_INFO(Tp, is_const           );
         ASS_TRAIT_INFO(Tp, is_volatile        );
@@ -1438,6 +1482,10 @@ inline namespace ass_inline {
         ASS_TRAIT_INFO(Tp, is_literal_type    );
         ASS_TRAIT_INFO(Tp, is_empty           );
         ASS_TRAIT_INFO(Tp, is_polymorphic     );
+
+#if __cplusplus >= 201300L
+        ASS_TRAIT_INFO(Tp, is_final           );
+#endif
         ASS_TRAIT_INFO(Tp, is_abstract        );
         ASS_TRAIT_INFO(Tp, is_signed          );
         ASS_TRAIT_INFO(Tp, is_unsigned        );

@@ -37,16 +37,16 @@ import Data.List
 defaultCompilerList :: [Compiler]
 defaultCompilerList =
     [
-        Compiler Gcc49   "/usr/bin/g++-4.9" "g++-4.9" [],
-        Compiler Gcc48   "/usr/bin/g++-4.8" "g++-4.8" [],
-        Compiler Gcc47   "/usr/bin/g++-4.7" "g++-4.7" [],
-        Compiler Gcc46   "/usr/bin/g++-4.6" "g++-4.6" [],
-        Compiler Clang36 "/usr/bin/clang++" "clang++" [],
-        Compiler Clang35 "/usr/bin/clang++" "clang++" [],
-        Compiler Clang34 "/usr/bin/clang++" "clang++" [],
-        Compiler Clang33 "/usr/bin/clang++" "clang++" [],
-        Compiler Clang32 "/usr/bin/clang++" "clang++" [],
-        Compiler Clang31 "/usr/bin/clang++" "clang++" []
+        Compiler Gcc49   "/usr/bin/g++-4.9" "g++-4.9" ["-std=c++1y", "-fdiagnostics-color=always"],
+        Compiler Gcc48   "/usr/bin/g++-4.8" "g++-4.8" ["-std=c++11"],
+        Compiler Gcc47   "/usr/bin/g++-4.7" "g++-4.7" ["-std=c++11"],
+        Compiler Gcc46   "/usr/bin/g++-4.6" "g++-4.6" ["-std=c++0x"],
+        Compiler Clang36 "/usr/bin/clang++" "clang++" ["-std=c++14", "-stdlib=libc++"],
+        Compiler Clang35 "/usr/bin/clang++" "clang++" ["-std=c++1y", "-stdlib=libc++"],
+        Compiler Clang34 "/usr/bin/clang++" "clang++" ["-std=c++1y", "-stdlib=libc++"],
+        Compiler Clang33 "/usr/bin/clang++" "clang++" ["-std=c++11", "-stdlib=libc++"],
+        Compiler Clang32 "/usr/bin/clang++" "clang++" ["-std=c++11", "-stdlib=libc++"],
+        Compiler Clang31 "/usr/bin/clang++" "clang++" ["-std=c++11", "-stdlib=libc++"]
     ]
 
 

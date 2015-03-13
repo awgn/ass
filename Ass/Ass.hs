@@ -17,6 +17,7 @@
 --
 -- ass: C++11 code assistant for vim
 
+
 {-# LANGUAGE OverloadedStrings #-}
 
 module Main where
@@ -56,6 +57,7 @@ import Ass.Types
 usage :: IO ()
 usage = putStrLn $ "usage: ass [OPTION] [COMPILER OPT] -- [ARG]\n" ++
                    "    -i              launch interactive mode\n" ++
+                   "    -c  header      check header\n" ++
                    "    -l  file        launch interactive mode + load file\n" ++
                    "    -v, --version   show version\n" ++
                    "    -h, --help      print this help"
@@ -82,9 +84,12 @@ main = do args    <- getArgs
             ("-?":_)        -> usage
             ("-v":_)        -> putStrLn banner
             ("--version":_) -> putStrLn banner
+            ("-c":xs:_)     -> getAvailCompilers clist >>= (\cl -> testCompileHeader (C.pack ("#include \"" ++ xs ++ "\"")) True [ head cl ] (getCompilerArgs (tail $ tail args)) >> putStrLn "Ok.")
             ("-i":_)        -> getAvailCompilers clist >>= mainLoop (tail args) ""
             ("-l":xs:_)     -> getAvailCompilers clist >>= mainLoop (tail $ tail args) xs
             _               -> liftM (head . compilerFilter cfamily) (getAvailCompilers clist) >>= mainFun args
+
+
 
 
 type StateIO = StateT CliState IO
@@ -132,7 +137,7 @@ mainLoop args file clist = do
 
     code <- if null file
                 then return []
-                else loadCodeCmd' file
+                else loadCode file
 
     let defaultState = CliState
                         {
@@ -146,7 +151,9 @@ mainLoop args file clist = do
                             stateCode     = code
                         }
 
-    let settings = setComplete (completeWordWithPrev Nothing " \t" cliCompletion) defaultSettings { historyFile = Just $ home </> ".ass_history" }
+    let settings = setComplete (completeWordWithPrev Nothing " \t" cliCompletion)
+                        defaultSettings { historyFile = Just $ home </> ".ass_history" }
+
     unless (null file) $ putStrLn $ "Loading " ++ file
 
     evalStateT (runInputT settings loop) defaultState
@@ -255,12 +262,13 @@ getCodeCmd = do
          Just input -> (input :) <$> getCodeCmd
 
 
-loadCodeCmd' :: FilePath -> IO [String]
-loadCodeCmd' f = filter (not . ("#pragma" `isPrefixOf`) . dropWhite) <$> lines <$> readFile f
+
+loadCode :: FilePath -> IO [String]
+loadCode f = filter (not . ("#pragma" `isPrefixOf`) . dropWhite) <$> lines <$> readFile f
 
 
 loadCodeCmd :: FilePath -> InputT StateIO [String]
-loadCodeCmd f = liftIO $ loadCodeCmd' f
+loadCodeCmd f = liftIO $ loadCode f
 
 
 reloadCodeCmd :: InputT StateIO [String]
@@ -271,7 +279,7 @@ reloadCodeCmd = lift get >>= \s ->
 
 checkHeaderCmd :: FilePath -> [Compiler] -> [String] -> InputT StateIO [ExitCode]
 checkHeaderCmd src clist cargs = do
-    code <- loadCodeCmd src
+    code <- return ["#include \"" ++ src ++ "\""]
     lift get >>= \s ->
         liftIO $ testCompileHeader ((C.pack . unlines) code)
                     (stateVerbose s)
@@ -374,7 +382,6 @@ makeSourceCode code cmd_code ns preload boost
 preloadHeaders :: Bool -> SourceCode -> SourceCode -> [SourceCode]
 preloadHeaders True  header code = [header, code]
 preloadHeaders False header code = [code, header]
-
 
 
 makeInclude :: String -> CodeLine

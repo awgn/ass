@@ -1031,34 +1031,46 @@ namespace std
 inline namespace ass_inline {
 
     template <typename Tp>
-    std::string __type_of(Tp &&)
+    std::string add_cv_qualifier(std::string name)
     {
-        auto name = ass::demangle(typeid(Tp).name());
+        if (std::is_volatile<Tp>::value)
+            name += " volatile";
+        if (std::is_const<Tp>::value)
+            name += " const";
+        return name;
+    }
 
-        if (std::is_const<
-             typename std::remove_reference<Tp>::type>::value)
-            name.append(" const");
-        if (std::is_volatile<
-             typename std::remove_reference<Tp>::type>::value)
-            name.append(" volatile");
-
-        if (std::is_reference<Tp>::value)
-            name.append("&");
-        else
-            name.append("&&");
-
+    template <typename Tp>
+    std::string add_ref_qualifier(std::string name)
+    {
+        if (std::is_lvalue_reference<Tp>::value)
+            name += "&";
+        else if (std::is_rvalue_reference<Tp>::value)
+            name += "&&";
         return name;
     }
 
     template <typename Tp>
     std::string type_name()
     {
-        auto name = ass::demangle(typeid(Tp).name());
-        if (std::is_lvalue_reference<Tp>::value)
-            name += "&";
-        else if (std::is_rvalue_reference<Tp>::value)
-            name += "&&";
+        typedef typename std::remove_reference<Tp>::type T;
+
+        auto name = add_cv_qualifier<Tp>(ass::demangle(typeid(T).name()));
+
+        if (std::is_reference<Tp>::value)
+        {
+            name = add_cv_qualifier<T>(std::move(name));
+            name = add_ref_qualifier<Tp>(std::move(name));
+        }
+
         return name;
+    }
+
+    template <typename Tp>
+    std::string
+    type_of(Tp &&)
+    {
+        return type_name<Tp &&>();
     }
 
     ////////////////////////////////////////////////////////////// simple Oracle class
@@ -1084,12 +1096,12 @@ inline namespace ass_inline {
         template <typename T>
         static void print_type(std::ostringstream &out, T&& arg)
         {
-            out << __type_of<T>(std::forward<T>(arg));
+            out << type_of<T>(std::forward<T>(arg));
         }
         template <typename T, typename ...Ti>
         static void print_type(std::ostringstream &out, T&& arg, Ti&&...args)
         {
-            out << __type_of<T>(std::forward<T>(arg)) << ',';
+            out << type_of<T>(std::forward<T>(arg)) << ',';
             print_type(out, std::forward<Ti>(args)...);
         }
 
@@ -1403,15 +1415,6 @@ inline namespace ass_inline {
     T()
     {
         return type_name<Tp>();
-    }
-
-    ////////////////////////////////////////////////////////////// type_of(): return the type of an expression
-
-    template <typename Tp>
-    std::string
-    type_of(Tp && arg)
-    {
-        return __type_of<Tp>(std::forward<Tp>(arg));
     }
 
     ////////////////////////////////////////////////////////////// X<Type>::make_default(), X<Type>::make_value(..) etc.

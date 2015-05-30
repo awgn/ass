@@ -447,23 +447,6 @@ namespace ass
 } // namespace ass
 
 
-///////////////// show (from lib more):
-
-#ifndef MORE_SHOW
-#define MORE_SHOW
-
-#define MAKE_SHOW_PAIR(a, b) std::make_pair(std::string(#b), &UNPACK(a)::b)
-
-#define MAKE_GENERIC_SHOW(type, ...) make_generic_show<UNPACK(type)>(FOR2_EACH_COMMA(MAKE_SHOW_PAIR, type, __VA_ARGS__))
-
-#define MAKE_SHOW(type, ...) \
-inline std::string \
-show(UNPACK(type) const &t) \
-{ \
-    static auto _show = MAKE_GENERIC_SHOW(type, __VA_ARGS__); \
-    return _show(t); \
-}
-
 inline namespace ass_inline {
 
     // manipulators
@@ -1007,7 +990,6 @@ inline namespace ass_inline {
 
 } // namespace ass_inline
 
-#endif  // MORE_SHOW
 
 namespace std
 {
@@ -1290,7 +1272,6 @@ namespace std
 // The following implementation mimics the std::initializer_list, only it and can be constructed
 // by the user. This is *not* guaranteed to work by the standard (my initializer_list and the standard
 // initializer list have indeed different layouts).
-// Although, it works with gcc and clang, and there's no better way to implement it at the moment (Nicola).
 
 namespace ass {
 

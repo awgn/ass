@@ -16,10 +16,8 @@ are available through the R function which generates a suitable std::initializer
 Install
 -------
 
-```
-cabal install --only-dep 
-runhaskell Install --all
-```
+    cabal install --only-dep 
+    runhaskell Install --all
 
 Help
 ----

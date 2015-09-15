@@ -23,7 +23,6 @@ Executable ass
                         haskeline >= 0.7,
                         unix >= 2.0,
                         safe >= 0.2,
-                        transformers >= 0.3,
                         mtl >= 1.9,
                         async >= 2.0,
                         ansi-terminal >= 0.5

@@ -38,7 +38,6 @@ import System.Directory
 import System.Console.Haskeline
 
 import Control.Monad
-import Control.Monad.Trans.Class
 import Control.Monad.State.Strict
 
 import qualified Data.ByteString.Char8 as C
@@ -279,7 +278,7 @@ reloadCodeCmd = lift get >>= \s ->
 
 checkHeaderCmd :: FilePath -> [Compiler] -> [String] -> InputT StateIO [ExitCode]
 checkHeaderCmd src clist cargs = do
-    code <- return ["#include \"" ++ src ++ "\""]
+    let code = ["#include \"" ++ src ++ "\""]
     lift get >>= \s ->
         liftIO $ testCompileHeader ((C.pack . unlines) code)
                     (stateVerbose s)

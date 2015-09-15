@@ -44,9 +44,9 @@ installrc :: IO ()
 installrc = do
         putMsg $ "Copying " ++ assrc ++ "..."
         dest <- liftM (</> assrc) getHomeDirectory
-        doesFileExist dest >>= \n -> case n of
-                True  -> putMsg $ "~/" ++ assrc ++ " already installed."
-                False -> copyFile assrc dest
+        doesFileExist dest >>= \n ->
+            if n then putMsg $ "~/" ++ assrc ++ " already installed."
+                 else copyFile assrc dest
 
 
 installHdr :: IO ()
@@ -60,12 +60,10 @@ installHdr = do
 installVimPlugin :: IO ()
 installVimPlugin = do
         bundle <- liftM (</> ".vim" </> "bundle") getHomeDirectory
-        doesDirectoryExist bundle >>= \n -> case n of
-                    True  -> do
-                                putMsg "Installing vim-ass plungin (pathogen detected)..."
-                                createDirectoryIfMissing False (bundle </> "vim-ass")
-                                copyFile "plugin/ass.vim" (bundle </> "vim-ass/ass.vim")
-                    False -> return ()
+        doesDirectoryExist bundle >>= \n ->
+            when n $ do putMsg "Installing vim-ass plungin (pathogen detected)..."
+                        createDirectoryIfMissing False (bundle </> "vim-ass")
+                        copyFile "plugin/ass.vim" (bundle </> "vim-ass/ass.vim")
 
 
 installBinaries :: IO ()

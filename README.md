@@ -13,6 +13,13 @@ In addition, ASSi provides some C++ goodies that allow to test code quickly. It 
 S() stringifies showable expressions (STL containers, tuples, smart pointers, chrono and streamable types), type names can be demangled with T<type>()/type_of() and ranges ala Haskell 
 are available through the R function which generates a suitable std::initializer_list.
 
+Install
+-------
+
+```
+cabal install --only-dep 
+runhaskell Install --all
+```
 
 Help
 ----

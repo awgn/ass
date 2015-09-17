@@ -61,9 +61,9 @@ installVimPlugin :: IO ()
 installVimPlugin = do
         bundle <- liftM (</> ".vim" </> "bundle") getHomeDirectory
         doesDirectoryExist bundle >>= \n ->
-            when n $ do putMsg "Installing vim-ass plungin (pathogen detected)..."
-                        createDirectoryIfMissing False (bundle </> "vim-ass")
-                        copyFile "plugin/ass.vim" (bundle </> "vim-ass/ass.vim")
+            when n $ do putMsg "Installing vim-cpp-ass plungin (pathogen/vundle plug-in detected)..."
+                        createDirectoryIfMissing False (bundle </> "vim-cpp-ass")
+                        copyFile "plugin/ass.vim" (bundle </> "vim-cpp-ass/ass.vim")
 
 
 installBinaries :: IO ()

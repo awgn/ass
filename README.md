@@ -1,15 +1,17 @@
 Ass++
 -----
 
-ASSi is an interactive C++11 code assistant inspired to GHCi. 
+ASSi is an interactive/REPL C++11/14 code assistant inspired to GHCi. 
 
-It can be used through vim or interactively as a shell command. It supports both gcc and clang compilers, libstdc++, libc++ and few boost headers (like the geordi bot). 
+It can be used through vim or interactively as a command line shell. It supports both gcc and clang compilers, libstdc++, libc++ and few boost headers (like the geordi bot). 
 It features precompiled headers and tab completion for commands, file names and C++ identifiers. 
 
-C++ statements are evaluated on the fly, possibly using the source code loaded, no matter if it is provided with the main function or if it is just a class declaration.
+C++ statements are evaluated on the fly, possibly using the source code loaded, no matter if provided with the main function or if it is just a class declaration.
 Namespaces are deducted parsing the source code and members declared therein are accessible through automatic using-namespace declarations. 
 
-In addition, ASSi provides some C++ goodies that allow to test code quickly. It provides an oracle class O that can be injected into containers, and few utility functions. 
+In addition, ASSi provides some C++ goodies that allow to test code quickly. 
+
+It provides an oracle class O that can be injected into containers, and few utility functions. 
 S() stringifies showable expressions (STL containers, tuples, smart pointers, chrono and streamable types), type names can be demangled with T<type>()/type_of() and ranges ala Haskell 
 are available through the R function which generates a suitable std::initializer_list.
 
@@ -32,7 +34,7 @@ Help
 Session
 -------
 
-    ASSi, version 2.24 :? for help
+    ASSi, version 2.25 :? for help
     Compilers found: g++-4.8 g++-4.7 g++-4.6 clang-34 
     Using Gcc48 compiler...
     

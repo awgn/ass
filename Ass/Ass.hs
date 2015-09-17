@@ -390,7 +390,7 @@ makeInclude s = CodeLine 1 (C.pack $ "#include " ++ s)
 makeCmdCode :: SourceCode -> [SourceCode]
 makeCmdCode [] = []
 makeCmdCode code = [cmdHeader, code, cmdFooter]
-    where cmdHeader = [ CodeLine 0 "auto XPASTE(__VOID_, __COUNTER__) = ass::eval([] {" ]
+    where cmdHeader = [ CodeLine 0 "auto ASS_XPASTE(__VOID_, __COUNTER__) = ass::eval([] {" ]
           cmdFooter = [ CodeLine 0 "});" ]
 
 

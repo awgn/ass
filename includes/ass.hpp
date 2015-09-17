@@ -109,14 +109,14 @@
 
 #endif
 
-namespace ass
-{
 
-#ifndef PASTE
-#define PASTE(a,b)      a ## b
-#define XPASTE(a,b)     PASTE(a,b)
+#ifndef ASS_PASTE
+#define ASS_PASTE(a,b)      a ## b
+#define ASS_XPASTE(a,b)     ASS_PASTE(a,b)
 #endif
 
+namespace ass
+{
     namespace traits {
 
     // For use in __is_convertible_simple.
@@ -443,11 +443,6 @@ namespace ass
 
         return ret;
     }
-
-} // namespace ass
-
-
-inline namespace ass_inline {
 
     // manipulators
     //
@@ -1010,7 +1005,7 @@ namespace std
 
 ////////////////////////////////////////////////////////////// type utils
 
-inline namespace ass_inline {
+namespace ass {
 
     template <typename Tp>
     std::string add_cv_qualifier(std::string name)
@@ -1260,7 +1255,7 @@ inline namespace ass_inline {
 namespace std
 {
     template <>
-    inline void swap<O>(O & lhs, O & rhs) noexcept
+    inline void swap<ass::O>(ass::O & lhs, ass::O & rhs) noexcept
     {
         lhs.swap(rhs);
     }
@@ -1312,10 +1307,7 @@ namespace ass {
     };
 
     static_assert(sizeof(initializer_list<int>) == sizeof(std::initializer_list<int>), "ass::initializer_list<_E>");
-}
 
-
-inline namespace ass_inline {
 
     template <typename Tp = int>
     std::initializer_list<Tp>
@@ -1384,7 +1376,7 @@ inline namespace ass_inline {
     std::string
     S(const T & arg)
     {
-        return ::show (arg);
+        return ass::show (arg);
     }
 
 #define SHOW(v) # v " = " + S(v)
@@ -1574,5 +1566,6 @@ using namespace std::chrono;
 using namespace std::experimental;
 #endif
 using namespace std::placeholders;
+using namespace ass;
 
 #endif /* __ASS_HPP__ */

@@ -107,7 +107,7 @@ commands, assIdentifiers :: [String]
 
 commands = [ ":load", ":include", ":check", ":reload", ":rr", ":edit",
              ":list", ":clear", ":next", ":args", ":run",
-             ":info", ":preload", ":verbose", ":quit" ]
+             ":info", ":compiler", ":preload", ":verbose", ":quit" ]
 
 assIdentifiers = [ "hex", "oct", "bin", "T<", "type_name<", "type_of(",
                    "type_info_<", "SHOW(", "R(" , "P(" ]
@@ -208,6 +208,11 @@ mainLoop args file clist = do
                                                   outputStrLn $ show e
                                                   lift (put $ s{ stateBanner = False}) >> loop
 
+                     Just (":compiler":xs)  -> do liftIO $ print s
+                                                  e <- runCmd "return compiler_info_();" clist (getCompilerArgs args) (stateArgs s)
+                                                  outputStrLn $ show e
+                                                  lift (put $ s{ stateBanner = False}) >> loop
+
                      Just input | ":" `isPrefixOf` unwords input -> outputStrLn("Unknown command '" ++ unwords input ++ "'") >>
                                                                     outputStrLn "use :? for help." >> lift (put $ s{ stateBanner = False}) >> loop
                                 | isPreprocessor (C.pack $ unwords input) -> lift (put s{ stateBanner = False, statePrepList = statePrepList s ++ [unwords input] }) >> loop
@@ -232,6 +237,7 @@ printHelp =  lift $ putStrLn $ "Commands available from the prompt:\n\n" ++
                         "  :list                     list the buffer\n" ++
                         "  :clear                    clear the buffer\n" ++
                         "  :next                     switch to next compiler\n" ++
+                        "  :compiler                 dump compiler's information\n" ++
                         "  :args ARG1 ARG2...        set runtime arguments\n" ++
                         "  :run [ARG1 ARG2...]       run the main function\n" ++
                         "  :rr                       reload and run the main function\n" ++

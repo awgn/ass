@@ -1524,6 +1524,49 @@ namespace ass {
         std::cout << "value    : {" << show( ass::xray_ptr<Tp>::make_value() )   << '}' << std::endl;
     }
 
+    #define ASS_DUMP_MACRO(m)   std::cout << "    " << #m << " -> " << m << std::endl
+
+    void
+    compiler_info_()
+    {
+    #if defined(__cplusplus)
+       ASS_DUMP_MACRO(__cplusplus);
+    #endif
+    #if defined(__GNUC__)
+       ASS_DUMP_MACRO(__GNUC__);
+    #endif
+    #if defined(__GNUC_MINOR__)
+       ASS_DUMP_MACRO(__GNUC_MINOR__);
+    #endif
+    #if defined(__GNUC_PATCHLEVEL__)
+       ASS_DUMP_MACRO(__GNUC_PATCHLEVEL__);
+    #endif
+    #if defined(__VERSION__)
+       ASS_DUMP_MACRO(__VERSION__);
+    #endif
+    #if defined(__BYTE_ORDER__)
+       ASS_DUMP_MACRO(__BYTE_ORDER__);
+    #endif
+    #if defined(__LP64__)
+       ASS_DUMP_MACRO(__LP64__);
+    #endif
+    #if defined(__clang__)
+       ASS_DUMP_MACRO(__clang__);
+    #endif
+    #if defined(__clang_major__)
+       ASS_DUMP_MACRO(__clang_major__);
+    #endif
+    #if defined(__clang_minor__)
+       ASS_DUMP_MACRO(__clang_minor__);
+    #endif
+    #if defined(__clang_patchlevel__)
+       ASS_DUMP_MACRO(__clang_patchlevel__);
+    #endif
+    #if defined(__clang_version__)
+       ASS_DUMP_MACRO(__clang_version__);
+    #endif
+    }
+
 } // namespace ass_inline
 
 

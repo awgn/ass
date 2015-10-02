@@ -56,13 +56,11 @@ data CompilerType = Gcc46 | Gcc47 | Gcc48 | Gcc49 | Clang31 | Clang32 | Clang33 
                     deriving (Eq,Show,Read,Enum)
 
 
-next :: CompilerType -> CompilerType
-next Clang36 = Gcc46
-next x       = succ x
-
-
 data CompilerFamily = Gcc | Clang
     deriving (Eq,Show,Read,Enum)
+
+next comp = if comp == Clang36 then Gcc46   else succ comp
+prec comp = if comp == Gcc46   then Clang36 else pred comp
 
 
 data Compiler = Compiler

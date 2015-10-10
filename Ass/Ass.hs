@@ -87,7 +87,6 @@ mkDefaultState file clist args code =
               , replCode     = code
               }
 
-
 main :: IO ()
 main = do args    <- getArgs
           home    <- getHomeDirectory

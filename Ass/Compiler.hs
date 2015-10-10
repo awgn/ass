@@ -32,77 +32,69 @@ import Control.Monad
 import Control.Applicative
 
 import Data.List
-
+import Data.Char (isSpace)
 
 defaultCompilerList :: [Compiler]
 defaultCompilerList =
-    [
-        Compiler Gcc49   "/usr/bin/g++-4.9" "g++-4.9" ["-std=c++1y", "-fdiagnostics-color=always"],
-        Compiler Gcc48   "/usr/bin/g++-4.8" "g++-4.8" ["-std=c++11"],
-        Compiler Gcc47   "/usr/bin/g++-4.7" "g++-4.7" ["-std=c++11"],
-        Compiler Gcc46   "/usr/bin/g++-4.6" "g++-4.6" ["-std=c++0x"],
-        Compiler Clang36 "/usr/bin/clang++" "clang++" ["-std=c++14", "-stdlib=libc++"],
-        Compiler Clang35 "/usr/bin/clang++" "clang++" ["-std=c++1y", "-stdlib=libc++"],
-        Compiler Clang34 "/usr/bin/clang++" "clang++" ["-std=c++1y", "-stdlib=libc++"],
-        Compiler Clang33 "/usr/bin/clang++" "clang++" ["-std=c++11", "-stdlib=libc++"],
-        Compiler Clang32 "/usr/bin/clang++" "clang++" ["-std=c++11", "-stdlib=libc++"],
-        Compiler Clang31 "/usr/bin/clang++" "clang++" ["-std=c++11", "-stdlib=libc++"]
+    [   Compiler Gcc49   Gcc    "/usr/bin/g++-4.9" "g++-4.9" ["-std=c++1y", "-fdiagnostics-color=always"]
+    ,   Compiler Gcc48   Gcc    "/usr/bin/g++-4.8" "g++-4.8" ["-std=c++11"]
+    ,   Compiler Gcc47   Gcc    "/usr/bin/g++-4.7" "g++-4.7" ["-std=c++11"]
+    ,   Compiler Gcc46   Gcc    "/usr/bin/g++-4.6" "g++-4.6" ["-std=c++0x"]
+    ,   Compiler Clang36 Clang  "/usr/bin/clang++" "clang++-36" ["-std=c++14", "-stdlib=libc++"]
+    ,   Compiler Clang35 Clang  "/usr/bin/clang++" "clang++-35" ["-std=c++1y", "-stdlib=libc++"]
+    ,   Compiler Clang34 Clang  "/usr/bin/clang++" "clang++-34" ["-std=c++1y", "-stdlib=libc++"]
+    ,   Compiler Clang33 Clang  "/usr/bin/clang++" "clang++-33" ["-std=c++11", "-stdlib=libc++"]
+    ,   Compiler Clang32 Clang  "/usr/bin/clang++" "clang++-32" ["-std=c++11", "-stdlib=libc++"]
+    ,   Compiler Clang31 Clang  "/usr/bin/clang++" "clang++-31" ["-std=c++11", "-stdlib=libc++"]
     ]
 
 
 -- Compiler:
 
 data CompilerType = Gcc46 | Gcc47 | Gcc48 | Gcc49 | Clang31 | Clang32 | Clang33 | Clang34 | Clang35 | Clang36
-                    deriving (Eq,Show,Read,Enum)
+                    deriving (Eq,Show,Read,Enum,Bounded)
 
 
 data CompilerFamily = Gcc | Clang
-    deriving (Eq,Show,Read,Enum)
+    deriving (Eq,Show,Read,Enum,Bounded)
 
-next comp = if comp == Clang36 then Gcc46   else succ comp
-prec comp = if comp == Gcc46   then Clang36 else pred comp
+
+next comp = if comp == maxBound then minBound else succ comp
+prec comp = if comp == minBound then maxBound else pred comp
 
 
 data Compiler = Compiler
-                {
-                    compilerType :: CompilerType,
-                    compilerExec :: FilePath,
-                    compilerName :: String,
-                    compilerOpts :: [String]
-                }
+    {   compilerType    :: CompilerType
+    ,   compilerFamily  :: CompilerFamily
+    ,   compilerExec    :: FilePath
+    ,   compilerName    :: String
+    ,   compilerOpts    :: [String]
+    }
     deriving (Read, Show, Eq)
 
 
-getCompilerVersion :: Compiler -> String
-getCompilerVersion (Compiler Gcc46   _ _ _ ) = "4.6"
-getCompilerVersion (Compiler Gcc47   _ _ _ ) = "4.7"
-getCompilerVersion (Compiler Gcc48   _ _ _ ) = "4.8"
-getCompilerVersion (Compiler Gcc49   _ _ _ ) = "4.9"
-getCompilerVersion (Compiler Clang31 _ _ _ ) = "3.1"
-getCompilerVersion (Compiler Clang32 _ _ _ ) = "3.2"
-getCompilerVersion (Compiler Clang33 _ _ _ ) = "3.3"
-getCompilerVersion (Compiler Clang34 _ _ _ ) = "3.4"
-getCompilerVersion (Compiler Clang35 _ _ _ ) = "3.5"
-getCompilerVersion (Compiler Clang36 _ _ _ ) = "3.6"
+getCompilerVersion :: CompilerType -> String
+getCompilerVersion Gcc46   = "4.6"
+getCompilerVersion Gcc47   = "4.7"
+getCompilerVersion Gcc48   = "4.8"
+getCompilerVersion Gcc49   = "4.9"
+getCompilerVersion Clang31 = "3.1"
+getCompilerVersion Clang32 = "3.2"
+getCompilerVersion Clang33 = "3.3"
+getCompilerVersion Clang34 = "3.4"
+getCompilerVersion Clang35 = "3.5"
+getCompilerVersion Clang36 = "3.6"
 
 
-getCompilerFamily :: Compiler -> CompilerFamily
-getCompilerFamily (Compiler Gcc46   _ _ _ ) = Gcc
-getCompilerFamily (Compiler Gcc47   _ _ _ ) = Gcc
-getCompilerFamily (Compiler Gcc48   _ _ _ ) = Gcc
-getCompilerFamily (Compiler Gcc49   _ _ _ ) = Gcc
-getCompilerFamily (Compiler Clang31 _ _ _ ) = Clang
-getCompilerFamily (Compiler Clang32 _ _ _ ) = Clang
-getCompilerFamily (Compiler Clang33 _ _ _ ) = Clang
-getCompilerFamily (Compiler Clang34 _ _ _ ) = Clang
-getCompilerFamily (Compiler Clang35 _ _ _ ) = Clang
-getCompilerFamily (Compiler Clang36 _ _ _ ) = Clang
+clean :: String -> String
+clean =  unlines . filter notComment . lines
+    where notComment = (not . ("#" `isPrefixOf`)) . dropWhile isSpace
 
 
 getCompilerConf :: FilePath -> IO [Compiler]
 getCompilerConf conf =
     doesFileExist conf >>= \b ->
-        if b then read <$> readFile conf
+        if b then (read . clean) <$> readFile conf
              else return defaultCompilerList
 
 getAvailCompilers :: [Compiler] -> IO [Compiler]
@@ -115,13 +107,13 @@ getAvailCompilers xs = do
 
 
 isValidCompiler :: Compiler -> IO Bool
-isValidCompiler c =  (getCompilerVersion c `isPrefixOf`) <$> askCompilerVersion c
+isValidCompiler c =  ((getCompilerVersion . compilerType) c `isPrefixOf`) <$> askCompilerVersion c
 
 
 askCompilerVersion :: Compiler -> IO String
 askCompilerVersion comp
-    | Gcc <- getCompilerFamily comp = last . words . head . lines <$> readProcess (compilerExec comp) ["--version"] ""
-    | otherwise                     = last . words . head . lines <$> readProcess (compilerExec comp) ["--version"] ""
+    | Gcc <- compilerFamily comp = last . words . head . lines <$> readProcess (compilerExec comp) ["--version"] ""
+    | otherwise                  = last . words . head . lines <$> readProcess (compilerExec comp) ["--version"] ""
 
 
 getCompilerFamilyByName :: IO CompilerFamily
@@ -130,7 +122,7 @@ getCompilerFamilyByName = getProgName >>= \n ->
 
 
 compilerFilter :: CompilerFamily -> [Compiler] -> [Compiler]
-compilerFilter t = filter $ (== t) . getCompilerFamily
+compilerFilter t = filter $ (== t) . compilerFamily
 
 
 compilerFilterType :: CompilerType -> [Compiler] -> [Compiler]
@@ -138,7 +130,7 @@ compilerFilterType t = filter $ (== t) . compilerType
 
 
 getCompilerOpt :: Compiler -> [String]
-getCompilerOpt (Compiler ver _ _ opts) =
+getCompilerOpt (Compiler ver _ _ _ opts) =
         case ver of
          Gcc46   -> gcc_opt ++ opts
          Gcc47   -> gcc_opt ++ opts
@@ -155,7 +147,7 @@ getCompilerOpt (Compiler ver _ _ opts) =
 
 
 getCompilerOptPCH :: Compiler -> [String]
-getCompilerOptPCH comp@(Compiler ver _ _ _) =
+getCompilerOptPCH comp@(Compiler ver _ _ _ _) =
         case ver of
          Gcc46   -> getCompilerOpt comp ++ [ "-Winvalid-pch", "-I" ++ includeAssDir </> "4.6" ]  ++ ["-I" ++ includeAssDir ]
          Gcc47   -> getCompilerOpt comp ++ [ "-Winvalid-pch", "-I" ++ includeAssDir </> "4.7" ]  ++ ["-I" ++ includeAssDir ]
@@ -170,7 +162,7 @@ getCompilerOptPCH comp@(Compiler ver _ _ _) =
 
 
 getCompilerPchPath ::  Compiler -> FilePath
-getCompilerPchPath (Compiler ver _ _ opts) =
+getCompilerPchPath (Compiler ver _ _ _ opts) =
     case ver of
          Gcc46   -> includeAssDir </> "4.6"
          Gcc47   -> includeAssDir </> "4.7"

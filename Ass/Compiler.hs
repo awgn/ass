@@ -36,7 +36,8 @@ import Data.Char (isSpace)
 
 defaultCompilerList :: [Compiler]
 defaultCompilerList =
-    [   Compiler Gcc49   Gcc    "/usr/bin/g++-4.9" "g++-4.9" ["-std=c++1y", "-fdiagnostics-color=always"]
+    [   Compiler Gcc5    Gcc    "/usr/bin/g++-5"   "g++-5"   ["-std=c++1y", "-fdiagnostics-color=always"]
+    ,   Compiler Gcc49   Gcc    "/usr/bin/g++-4.9" "g++-4.9" ["-std=c++1y", "-fdiagnostics-color=always"]
     ,   Compiler Gcc48   Gcc    "/usr/bin/g++-4.8" "g++-4.8" ["-std=c++11"]
     ,   Compiler Gcc47   Gcc    "/usr/bin/g++-4.7" "g++-4.7" ["-std=c++11"]
     ,   Compiler Gcc46   Gcc    "/usr/bin/g++-4.6" "g++-4.6" ["-std=c++0x"]
@@ -51,7 +52,7 @@ defaultCompilerList =
 
 -- Compiler:
 
-data CompilerType = Gcc46 | Gcc47 | Gcc48 | Gcc49 | Clang31 | Clang32 | Clang33 | Clang34 | Clang35 | Clang36
+data CompilerType = Gcc46 | Gcc47 | Gcc48 | Gcc49 | Gcc5 | Clang31 | Clang32 | Clang33 | Clang34 | Clang35 | Clang36
                     deriving (Eq,Show,Read,Enum,Bounded)
 
 
@@ -78,6 +79,7 @@ getCompilerVersion Gcc46   = "4.6"
 getCompilerVersion Gcc47   = "4.7"
 getCompilerVersion Gcc48   = "4.8"
 getCompilerVersion Gcc49   = "4.9"
+getCompilerVersion Gcc5    = "5"
 getCompilerVersion Clang31 = "3.1"
 getCompilerVersion Clang32 = "3.2"
 getCompilerVersion Clang33 = "3.3"
@@ -97,6 +99,7 @@ getCompilerConf conf =
         if b then (read . clean) <$> readFile conf
              else return defaultCompilerList
 
+
 getAvailCompilers :: [Compiler] -> IO [Compiler]
 getAvailCompilers xs = do
     ys <- filterM (doesFileExist . compilerExec) xs
@@ -112,8 +115,8 @@ isValidCompiler c =  ((getCompilerVersion . compilerType) c `isPrefixOf`) <$> as
 
 askCompilerVersion :: Compiler -> IO String
 askCompilerVersion comp
-    | Gcc <- compilerFamily comp = last . words . head . lines <$> readProcess (compilerExec comp) ["--version"] ""
-    | otherwise                  = last . words . head . lines <$> readProcess (compilerExec comp) ["--version"] ""
+    | Gcc <- compilerFamily comp = readProcess (compilerExec comp) ["-dumpversion"] ""
+    | otherwise {- clang -}      = last . words . head . lines <$> readProcess (compilerExec comp) ["--version"] ""
 
 
 getCompilerFamilyByName :: IO CompilerFamily
@@ -136,6 +139,7 @@ getCompilerOpt (Compiler ver _ _ _ opts) =
          Gcc47   -> gcc_opt ++ opts
          Gcc48   -> gcc_opt ++ opts
          Gcc49   -> gcc_opt ++ opts
+         Gcc5    -> gcc_opt ++ opts
          Clang31 -> clg_opt ++ opts
          Clang32 -> clg_opt ++ opts
          Clang33 -> clg_opt ++ opts
@@ -153,6 +157,7 @@ getCompilerOptPCH comp@(Compiler ver _ _ _ _) =
          Gcc47   -> getCompilerOpt comp ++ [ "-Winvalid-pch", "-I" ++ includeAssDir </> "4.7" ]  ++ ["-I" ++ includeAssDir ]
          Gcc48   -> getCompilerOpt comp ++ [ "-Winvalid-pch", "-I" ++ includeAssDir </> "4.8" ]  ++ ["-I" ++ includeAssDir ]
          Gcc49   -> getCompilerOpt comp ++ [ "-Winvalid-pch", "-I" ++ includeAssDir </> "4.9" ]  ++ ["-I" ++ includeAssDir ]
+         Gcc5    -> getCompilerOpt comp ++ [ "-Winvalid-pch", "-I" ++ includeAssDir </> "5" ]    ++ ["-I" ++ includeAssDir ]
          Clang31 -> getCompilerOpt comp ++ ["-include ", getCompilerPchPath comp </> "ass.hpp" ] ++ ["-I" ++ includeAssDir ]
          Clang32 -> getCompilerOpt comp ++ ["-include ", getCompilerPchPath comp </> "ass.hpp" ] ++ ["-I" ++ includeAssDir ]
          Clang33 -> getCompilerOpt comp ++ ["-include ", getCompilerPchPath comp </> "ass.hpp" ] ++ ["-I" ++ includeAssDir ]
@@ -168,6 +173,7 @@ getCompilerPchPath (Compiler ver _ _ _ opts) =
          Gcc47   -> includeAssDir </> "4.7"
          Gcc48   -> includeAssDir </> "4.8"
          Gcc49   -> includeAssDir </> "4.9"
+         Gcc5    -> includeAssDir </> "5"
          Clang31 -> includeAssDir </> "clang31" </> clangDir
          Clang32 -> includeAssDir </> "clang32" </> clangDir
          Clang33 -> includeAssDir </> "clang33" </> clangDir

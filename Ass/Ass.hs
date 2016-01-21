@@ -428,11 +428,11 @@ getRuntimeArgs = tailSafe . dropWhile ( /= "--" )
 
 
 dropWhite :: String -> String
-dropWhite = dropWhile (`elem` " \\\a\b\t\n\v\f\r")
+dropWhite = dropWhile (`elem` (" \\\a\b\t\n\v\f\r" :: String))
 
 
 dropWhiteBS :: C.ByteString -> C.ByteString
-dropWhiteBS =  C.dropWhile (`elem` " \\\a\b\t\n\v\f\r")
+dropWhiteBS =  C.dropWhile (`C.elem` " \\\a\b\t\n\v\f\r")
 
 
 isPreprocessor :: Source -> Bool

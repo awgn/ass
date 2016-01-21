@@ -35,11 +35,12 @@ Help
 Session
 -------
 
-    ASSi, version 2.26 :? for help
-    Compilers found: g++-4.8 g++-4.7 g++-4.6 clang-34 
-    Using Gcc48 compiler...
-    
-    Ass Gcc48> :?
+    ASSi, version 2.27 :? for help
+    Compilers found: g++-5 g++-4.9 g++-4.8 g++-4.7 g++-4.6 clang++35 clang++36
+    Using Gcc5 compiler...
+    Ass Gcc5>
+
+    Ass Gcc5> :?
     Commands available from the prompt:
 
     <statement>                 evaluate/run C++ <statement>
@@ -70,7 +71,7 @@ Session
       hex(v), oct(v), bin(v)    show manipulators
       class O                   oracle class.
 
-    Using Gcc48 compiler...
+    Using Gcc5 compiler...
     Ass>
     Ass> vector<int> v = R(1,2,10); return v;
     [ 1 2 3 4 5 6 7 8 9 10 ] [ExitSuccess]

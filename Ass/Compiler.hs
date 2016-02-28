@@ -41,6 +41,7 @@ defaultCompilerList =
     ,   Compiler Gcc48   Gcc    "/usr/bin/g++-4.8" "g++-4.8" ["-std=c++11"]
     ,   Compiler Gcc47   Gcc    "/usr/bin/g++-4.7" "g++-4.7" ["-std=c++11"]
     ,   Compiler Gcc46   Gcc    "/usr/bin/g++-4.6" "g++-4.6" ["-std=c++0x"]
+    ,   Compiler Clang37 Clang  "/usr/bin/clang++" "clang++-37" ["-std=c++14", "-stdlib=libc++"]
     ,   Compiler Clang36 Clang  "/usr/bin/clang++" "clang++-36" ["-std=c++14", "-stdlib=libc++"]
     ,   Compiler Clang35 Clang  "/usr/bin/clang++" "clang++-35" ["-std=c++1y", "-stdlib=libc++"]
     ,   Compiler Clang34 Clang  "/usr/bin/clang++" "clang++-34" ["-std=c++1y", "-stdlib=libc++"]
@@ -52,7 +53,7 @@ defaultCompilerList =
 
 -- Compiler:
 
-data CompilerType = Gcc46 | Gcc47 | Gcc48 | Gcc49 | Gcc5 | Clang31 | Clang32 | Clang33 | Clang34 | Clang35 | Clang36
+data CompilerType = Gcc46 | Gcc47 | Gcc48 | Gcc49 | Gcc5 | Clang31 | Clang32 | Clang33 | Clang34 | Clang35 | Clang36 | Clang37
                     deriving (Eq,Show,Read,Enum,Bounded)
 
 
@@ -86,6 +87,7 @@ getCompilerVersion Clang33 = "3.3"
 getCompilerVersion Clang34 = "3.4"
 getCompilerVersion Clang35 = "3.5"
 getCompilerVersion Clang36 = "3.6"
+getCompilerVersion Clang37 = "3.7"
 
 
 clean :: String -> String
@@ -146,6 +148,7 @@ getCompilerOpt (Compiler ver _ _ _ opts) =
          Clang34 -> clg_opt ++ opts
          Clang35 -> clg_opt ++ opts
          Clang36 -> clg_opt ++ opts
+         Clang37 -> clg_opt ++ opts
     where gcc_opt = [ "-O0", "-D_GLIBCXX_DEBUG", "-pthread", "-Wall", "-Wextra", "-Wno-unused-parameter", "-Wno-unused-value" ]
           clg_opt = [ "-O0", "-D_GLIBCXX_DEBUG", "-pthread", "-Wall", "-Wextra", "-Wno-unused-parameter", "-Wno-unused-value", "-Wno-unneeded-internal-declaration"]
 
@@ -164,6 +167,7 @@ getCompilerOptPCH comp@(Compiler ver _ _ _ _) =
          Clang34 -> getCompilerOpt comp ++ ["-include ", getCompilerPchPath comp </> "ass.hpp" ] ++ ["-I" ++ includeAssDir ]
          Clang35 -> getCompilerOpt comp ++ ["-include ", getCompilerPchPath comp </> "ass.hpp" ] ++ ["-I" ++ includeAssDir ]
          Clang36 -> getCompilerOpt comp ++ ["-include ", getCompilerPchPath comp </> "ass.hpp" ] ++ ["-I" ++ includeAssDir ]
+         Clang37 -> getCompilerOpt comp ++ ["-include ", getCompilerPchPath comp </> "ass.hpp" ] ++ ["-I" ++ includeAssDir ]
 
 
 getCompilerPchPath ::  Compiler -> FilePath
@@ -180,6 +184,7 @@ getCompilerPchPath (Compiler ver _ _ _ opts) =
          Clang34 -> includeAssDir </> "clang34" </> clangDir
          Clang35 -> includeAssDir </> "clang35" </> clangDir
          Clang36 -> includeAssDir </> "clang36" </> clangDir
+         Clang37 -> includeAssDir </> "clang37" </> clangDir
     where
         clangDir |  "-std=c++1y" `elem` opts && "-stdlib=libc++" `elem` opts = "libc++1y"
                  |  "-stdlib=libc++" `elem` opts                             = "libc++"

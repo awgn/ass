@@ -116,5 +116,19 @@
              , compilerExec = "/usr/bin/clang++-3.6"
              , compilerName = "clang++36"
              , compilerOpts = ["-std=c++14", "-stdlib=libc++"]
+             },
+
+    Compiler { compilerType = Clang37
+             , compilerFamily = Clang
+             , compilerExec = "/usr/bin/clang++"
+             , compilerName = "clang++37"
+             , compilerOpts = ["-std=c++14", "-stdlib=libc++"]
+             },
+
+    Compiler { compilerType = Clang37
+             , compilerFamily = Clang
+             , compilerExec = "/usr/bin/clang++-3.7"
+             , compilerName = "clang++37"
+             , compilerOpts = ["-std=c++14", "-stdlib=libc++"]
              }
 ]

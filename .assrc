@@ -1,4 +1,11 @@
 [ 
+    Compiler { compilerType = Gcc6
+             , compilerFamily = Gcc
+             , compilerExec = "/usr/bin/g++-6"
+             , compilerName = "g++-6"
+             , compilerOpts = ["-std=c++1z", "-fdiagnostics-color=always"]
+             },
+    
     Compiler { compilerType = Gcc5
              , compilerFamily = Gcc
              , compilerExec = "/usr/bin/g++-5"

@@ -997,7 +997,7 @@ namespace std
     std::basic_ostream<CharT, Traits>>::type &
     operator<< (std::basic_ostream<CharT, Traits> &out, const T &value)
     {
-        return out << show(value);
+        return out << ass::show(value);
     }
 
 } // namespace std

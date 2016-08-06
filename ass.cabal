@@ -29,6 +29,7 @@ Executable ass
                          mtl >= 1.9,
                          async >= 2.0,
                          ansi-terminal >= 0.5
-
+    
+    Ghc-options:         -O2 -Wall -threaded -rtsopts -with-rtsopts=-N
     Default-language:    Haskell2010
 

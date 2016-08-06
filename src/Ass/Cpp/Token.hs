@@ -257,44 +257,44 @@ getNumber :: C.ByteString -> NumberState -> String
 
 getNumber (C.uncons -> Nothing) _ = ""
 getNumber (C.uncons -> Just (x,xs)) state
-    |  state == NumberNothing = case () of _
-                                                | x == '0'  -> x : getNumber xs NumberOHF
-                                                | x == '.'  -> x : getNumber xs NumberMayBeFloat
-                                                | isDigit x -> x : getNumber xs NumberDec
-                                                | otherwise -> ""
-    |  state == NumberOHF = case () of _
-                                                | x `HS.member` validHexSet -> x : getNumber xs NumberHex
-                                                | x == '.'  -> x : getNumber xs NumberMayBeFloat
-                                                | isDigit x -> x : getNumber xs NumberOct
-                                                | otherwise -> ""
+    |  state == NumberNothing = case () of 
+        _ | x == '0'  -> x : getNumber xs NumberOHF
+          | x == '.'  -> x : getNumber xs NumberMayBeFloat
+          | isDigit x -> x : getNumber xs NumberDec
+          | otherwise -> ""
+    |  state == NumberOHF = case () of 
+        _ | x `HS.member` validHexSet -> x : getNumber xs NumberHex
+          | x == '.'                  -> x : getNumber xs NumberMayBeFloat
+          | isDigit x                 -> x : getNumber xs NumberOct
+          | otherwise -> ""
 
-    |  state == NumberDec = case () of _
-                                                | x `HS.member` validDecSet -> x : getNumber xs NumberDec
-                                                | x == '.'  -> x : getNumber xs NumberMayBeFloat
-                                                | x == 'e' || x == 'E'  -> x : getNumber xs NumberExp
-                                                | otherwise -> ""
+    |  state == NumberDec = case () of 
+        _ | x `HS.member` validDecSet -> x : getNumber xs NumberDec
+          | x == '.'                  -> x : getNumber xs NumberMayBeFloat
+          | x == 'e' || x == 'E'      -> x : getNumber xs NumberExp
+          | otherwise -> ""
 
-    |  state == NumberOct = case () of _
-                                                | x `HS.member` validOctSet -> x : getNumber xs NumberOct
-                                                | otherwise -> ""
+    |  state == NumberOct = case () of 
+        _ | x `HS.member` validOctSet -> x : getNumber xs NumberOct
+          | otherwise -> ""
 
-    |  state == NumberHex = case () of _
-                                                | x `HS.member` validHexSet -> x : getNumber xs NumberHex
-                                                | otherwise -> ""
+    |  state == NumberHex = case () of 
+        _ | x `HS.member` validHexSet -> x : getNumber xs NumberHex
+          | otherwise -> ""
 
-    |  state == NumberMayBeFloat = case () of _
-                                                | x `HS.member` validDecSet   -> x : getNumber xs NumberFloat
-                                                | otherwise                  -> ""
+    |  state == NumberMayBeFloat = case () of 
+        _ | x `HS.member` validDecSet  -> x : getNumber xs NumberFloat
+          | otherwise                  -> ""
 
-    |  state == NumberFloat = case () of _
-                                                | x `HS.member` validFloatSet -> x : getNumber xs NumberFloat
-                                                | x == 'e' || x == 'E'       -> x : getNumber xs NumberExp
-                                                | otherwise                  -> ""
+    |  state == NumberFloat = case () of 
+        _ | x `HS.member` validFloatSet-> x : getNumber xs NumberFloat
+          | x == 'e' || x == 'E'       -> x : getNumber xs NumberExp
+          | otherwise                  -> ""
 
-    |  state == NumberExp = case () of _
-                                                | x `HS.member` validDecSet   -> x : getNumber xs NumberExp
-                                                | x == '+' || x == '-'       -> x : getNumber xs NumberExp
-                                                | otherwise                  -> ""
+    |  state == NumberExp = case () of 
+        _ | x `HS.member` validDecSet  -> x : getNumber xs NumberExp
+          | x == '+' || x == '-'       -> x : getNumber xs NumberExp
+          | otherwise                  -> ""
 
 getNumber  _ _ = undefined
 
@@ -348,25 +348,27 @@ getLiteral _  _ _ _ = []
 
 
 operOrPunct :: HS.HashSet String
-operOrPunct =  HS.fromList [ "{","}","[","]","#","(",")",";",":","?",".","+","-","*",
-                             "/","%","^","&","|","~","!","=","<",">","," ,
-                             "##", "<:", ":>", "<%", "%>", "%:", "::", ".*", "+=", "-=",
-                             "*=", "/=", "%=", "^=", "&=", "|=", "<<", ">>", ">=", "<=",
-                             "&&", "||", "==", "!=", "++", "--", "->", "//", "/*", "*/",
-                             "...", "<<=", ">>=", "->*",
-                             "%:%:" ]
+operOrPunct =  HS.fromList 
+    [ "{","}","[","]","#","(",")",";",":","?",".","+","-","*",
+      "/","%","^","&","|","~","!","=","<",">","," ,
+      "##", "<:", ":>", "<%", "%>", "%:", "::", ".*", "+=", "-=",
+      "*=", "/=", "%=", "^=", "&=", "|=", "<<", ">>", ">=", "<=",
+      "&&", "||", "==", "!=", "++", "--", "->", "//", "/*", "*/",
+      "...", "<<=", ">>=", "->*",
+      "%:%:" ]
 
 keywords :: HS.HashSet String
-keywords = HS.fromList ["alignas", "continue", "friend", "alignof", "decltype", "goto", "asm",
-                       "default", "if", "auto", "delete", "inline", "bool", "do", "int", "break",
-                       "double", "long", "case", "dynamic_cast", "mutable", "catch", "else",
-                       "namespace", "char", "enum", "new", "char16_t", "explicit", "noexcept",
-                       "char32_t", "export", "nullptr", "class", "extern", "operator", "const",
-                       "false", "private", "constexpr", "float", "protected", "const_cast", "for",
-                       "public", "register", "true", "reinterpret_cast", "try", "return", "typedef",
-                       "short", "typeid", "signed", "typename", "sizeof", "union", "static", "unsigned",
-                       "static_assert", "using", "static_cast", "virtual", "struct", "void", "switch",
-                       "volatile", "template", "wchar_t", "this", "while", "thread_local", "throw",
-                       "and", "and_eq", "bitand", "bitor", "compl", "not", "not_eq", "or", "or_eq",
-                       "xor", "xor_eq"]
+keywords = HS.fromList 
+    ["alignas", "continue", "friend", "alignof", "decltype", "goto", "asm",
+     "default", "if", "auto", "delete", "inline", "bool", "do", "int", "break",
+     "double", "long", "case", "dynamic_cast", "mutable", "catch", "else",
+     "namespace", "char", "enum", "new", "char16_t", "explicit", "noexcept",
+     "char32_t", "export", "nullptr", "class", "extern", "operator", "const",
+     "false", "private", "constexpr", "float", "protected", "const_cast", "for",
+     "public", "register", "true", "reinterpret_cast", "try", "return", "typedef",
+     "short", "typeid", "signed", "typename", "sizeof", "union", "static", "unsigned",
+     "static_assert", "using", "static_cast", "virtual", "struct", "void", "switch",
+     "volatile", "template", "wchar_t", "this", "while", "thread_local", "throw",
+     "and", "and_eq", "bitand", "bitor", "compl", "not", "not_eq", "or", "or_eq",
+     "xor", "xor_eq"]
 

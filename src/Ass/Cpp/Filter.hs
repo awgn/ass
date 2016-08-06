@@ -33,12 +33,10 @@ data Context = Code | Comment | Literal
 
 
 data ContextFilter = ContextFilter
-                     {
-                        cppCode    :: Bool,
-                        cppLiteral :: Bool,
-                        cppComment :: Bool
-
-                     } deriving (Eq, Show)
+    { cppCode    :: Bool
+    , cppLiteral :: Bool
+    , cppComment :: Bool
+    } deriving (Eq, Show)
 
 
 filter :: ContextFilter -> Source -> Source
@@ -47,13 +45,10 @@ filter filt src =  snd $ Cpp.mapAccumL runFilter (FiltState CodeState filt ' ') 
 -- Filter State:
 
 data FiltState = FiltState
-                 {
-                    cstate  :: ContextState,
-                    cfilter :: ContextFilter,
-                    pchar   :: Char
-
-                 } deriving (Eq, Show)
-
+    { cstate  :: ContextState
+    , cfilter :: ContextFilter
+    , pchar   :: Char
+    } deriving (Eq, Show)
 
 
 data ContextState = CodeState       |

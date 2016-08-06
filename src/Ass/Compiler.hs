@@ -26,10 +26,8 @@ import System.Directory
 import System.Process
 import System.Environment
 import System.Exit
-import System.Posix.Files
 
 import Control.Monad
-import Control.Applicative
 
 import Data.List
 import Data.Char (isSpace)
@@ -61,6 +59,8 @@ data CompilerType = Gcc46 | Gcc47 | Gcc48 | Gcc49 | Gcc5 | Gcc6 | Clang31 | Clan
 data CompilerFamily = Gcc | Clang
     deriving (Eq,Show,Read,Enum,Bounded)
 
+
+next, prec :: CompilerType -> CompilerType
 
 next comp = if comp == maxBound then minBound else succ comp
 prec comp = if comp == minBound then maxBound else pred comp

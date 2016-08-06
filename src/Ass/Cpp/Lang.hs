@@ -60,7 +60,7 @@ newtype CommaSep a = CommaSep { getCommaSep :: [a] }
 
 instance (CppShow a) => CppShow (Maybe a) where
     render (Just x)  = render x
-    render (Nothing) = ""
+    render Nothing   = ""
 
 -- [a] instace of CppShow
 --
@@ -249,7 +249,7 @@ instance CppShow Class where
 
 instance CppTemplate Class where
     template +++ (Class name base bname) = TClass template name base bname
-    _ +++ (TClass {})  = error "Template Syntax error"
+    _ +++ TClass{}  = error "Template Syntax error"
 
 
 data BaseSpecifierList = NoBaseSpec | BaseSpecList [BaseAccessSpecifier]
@@ -282,7 +282,7 @@ instance AccessSpecifier R BaseAccessSpecifier where
 
 
 instance CppShow BaseSpecifierList where
-    render (NoBaseSpec)       = ""
+    render NoBaseSpec         = ""
     render (BaseSpecList [])  = ""
     render (BaseSpecList xs)  = " : " ++ intercalate ", " (map render xs)
 

@@ -26,9 +26,6 @@ import Ass.Compiler
 import System.Process
 import System.Directory
 import System.FilePath
-import System.Posix.User
-import System.Environment
-import System.Exit
 
 import Control.Monad
 import Control.Concurrent.Async
@@ -39,7 +36,6 @@ getPchExtension (Compiler typ _ _ _ _) =
         if typ `elem` [Gcc46, Gcc47, Gcc48, Gcc49, Gcc5, Gcc6]
             then "gch"
             else "pch"
-
 
 
 buildPCH:: IO ()

@@ -24,4 +24,5 @@ import qualified Data.ByteString.Char8 as C
 type Source     = C.ByteString
 type SourceLine = C.ByteString
 
+mapAccumL :: (acc -> Char -> (acc, Char)) -> acc -> C.ByteString -> (acc, C.ByteString)
 mapAccumL       = C.mapAccumL

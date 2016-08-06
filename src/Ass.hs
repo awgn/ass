@@ -28,7 +28,6 @@ import Data.Maybe
 import Data.Functor
 import Safe (tailSafe)
 
-import System.Environment(getArgs)
 import System.Process(system)
 import System.IO
 
@@ -74,6 +73,7 @@ data REPLState = REPLState
     } deriving (Show, Eq)
 
 
+mkDefaultState :: FilePath -> [Compiler] -> [String] -> [String] -> Bool -> Bool -> Bool -> REPLState
 mkDefaultState file clist args code prel pboost pcat = REPLState 
     { replBanner       = True
     , replPreload      = prel
@@ -155,7 +155,7 @@ main = do
 
 
 mainRun :: FilePath -> CompilerFamily -> [Compiler] -> Opt -> IO ()
-mainRun home _ clist opt
+mainRun _ _ clist opt
     | version opt        = putStrLn banner
     | build opt          = buildPCH
     | isJust $ check opt = mainCheck clist (fromJust $ check opt) (fromMaybe [] $ moreOpts opt)
@@ -168,7 +168,7 @@ mainRun _ cfam clist opt = liftM (head . compilerFilter cfam) (getAvailCompilers
 mainCheck :: [Compiler] -> String -> [String] -> IO ()
 mainCheck clist filename opts = do 
     cl <- getAvailCompilers clist 
-    testCompileHeader (C.pack ("#include \"" ++ filename ++ "\"")) True [ head cl ] (getCompilerArgs opts) 
+    _  <- testCompileHeader (C.pack ("#include \"" ++ filename ++ "\"")) True [ head cl ] (getCompilerArgs opts) 
     putStrLn "Ok." 
 
 
@@ -253,7 +253,7 @@ mainLoop opt args file clist = do
                                                       outputStrLn $ show e
                                                       lift (put $ s{ replBanner = False}) >> loop
 
-                         Just (":compiler":xs)  -> do liftIO $ print s
+                         Just (":compiler":_)   -> do liftIO $ print s
                                                       e <- runCmd "return compiler_info_();" clist (getCompilerArgs args) (replArgs s)
                                                       outputStrLn $ show e
                                                       lift (put $ s{ replBanner = False}) >> loop
@@ -345,7 +345,7 @@ getCodeCmd = do
 
 
 loadCode :: FilePath -> IO [String]
-loadCode f = filter (not . ("#pragma" `isPrefixOf`) . dropWhite) <$> lines <$> readFile f
+loadCode f = filter (not . ("#pragma" `isPrefixOf`) . dropWhite) . lines <$> readFile f
 
 
 loadCodeCmd :: FilePath -> InputT StateIO [String]
@@ -460,13 +460,14 @@ makeSourceCode code cmd_code ns preload boost cat
             main'   | hasMain code = []
                     | otherwise    = [ CodeLine 0 "int main() { return 0; }" ]
             exit                   = [ CodeLine 0 "auto __EXIT__ = ass::eval([]() { std::exit(0); }); "]
-            headers                = makeInclude "<ass.hpp>" : concat [[ makeInclude "<ass-boost.hpp>" | boost ],
-                                                                       [ makeInclude "<ass-cat.hpp>"   | cat ]]
+            headers                = [ makeInclude "<ass.hpp>" ] ++ 
+                                     [ makeInclude "<ass-boost.hpp>" | boost ] ++
+                                     [ makeInclude "<ass-cat.hpp>"   | cat ]
 
 
 preloadHeaders :: Bool -> SourceCode -> SourceCode -> [SourceCode]
-preloadHeaders True  header code = [header, code]
-preloadHeaders False header code = [code, header]
+preloadHeaders True  hdr code = [hdr, code]
+preloadHeaders False hdr code = [code, hdr]
 
 
 makeInclude :: String -> CodeLine

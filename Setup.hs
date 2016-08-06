@@ -4,13 +4,11 @@ import Distribution.Simple.LocalBuildInfo (LocalBuildInfo(..))
 import Distribution.PackageDescription (PackageDescription(..))
 
 import System.Environment
-import System.Directory
 import System.FilePath.Posix
-import System.Process
 import System.Directory
+import System.Process
 import System.FilePath
 import System.Posix.User
-import System.Environment
 import System.Exit
 
 import Control.Monad
@@ -21,7 +19,7 @@ rcfile = ".assrc"
 main = defaultMainWithHooks $
         simpleUserHooks
         {
-            postInst = (installRC >> installHeaders)
+            postInst = installRC >> installHeaders
         }
 
 

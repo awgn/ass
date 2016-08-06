@@ -23,7 +23,7 @@ import Data.Version (showVersion)
 import Paths_ass
 
 banner, snippet, assrc, ass_history :: String
-tmpDir, includeAssDir :: FilePath
+tmpDir, includeAssDir, installDir :: FilePath
 
 banner          = "ASS++, version " ++ showVersion version
 includeAssDir   =  "/usr/local/include/ass"

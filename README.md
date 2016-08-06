@@ -36,7 +36,7 @@ Help
 	Ass++: a REPL C++11/14 assistant
 
 	Usage: ass [-c|--check TARGET] [-l|--load TARGET] [-v|--version]
-    	       [-B|--build-phc] [-i|--interactive] [-p|--preload] [-b|--boost]
+    	       [-B|--build] [-i|--interactive] [-p|--preload] [-b|--boost]
     	       [-a|--cat] [-- [COMPILER OPTs...] -- [PROG ARGs...]]
 
 	Available options:
@@ -44,7 +44,7 @@ Help
 	  -c,--check TARGET        Check header
 	  -l,--load TARGET         Preload module/header
 	  -v,--version             Print version
-	  -B,--build-phc           (Re)build PHC headers
+	  -B,--build               (Re)build PHC headers
 	  -i,--interactive         Start interactive session
 	  -p,--preload             Preload C++ library (auto include)
 	  -b,--boost               Preload boost library (PHC)

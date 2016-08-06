@@ -1354,17 +1354,17 @@ namespace ass {
         P(std::forward<Ts>(args)...);
     }
 
-    ////////////////////////////////////////////////////////////// _(): build pairs and tuples
+    ////////////////////////////////////////////////////////////// T(): build pairs and tuples
 
     template <typename T1, typename T2>
-    auto _(T1 &&arg1, T2 &&arg2)
+    auto T(T1 &&arg1, T2 &&arg2)
     -> decltype(std::make_pair(std::forward<T1>(arg1), std::forward<T2>(arg2)))
     {
         return std::make_pair(std::forward<T1>(arg1), std::forward<T2>(arg2));
     }
 
     template <typename ... Ts>
-    auto _(Ts&& ...args)
+    auto T(Ts&& ...args)
     -> decltype(std::make_tuple(std::forward<Ts>(args)...))
     {
         return std::make_tuple(std::forward<Ts>(args)...);
@@ -1373,21 +1373,9 @@ namespace ass {
     ////////////////////////////////////////////////////////////// S(): stringfy arg with show()
 
     template <typename T>
-    std::string
-    S(const T & arg)
+    std::string S(const T & arg)
     {
         return ass::show (arg);
-    }
-
-#define SHOW(v) # v " = " + S(v)
-
-    ////////////////////////////////////////////////////////////// T<>(): get a demangled type name
-
-    template <typename Tp>
-    std::string
-    T()
-    {
-        return type_name<Tp>();
     }
 
     ////////////////////////////////////////////////////////////// X<Type>::make_default(), X<Type>::make_value(..) etc.

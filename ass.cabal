@@ -2,7 +2,7 @@
 -- see http://haskell.org/cabal/users-guide/
 
 name:                   ass
-version:                2.27
+version:                3.0
 
 license-file:           LICENSE
 author:                 Nicola Bonelli
@@ -11,27 +11,24 @@ category:               Utils
 build-type:             Simple
 cabal-version:          >=1.10
 
-Executable ass
-    main-is:            Ass/Ass.hs
-    build-depends:      base >=4.5,
-                        bytestring >= 0.9,
-                        unordered-containers >= 0.2,
-                        array >= 0.4,
-                        filepath >= 1.0, 
-                        directory >= 1.0,
-                        process >= 1.0,
-                        haskeline >= 0.7,
-                        unix >= 2.0,
-                        safe >= 0.2,
-                        mtl >= 1.9,
-                        async >= 2.0,
-                        ansi-terminal >= 0.5
+Executable ass             
+    Main-Is:             Ass.hs   
+    Hs-Source-Dirs:      src
+    Other-Modules:       Paths Ass.Compiler Ass.Config Ass.Types Ass.Build 
+    Build-depends:       base >=4.5,
+                         bytestring >= 0.9,
+                         optparse-applicative >= 0.8,
+                         unordered-containers >= 0.2,
+                         array >= 0.4,
+                         filepath >= 1.0, 
+                         directory >= 1.0,
+                         process >= 1.0,
+                         haskeline >= 0.7,
+                         unix >= 2.0,
+                         safe >= 0.2,
+                         mtl >= 1.9,
+                         async >= 2.0,
+                         ansi-terminal >= 0.5
 
-    default-language:   Haskell2010
+    Default-language:    Haskell2010
 
-Executable gen
-    main-is:            Ass/Gen.hs
-    build-depends:      base >=4.5, 
-                        bytestring >= 0.9
-
-    default-language:   Haskell2010

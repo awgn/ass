@@ -1,5 +1,5 @@
 --
--- Copyright (c) 2011 Bonelli Nicola <bonelli@antifork.org>
+-- Copyright (c) 2011-16 Bonelli Nicola <bonelli@pfq.io>
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -15,14 +15,16 @@
 -- along with this program; if not, write to the Free Software
 -- Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 --
--- ass: C++11 code assistant for vim
+-- ass: C++11/14 code assistant 
 
 
 {-# LANGUAGE OverloadedStrings #-}
 
+
 module Main where
 
 import Data.List
+import Data.Maybe
 import Data.Functor
 import Safe (tailSafe)
 
@@ -45,103 +47,141 @@ import qualified Data.ByteString.Char8 as C
 import qualified Ass.Cpp.Filter as Cpp
 import qualified Ass.Cpp.Token  as Cpp
 
+import Ass.Build
 import Ass.Config
 import Ass.Compiler
 import Ass.Types
+
+import Options.Applicative
+import Control.Applicative
 
 
 -- import Debug.Trace
 
 
-usage :: IO ()
-usage = putStrLn $ "usage: ass [OPTION] [COMPILER OPT] -- [ARG]\n" ++
-                   "    -i              launch interactive mode\n" ++
-                   "    -c  header      check header\n" ++
-                   "    -l  file        launch interactive mode + load file\n" ++
-                   "    -v, --version   show version\n" ++
-                   "    -h, --help      print this help"
+data REPLState = REPLState 
+    { replBanner       :: !Bool
+    , replPreload      :: !Bool
+    , replPreloadBoost :: !Bool
+    , replPreloadCat   :: !Bool
+    , replVerbose      :: !Bool
+    , replFile         :: !FilePath
+    , replCompiler     :: !CompilerType
+    , replCompDir      :: !Bool
+    , replArgs         :: ![String]
+    , replPrepList     :: ![String]
+    , replCode         :: ![String]
+    } deriving (Show, Eq)
 
 
-data REPLState =
-    REPLState { replBanner       :: !Bool
-              , replPreload      :: !Bool
-              , replVerbose      :: !Bool
-              , replFile         :: !FilePath
-              , replCompiler     :: !CompilerType
-              , replCompDir      :: !Bool
-              , replArgs         :: ![String]
-              , replPrepList     :: ![String]
-              , replCode         :: ![String]
-              } deriving (Show, Eq)
+mkDefaultState file clist args code prel pboost pcat = REPLState 
+    { replBanner       = True
+    , replPreload      = prel
+    , replPreloadBoost = pboost
+    , replPreloadCat   = pcat
+    , replVerbose      = False
+    , replFile         = file
+    , replCompiler     = compilerType $ head clist
+    , replCompDir      = True
+    , replArgs         = getRuntimeArgs args
+    , replPrepList     = []
+    , replCode         = code
+    }
 
 
-mkDefaultState file clist args code =
-    REPLState { replBanner = True
-              , replPreload  = False
-              , replVerbose  = False
-              , replFile     = file
-              , replCompiler = compilerType $ head clist
-              , replCompDir  = True
-              , replArgs     = getRuntimeArgs args
-              , replPrepList = []
-              , replCode     = code
-              }
+data Opt = Opt
+    { check          :: Maybe String
+    , load           :: Maybe String
+    , version        :: Bool
+    , build          :: Bool
+    , interactive    :: Bool
+    , preloadLib     :: Bool
+    , preloadBoost   :: Bool
+    , preloadCat     :: Bool
+    , moreOpts       :: Maybe [String]
+    } deriving (Show)
+     
+
+parseOpt :: Parser Opt
+parseOpt = Opt
+     <$> (optional $ strOption
+            ( long "check"
+                <> short 'c'
+                <> metavar "TARGET"
+                <> help "Check header" ))
+     <*> (optional $ strOption
+            ( long "load"
+             <> short 'l'
+             <> metavar "TARGET"
+             <> help "Preload module/header" ))
+     <*> switch
+         ( long "version"
+          <> short 'v'
+          <> help "Print version" )
+     <*> switch
+         ( long "build"
+          <> short 'B'
+          <> help "(Re)build PHC headers" )
+     <*> switch
+         ( long "interactive"
+            <> short 'i'
+            <> help "Start interactive session" )
+     <*> switch
+         ( long "preload"
+            <> short 'p'
+            <> help "Preload C++ library (auto include)" )
+     <*> switch
+         ( long "boost"
+            <> short 'b'
+            <> help "Preload boost library (PHC)" )
+     <*> switch
+         ( long "cat"
+            <> short 'a'
+            <> help "Preload cat library (PHC)" )
+     <*> (optional $ some (argument str (metavar "-- [COMPILER OPTs...] -- [PROG ARGs...]")))
+
 
 main :: IO ()
-main = do args    <- getArgs
-          home    <- getHomeDirectory
-          cfamily <- getCompilerFamilyByName
-          clist   <- getCompilerConf (home </> assrc)
-          case args of
-            ("-h":_)        -> usage
-            ("--help":_)    -> usage
-            ("-?":_)        -> usage
-            ("-v":_)        -> putStrLn banner
-            ("--version":_) -> putStrLn banner
-            ("-c":xs:_)     -> getAvailCompilers clist >>= (\cl -> testCompileHeader (C.pack ("#include \"" ++ xs ++ "\"")) True [ head cl ] (getCompilerArgs (tail $ tail args)) >> putStrLn "Ok.")
-            ("-i":_)        -> getAvailCompilers clist >>= mainLoop (tail args) ""
-            ("-l":xs:_)     -> getAvailCompilers clist >>= mainLoop (tail $ tail args) xs
-            _               -> liftM (head . compilerFilter cfamily) (getAvailCompilers clist) >>= mainFun args
+main = do 
+    home  <- getHomeDirectory
+    cfam  <- getCompilerFamilyByName
+    clist <- getCompilerConf (home </> assrc)
+    execParser opts >>= mainRun home cfam clist 
+    where
+       opts = info (helper <*> parseOpt)
+        ( fullDesc
+        <> header   "Ass++: a REPL C++11/14 assistant" )
+                               
+
+
+mainRun :: FilePath -> CompilerFamily -> [Compiler] -> Opt -> IO ()
+mainRun home _ clist opt
+    | version opt        = putStrLn banner
+    | build opt          = buildPCH
+    | isJust $ check opt = mainCheck clist (fromJust $ check opt) (fromMaybe [] $ moreOpts opt)
+    | isJust $ load opt  = getAvailCompilers clist >>= mainLoop opt (fromMaybe [] $ moreOpts opt) (fromJust $ load opt)
+    | interactive opt    = getAvailCompilers clist >>= mainLoop opt (fromMaybe [] $ moreOpts opt) ""
+mainRun _ cfam clist opt = liftM (head . compilerFilter cfam) (getAvailCompilers clist) >>= mainFun (fromMaybe [] $ moreOpts opt)
 
 
 
-type StateIO = StateT REPLState IO
-type InputIO = InputT StateIO
+mainCheck :: [Compiler] -> String -> [String] -> IO ()
+mainCheck clist filename opts = do 
+    cl <- getAvailCompilers clist 
+    testCompileHeader (C.pack ("#include \"" ++ filename ++ "\"")) True [ head cl ] (getCompilerArgs opts) 
+    putStrLn "Ok." 
 
 
-getStringIdentifiers :: [String] -> [String]
-getStringIdentifiers =
-    nub . map Cpp.toString .
-    filter Cpp.isIdentifier .
-    Cpp.tokenizer . sourceCodeFilter .
-    C.pack . unlines
+
+mainFun :: [String] -> Compiler -> IO ()
+mainFun args cxx = do
+    code <- C.hGetContents stdin
+    head <$> buildCompileAndRun code "" True False False False [cxx] (getCompilerArgs args) (getRuntimeArgs args) >>= exitWith
 
 
-commands, assIdentifiers :: [String]
 
-commands = [ ":load", ":include", ":check", ":reload", ":rr", ":edit",
-             ":list", ":clear", ":next", ":prev", ":args", ":run",
-             ":info", ":compiler", ":preload", ":verbose", ":quit" ]
-
-assIdentifiers = [ "hex", "oct", "bin", "T<", "type_name<", "type_of(",
-                   "type_info_<", "SHOW(", "R(" , "P(" ]
-
-
-replCompletion :: String -> String -> StateIO [Completion]
-replCompletion l w = do
-    s <- get
-    files  <- liftIO $ filter (\f -> f /= "." && f /= "..") <$> getDirectoryContents "."
-    case () of
-       _ | "fni:" `isSuffixOf` l ->  return $ map simpleCompletion (filter (w `isPrefixOf`) $ getStringIdentifiers (replCode s))
-       _ | "l:" `isSuffixOf`   l ->  return $ map simpleCompletion (filter (w `isPrefixOf`) files  )
-       _ | "i:" `isSuffixOf`   l ->  return $ map simpleCompletion (filter (w `isPrefixOf`) files  )
-       _ | "hc:" `isSuffixOf`  l ->  return $ map simpleCompletion (filter (w `isPrefixOf`) files  )
-       _ | ":" `isPrefixOf`    w ->  return $ map simpleCompletion (filter (w `isPrefixOf`) commands )
-       _                         ->  return $ map simpleCompletion (filter (w `isPrefixOf`) $ getStringIdentifiers (replCode s) ++ assIdentifiers)
-
-
-mainLoop :: [String] -> FilePath -> [Compiler] -> IO ()
-mainLoop args file clist = do
+mainLoop :: Opt -> [String] -> FilePath -> [Compiler] -> IO ()
+mainLoop opt args file clist = do
 
     putStrLn $ banner ++ " :? for help"
     putStr "Compilers found: " >> forM_ clist (\c -> putStr $ compilerName c ++ " " ) >> putChar '\n'
@@ -156,7 +196,7 @@ mainLoop args file clist = do
 
     unless (null file) $ putStrLn $ "Loading " ++ file
 
-    evalStateT (runInputT settings loop) (mkDefaultState file clist args code)
+    evalStateT (runInputT settings loop) (mkDefaultState file clist args code (preloadLib opt) (preloadBoost opt) (preloadCat opt))
 
     where
     loop :: InputIO ()
@@ -172,7 +212,7 @@ mainLoop args file clist = do
                     when (replBanner s) $ outputStrLn $ "Using " ++ show (replCompiler s) ++ " compiler..."
                     in' <- getInputLine $ "Ass " ++ show (replCompiler s) ++ "> "
                     case words <$> in' of
-                         Nothing -> outputStrLn "Leaving ASSi."
+                         Nothing -> outputStrLn "Leaving Ass++."
                          Just []                -> lift (put $ s{ replBanner = False }) >> loop
                          Just (":args":xs)      -> lift (put $ s{ replArgs = xs }) >> loop
                          Just (":preload":_)    -> outputStrLn ("Preloading headers (" ++ show (not $ replPreload s) ++ ")") >>
@@ -192,7 +232,7 @@ mainLoop args file clist = do
                          Just [":check",f]      -> outputStrLn ("Checking " ++ f ++ "...") >> checkHeaderCmd f clist (getCompilerArgs args) >> loop
                          Just (":reload":_)     -> outputStrLn ("Reloading " ++ replFile s ++ "...") >>
                                                    reloadCodeCmd >>= \xs -> lift (put s{ replBanner = False, replCode = xs }) >> loop
-                         Just (":quit":_)       -> void (outputStrLn "Leaving ASSi.")
+                         Just (":quit":_)       -> void (outputStrLn "Leaving Ass++.")
 
                          Just (":next":_)       -> lift (put $ s{ replBanner = True, replCompDir = True,  replCompiler = next (replCompiler s)}) >> loop
                          Just (":prev":_)       -> lift (put $ s{ replBanner = True, replCompDir = False, replCompiler = prec (replCompiler s)}) >> loop
@@ -225,10 +265,40 @@ mainLoop args file clist = do
                                                       outputStrLn $ show e
                                                       lift (put $ s{ replBanner = False}) >> loop
 
-mainFun :: [String] -> Compiler -> IO ()
-mainFun args cxx = do
-    code <- C.hGetContents stdin
-    head <$> buildCompileAndRun code "" True False [cxx] (getCompilerArgs args) (getRuntimeArgs args) >>= exitWith
+
+type StateIO = StateT REPLState IO
+type InputIO = InputT StateIO
+
+
+getStringIdentifiers :: [String] -> [String]
+getStringIdentifiers =
+    nub . map Cpp.toString .
+    filter Cpp.isIdentifier .
+    Cpp.tokenizer . sourceCodeFilter .
+    C.pack . unlines
+
+
+commands, assIdentifiers :: [String]
+
+commands = [ ":load", ":include", ":check", ":reload", ":rr", ":edit",
+             ":list", ":clear", ":next", ":prev", ":args", ":run",
+             ":info", ":compiler", ":preload", ":verbose", ":quit" ]
+
+assIdentifiers = [ "hex", "oct", "bin", "type_name<", "type_of(",
+                   "type_info_<", "SHOW(", "R(" , "P(", "T(" ]
+
+
+replCompletion :: String -> String -> StateIO [Completion]
+replCompletion l w = do
+    s <- get
+    files  <- liftIO $ filter (\f -> f /= "." && f /= "..") <$> getDirectoryContents "."
+    case () of
+       _ | "fni:" `isSuffixOf` l ->  return $ map simpleCompletion (filter (w `isPrefixOf`) $ getStringIdentifiers (replCode s))
+       _ | "l:" `isSuffixOf`   l ->  return $ map simpleCompletion (filter (w `isPrefixOf`) files  )
+       _ | "i:" `isSuffixOf`   l ->  return $ map simpleCompletion (filter (w `isPrefixOf`) files  )
+       _ | "hc:" `isSuffixOf`  l ->  return $ map simpleCompletion (filter (w `isPrefixOf`) files  )
+       _ | ":" `isPrefixOf`    w ->  return $ map simpleCompletion (filter (w `isPrefixOf`) commands )
+       _                         ->  return $ map simpleCompletion (filter (w `isPrefixOf`) $ getStringIdentifiers (replCode s) ++ assIdentifiers)
 
 
 printHelp :: StateIO ()
@@ -254,12 +324,12 @@ printHelp =  lift $ putStrLn $ "Commands available from the prompt:\n\n" ++
                         "  :?                        print this help\n\n" ++
                         "C++ goodies:\n" ++
                         "  _s _h,_min,_s,_ms,_us...  string and chrono user-defined literals\n" ++
-                        "  _(1,2,3)                  tuple/pair constructor\n" ++
+                        "  T(1,2,3)                  tuple/pair constructor\n" ++
                         "  P(arg1, arg2, ...)        variadic print\n" ++
-                        "  T<type>()                 demangle the name of a type\n" ++
+                        "  type_name<type>()         demangle the name of a type\n" ++
                         "  type_of(v)                deduce the type of a given expression\n" ++
                         "  R(1,2,5)                  range: initializer_list<int> {1,2,3,4,5}\n" ++
-                        "  S(v),SHOW(v)              stringify a value\n" ++
+                        "  S(v)                      stringify a value\n" ++
                         "  hex(v), oct(v), bin(v)    show manipulators\n" ++
                         "  class O                   oracle class.\n"
 
@@ -302,6 +372,8 @@ runCmd src clist cargs args = lift get >>= \s ->
     liftIO $ buildCompileAndRun (C.pack (unlines (replPrepList s) ++ unlines (replCode s)))
                   (C.pack src)
                   (replPreload s)
+                  (replPreloadBoost s)
+                  (replPreloadCat s)
                   (replVerbose s)
                   (compilerFilterType (replCompiler s) clist)
                   cargs
@@ -315,21 +387,22 @@ testCompileHeader code verbose clist cargs = do
     let bin = tmpDir </> snippet ++ "-" ++ name
     let src1 = bin `addExtension` "cpp"
     let src2 = (bin ++ "-2") `addExtension` "cpp"
-    writeSource src1 $ makeSourceCode code "" (getDeclaredNamespace code) False False
+    writeSource src1 $ makeSourceCode code "" (getDeclaredNamespace code) False False False
     C.writeFile src2 code
     forM clist $ \ cxx ->
         runCompiler cxx [src1, src2] (binary bin cxx) verbose (["-I", cwd', "-I",  cwd' </> ".."] ++ cargs)
         where binary n c = n ++ "-" ++ show (compilerType c)
 
 
-buildCompileAndRun :: Source -> Source -> Bool -> Bool -> [Compiler] -> [String] -> [String] -> IO [ExitCode]
-buildCompileAndRun code main_code preload verbose clist cargs targs = do
+buildCompileAndRun :: Source -> Source -> Bool -> Bool -> Bool -> Bool -> [Compiler] -> [String] -> [String] -> IO [ExitCode]
+buildCompileAndRun code main_code preload pboost pcat verbose clist cargs targs = do
     cwd' <- getCurrentDirectory
     name <- getEffectiveUserName
-    let boost = let ns = getQualifiedNamespace (code `C.append` main_code) in any (`elem` ns) ["b","boost"]
+    let boost = pboost || let ns = getQualifiedNamespace (code `C.append` main_code) in any (`elem` ns) ["b","boost"]
+    let cat   = pcat   || let ns = getQualifiedNamespace (code `C.append` main_code) in any (`elem` ns) ["c","cat"]
     let bin   = tmpDir </> snippet ++ "-" ++ name
     let src   = bin `addExtension` "cpp"
-    writeSource src $ makeSourceCode code main_code (getDeclaredNamespace code) preload boost
+    writeSource src $ makeSourceCode code main_code (getDeclaredNamespace code) preload boost cat
     forM clist $ \cxx -> do
         when (length clist > 1) $ putStr (compilerName cxx ++ " -> ") >> hFlush stdout
         e <- runCompiler cxx [src] (binary bin cxx) verbose (["-I", cwd', "-I",  cwd' </> ".."] ++ cargs)
@@ -376,8 +449,8 @@ spanGroup n xs | length xs >= n = take n xs : spanGroup n (tail xs)
                | otherwise      = []
 
 
-makeSourceCode :: Source -> Source -> [String] -> Bool -> Bool -> [SourceCode]
-makeSourceCode code cmd_code ns preload boost
+makeSourceCode :: Source -> Source -> [String] -> Bool -> Bool -> Bool -> [SourceCode]
+makeSourceCode code cmd_code ns preload boost cat
     = preloadHeaders preload headers code' ++
          makeNamespaces ns  ++
          concatMap makeCmdCode (groupBy (\_ _ -> False) cmd_code') ++
@@ -387,7 +460,8 @@ makeSourceCode code cmd_code ns preload boost
             main'   | hasMain code = []
                     | otherwise    = [ CodeLine 0 "int main() { return 0; }" ]
             exit                   = [ CodeLine 0 "auto __EXIT__ = ass::eval([]() { std::exit(0); }); "]
-            headers                = makeInclude "<ass.hpp>" : [ makeInclude "<ass-boost.hpp>" | boost ]
+            headers                = makeInclude "<ass.hpp>" : concat [[ makeInclude "<ass-boost.hpp>" | boost ],
+                                                                       [ makeInclude "<ass-cat.hpp>"   | cat ]]
 
 
 preloadHeaders :: Bool -> SourceCode -> SourceCode -> [SourceCode]

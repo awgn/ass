@@ -1,41 +1,60 @@
 Ass++
 -----
 
-ASSi is an interactive/REPL C++11/14 code assistant inspired to GHCi. 
+ASS++ is an interactive/REPL C++11/14 code assistant inspired to GHCi. 
 
-It can be used through vim or interactively as a command line shell. It supports both gcc and clang compilers, libstdc++, libc++ and few boost headers (like the geordi bot). 
-It features pre-compiled headers and tab completion for commands, file names and C++ identifiers. 
+It can be used through vim or interactively as a command line shell. It supports both gcc and clang compilers, libstdc++, libc++, few boost headers and the functional
+cat library (http://cat.github.io). 
 
-C++ statements are evaluated on the fly, possibly using the source code loaded, no matter if related to a complete snippet (with the main function) or to a class declaration.
+It features pre-compiled headers and tab completion for commands, filenames and C++ identifiers. 
+
+C++ statements are evaluated on the fly, possibly using the source code loaded, no matter if it is a complete snippet (with or without main function) or a class declaration.
 Namespaces are deduced parsing the source code and members declared therein are accessible through automatic using-namespace declarations. 
 
-In addition, ASSi provides some C++ goodies that allow to test code quickly. 
+In addition, ASS++ provides some C++ goodies that allow to test code quickly. 
 
 It provides an oracle class `O` that can be injected into containers, and few utility functions. 
 
-`S()` stringifies showable expressions (STL containers, tuples, smart pointers, chrono and streamable types); type names can be demangled with `T<type>()/type_of()` and ranges ala Haskell 
+`S()` stringifies showable expressions (STL containers, tuples, smart pointers, chrono and streamable types); type names can be demangled with `type_name<T>()/type_of()` and ranges ala Haskell 
 are available through the `R` function which generates a suitable `std::initializer_list`.
 
 Install
 -------
 
     cabal install --only-dep 
-    runhaskell Install --all
+    runhaskell Setup configure --user
+    runhaskell Setup build 
+    runhaskell Setup install
+
+At the first run don't forget to build pre-compiled headers with:
+
+    ass --build 
 
 Help
 ----
 
-    usage: ass [OPTION] [COMPILER OPT] -- [ARG]
-        -i              launch interactive mode
-        -l  file        launch interactive mode + load file
-        -v, --version   show version
-        -h, --help      print this help
+	Ass++: a REPL C++11/14 assistant
 
+	Usage: ass [-c|--check TARGET] [-l|--load TARGET] [-v|--version]
+    	       [-B|--build-phc] [-i|--interactive] [-p|--preload] [-b|--boost]
+    	       [-a|--cat] [-- [COMPILER OPTs...] -- [PROG ARGs...]]
+
+	Available options:
+	  -h,--help                Show this help text
+	  -c,--check TARGET        Check header
+	  -l,--load TARGET         Preload module/header
+	  -v,--version             Print version
+	  -B,--build-phc           (Re)build PHC headers
+	  -i,--interactive         Start interactive session
+	  -p,--preload             Preload C++ library (auto include)
+	  -b,--boost               Preload boost library (PHC)
+	  -a,--cat                 Preload cat library (PHC)
+	
 
 Session
 -------
 
-    ASSi, version 2.27 :? for help
+    ASS++, version 3.0 :? for help
     Compilers found: g++-5 g++-4.9 g++-4.8 g++-4.7 g++-4.6 clang++35 clang++36
     Using Gcc5 compiler...
     Ass Gcc5>
@@ -62,12 +81,12 @@ Session
 
     C++ goodies:
       _s _h,_min,_s,_ms,_us...  string and chrono user-defined literals
-      _(1,2,3)                  tuple/pair constructor
+      T(1,2,3)                  tuple/pair constructor
       P(arg1, arg2, ...)        variadic print
-      T<type>()                 demangle the name of a type
+      type_name<type>()         demangle the name of a type
       type_of(v)                deduce the type of a given expression
       R(1,2,5)                  range: initializer_list<int> {1,2,3,4,5}
-      S(v),SHOW(v)              stringify a value
+      S(v)                      stringify a value
       hex(v), oct(v), bin(v)    show manipulators
       class O                   oracle class.
 
@@ -151,4 +170,5 @@ Session
     value    : {0000}
 
     Ass> :quit
-    Leaving ASSi. 
+    Leaving Ass++. 
+

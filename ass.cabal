@@ -14,7 +14,7 @@ cabal-version:          >=1.10
 Executable ass             
     Main-Is:             Ass.hs   
     Hs-Source-Dirs:      src
-    Other-Modules:       Paths Ass.Compiler Ass.Config Ass.Types Ass.Build 
+    Other-Modules:       Paths Ass.Compiler Ass.Config Ass.Types Ass.Build Ass.Snippet
     Build-depends:       base >=4.5,
                          bytestring >= 0.9,
                          optparse-applicative >= 0.8,

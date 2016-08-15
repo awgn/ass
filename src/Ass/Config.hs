@@ -22,14 +22,14 @@ module Ass.Config where
 import Data.Version (showVersion)
 import Paths_ass
 
-banner, snippet, assrc, ass_history :: String
-tmpDir, includeAssDir, installDir :: FilePath
+banner, assrc, ass_history :: String
+tmpDir, tmpFile, includeAssDir, installDir :: FilePath
 
 banner          = "ASS++, version " ++ showVersion version
 includeAssDir   =  "/usr/local/include/ass"
 installDir      =  "/usr/local/bin/"
 tmpDir          =  "/tmp"
-snippet         = "ass-snippet"
+tmpFile         = "ass_snippet"
 assrc           = ".assrc"
 ass_history     = ".ass_history"
 

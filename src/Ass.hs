@@ -50,6 +50,7 @@ import Ass.Build
 import Ass.Config
 import Ass.Compiler
 import Ass.Types
+import Ass.Snippet
 
 import Options.Applicative
 import Control.Applicative
@@ -92,6 +93,7 @@ mkDefaultState file clist args code prel pboost pcat = REPLState
 data Opt = Opt
     { check          :: Maybe String
     , load           :: Maybe String
+    , snip           :: Maybe String
     , version        :: Bool
     , build          :: Bool
     , interactive    :: Bool
@@ -114,6 +116,11 @@ parseOpt = Opt
              <> short 'l'
              <> metavar "TARGET"
              <> help "Preload module/header" ))
+     <*> (optional $ strOption
+            ( long "snippet" 
+             <> short 'S'
+             <> metavar "\"Args...\""
+             <> help "Make snippet" ))
      <*> switch
          ( long "version"
           <> short 'v'
@@ -156,13 +163,18 @@ main = do
 
 mainRun :: FilePath -> CompilerFamily -> [Compiler] -> Opt -> IO ()
 mainRun _ _ clist opt
-    | version opt        = putStrLn banner
-    | build opt          = buildPCH
-    | isJust $ check opt = mainCheck clist (fromJust $ check opt) (fromMaybe [] $ moreOpts opt)
-    | isJust $ load opt  = getAvailCompilers clist >>= mainLoop opt (fromMaybe [] $ moreOpts opt) (fromJust $ load opt)
-    | interactive opt    = getAvailCompilers clist >>= mainLoop opt (fromMaybe [] $ moreOpts opt) ""
-mainRun _ cfam clist opt = liftM (head . compilerFilter cfam) (getAvailCompilers clist) >>= mainFun (fromMaybe [] $ moreOpts opt)
+    | version opt           = putStrLn banner
+    | build opt             = buildPCH
+    | Just s <- snip opt    = mainGen $ words s 
+    | Just c <- check opt   = mainCheck clist c (fromMaybe [] $ moreOpts opt)
+    | Just l <- load opt    = getAvailCompilers clist >>= mainLoop opt (fromMaybe [] $ moreOpts opt) l 
+    | interactive opt       = getAvailCompilers clist >>= mainLoop opt (fromMaybe [] $ moreOpts opt) ""
+mainRun _ cfam clist opt    = liftM (head . compilerFilter cfam) (getAvailCompilers clist) >>= mainFun (fromMaybe [] $ moreOpts opt)
 
+
+
+mainGen :: [String] -> IO ()
+mainGen = snippetRender
 
 
 mainCheck :: [Compiler] -> String -> [String] -> IO ()
@@ -258,6 +270,8 @@ mainLoop opt args file clist = do
                                                       outputStrLn $ show e
                                                       lift (put $ s{ replBanner = False}) >> loop
 
+                         Just (":snippet" :xs)  -> (liftIO $ snippetRender xs) >> loop
+
                          Just input | ":" `isPrefixOf` unwords input -> outputStrLn("Unknown command '" ++ unwords input ++ "'") >>
                                                                         outputStrLn "use :? for help." >> lift (put $ s{ replBanner = False}) >> loop
                                     | isPreprocessor (C.pack $ unwords input) -> lift (put s{ replBanner = False, replPrepList = replPrepList s ++ [unwords input] }) >> loop
@@ -282,7 +296,7 @@ commands, assIdentifiers :: [String]
 
 commands = [ ":load", ":include", ":check", ":reload", ":rr", ":edit",
              ":list", ":clear", ":next", ":prev", ":args", ":run",
-             ":info", ":compiler", ":preload", ":verbose", ":quit" ]
+             ":info", ":compiler", ":preload", ":snippet", ":verbose", ":quit" ]
 
 assIdentifiers = [ "hex", "oct", "bin", "type_name<", "type_of(",
                    "type_info_<", "SHOW(", "R(" , "P(", "T(" ]
@@ -320,6 +334,7 @@ printHelp =  lift $ putStrLn $ "Commands available from the prompt:\n\n" ++
                         "  :info TYPE                show info about the given TYPE\n" ++
                         "  :preload                  toggle preload std headers\n" ++
                         "  :verbose                  show additional information\n" ++
+                        "  :snippet ARGS...          make snippets: ? for help\n" ++
                         "  :quit                     quit\n" ++
                         "  :?                        print this help\n\n" ++
                         "C++ goodies:\n" ++
@@ -384,7 +399,7 @@ testCompileHeader :: Source -> Bool -> [Compiler] -> [String] -> IO [ExitCode]
 testCompileHeader code verbose clist cargs = do
     cwd' <- getCurrentDirectory
     name <- getEffectiveUserName
-    let bin = tmpDir </> snippet ++ "-" ++ name
+    let bin = tmpDir </> tmpFile ++ "-" ++ name
     let src1 = bin `addExtension` "cpp"
     let src2 = (bin ++ "-2") `addExtension` "cpp"
     writeSource src1 $ makeSourceCode code "" (getDeclaredNamespace code) False False False
@@ -400,7 +415,7 @@ buildCompileAndRun code main_code preload pboost pcat verbose clist cargs targs 
     name <- getEffectiveUserName
     let boost = pboost || let ns = getQualifiedNamespace (code `C.append` main_code) in any (`elem` ns) ["b","boost"]
     let cat   = pcat   || let ns = getQualifiedNamespace (code `C.append` main_code) in any (`elem` ns) ["c","cat"]
-    let bin   = tmpDir </> snippet ++ "-" ++ name
+    let bin   = tmpDir </> tmpFile ++ "-" ++ name
     let src   = bin `addExtension` "cpp"
     writeSource src $ makeSourceCode code main_code (getDeclaredNamespace code) preload boost cat
     forM clist $ \cxx -> do

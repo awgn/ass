@@ -24,13 +24,14 @@
 
 module Ass.Snippet where
 
+import Prelude hiding (const)
 import Ass.Cpp.Lang
 
 
 -- Generator entities
 
 
-data Entity = ENamespace     Identifier |
+data Builder = ENamespace     Identifier |
               SimpleClass    Identifier |
               TemplateClass  Identifier |
               MoveableClass  Identifier |
@@ -43,7 +44,8 @@ data Entity = ENamespace     Identifier |
               Readable       Identifier
                 deriving (Show)
 
-factoryEntity :: Code -> [String] -> (Entity, [String])
+
+factoryEntity :: Code -> [String] -> (Builder, [String])
 
 factoryEntity 'c' (x:xs)    = (SimpleClass x, xs)
 factoryEntity 'm' (x:xs)    = (MoveableClass x, xs)
@@ -90,13 +92,14 @@ snippetRender (es:as) = do
     snippetRender (tail es : as')
 
 
-renderCode :: Code -> [String] -> (Entity, [String])
+renderCode :: Code -> [String] -> (Builder, [String])
 renderCode = factoryEntity
 
 
 ---------------------------------- Cpp Class Snippets:
 
-snippet :: Entity -> [CppEntity]
+
+snippet :: Builder -> [CppEntity]
 
 
 snippet (ENamespace name)  =
@@ -107,15 +110,15 @@ snippet (Showable name) =
     cpp
     [
         function
-        (FuncDecl [Inline] string "show" (add_lvalue_reference . add_const $ Arg (Type name) "value"))
-        (Body [""])
+            (FuncDecl [Inline] string "show" (lvalue_reference . const $ Arg (Type name) "value"))
+            (Body [""])
     ]
 
 snippet (Readable name) =
     cpp
     [
         Function (Just $ Template[Typename "CharT", Typename "Traits"])
-            (FuncDecl [] (Type "void") "read" (add_lvalue_reference $ Arg (Type name) "ret",
+            (FuncDecl [] (Type "void") "read" (lvalue_reference $ Arg (Type name) "ret",
                                                Arg (Type "std::basic_istream<CharT, Traits> &") "in" ))
             (Body ["ret = ...;"])
     ]
@@ -133,7 +136,8 @@ snippet (SimpleClass name) =
                  operAssign name Delete
              ]
         ]
-     ] ++
+     ] 
+     ++
      cpp
      [
          operInsrt Nothing name,
@@ -203,7 +207,7 @@ snippet (SingletonClass name) =
                   copyCtor   name Delete,
                   operAssign name Delete,
                   function
-                      (FuncDecl [Static] (add_lvalue_reference (Type name)) "instance" ())
+                      (FuncDecl [Static] (lvalue_reference (Type name)) "instance" ())
                       (MembBody [ "static " ++ name ++ " one;",
                                   "return one;" ] Unqualified)
             ]

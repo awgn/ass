@@ -1,4 +1,11 @@
 [ 
+    Compiler { compilerType = Gcc7
+             , compilerFamily = Gcc
+             , compilerExec = "/usr/bin/g++-7"
+             , compilerName = "g++-6"
+             , compilerOpts = ["-std=c++1z", "-fdiagnostics-color=always"]
+             },
+    
     Compiler { compilerType = Gcc6
              , compilerFamily = Gcc
              , compilerExec = "/usr/bin/g++-6"
@@ -136,6 +143,33 @@
              , compilerFamily = Clang
              , compilerExec = "/usr/bin/clang++-3.7"
              , compilerName = "clang++37"
+             , compilerOpts = ["-std=c++14", "-stdlib=libc++"]
+             },
+    
+    Compiler { compilerType = Clang38
+             , compilerFamily = Clang
+             , compilerExec = "/usr/bin/clang++"
+             , compilerName = "clang++38"
+             , compilerOpts = ["-std=c++14", "-stdlib=libc++"]
+             },
+
+    Compiler { compilerType = Clang38
+             , compilerFamily = Clang
+             , compilerExec = "/usr/bin/clang++-3.8"
+             , compilerName = "clang++38"
+             , compilerOpts = ["-std=c++14", "-stdlib=libc++"]
+             },
+    Compiler { compilerType = Clang39
+             , compilerFamily = Clang
+             , compilerExec = "/usr/bin/clang++"
+             , compilerName = "clang++39"
+             , compilerOpts = ["-std=c++14", "-stdlib=libc++"]
+             },
+
+    Compiler { compilerType = Clang39
+             , compilerFamily = Clang
+             , compilerExec = "/usr/bin/clang++-3.9"
+             , compilerName = "clang++39"
              , compilerOpts = ["-std=c++14", "-stdlib=libc++"]
              }
 ]

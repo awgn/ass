@@ -33,9 +33,9 @@ import Control.Concurrent.Async
 
 getPchExtension :: Compiler -> String
 getPchExtension (Compiler typ _ _ _ _) =
-        if typ `elem` [Gcc46, Gcc47, Gcc48, Gcc49, Gcc5, Gcc6]
-            then "gch"
-            else "pch"
+    if typ `elem` [Gcc46, Gcc47, Gcc48, Gcc49, Gcc5, Gcc6, Gcc7]
+        then "gch"
+        else "pch"
 
 
 buildPCH:: IO ()
@@ -64,4 +64,4 @@ buildPCH = do
         doesDirectoryExist "/usr/local/include/cat" >>= \cat ->
             when cat $ void $ system $ compilerExec comp ++ " /usr/local/include/ass/ass-cat.hpp " ++ unwords opts ++ " -o " ++ pchDir </> "ass-cat.hpp." ++ getPchExtension comp
 
-        
+

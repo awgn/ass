@@ -15,7 +15,7 @@
 -- along with this program; if not, write to the Free Software
 -- Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 --
--- ass: C++11/14 code assistant 
+-- ass: C++11/14 code assistant
 
 module Ass.Compiler where
 
@@ -30,16 +30,21 @@ import System.Exit
 import Control.Monad
 
 import Data.List
+import Data.Monoid
 import Data.Char (isSpace)
 
 defaultCompilerList :: [Compiler]
 defaultCompilerList =
-    [   Compiler Gcc6    Gcc    "/usr/bin/g++-6"   "g++-6"   ["-std=c++1z", "-fdiagnostics-color=always"]
+    [
+        Compiler Gcc7    Gcc    "/usr/bin/g++-7"   "g++-7"   ["-std=c++1z", "-fdiagnostics-color=always"]
+    ,   Compiler Gcc6    Gcc    "/usr/bin/g++-6"   "g++-6"   ["-std=c++1z", "-fdiagnostics-color=always"]
     ,   Compiler Gcc5    Gcc    "/usr/bin/g++-5"   "g++-5"   ["-std=c++1y", "-fdiagnostics-color=always"]
     ,   Compiler Gcc49   Gcc    "/usr/bin/g++-4.9" "g++-4.9" ["-std=c++1y", "-fdiagnostics-color=always"]
     ,   Compiler Gcc48   Gcc    "/usr/bin/g++-4.8" "g++-4.8" ["-std=c++11"]
     ,   Compiler Gcc47   Gcc    "/usr/bin/g++-4.7" "g++-4.7" ["-std=c++11"]
     ,   Compiler Gcc46   Gcc    "/usr/bin/g++-4.6" "g++-4.6" ["-std=c++0x"]
+    ,   Compiler Clang39 Clang  "/usr/bin/clang++" "clang++-39" ["-std=c++14", "-stdlib=libc++"]
+    ,   Compiler Clang38 Clang  "/usr/bin/clang++" "clang++-38" ["-std=c++14", "-stdlib=libc++"]
     ,   Compiler Clang37 Clang  "/usr/bin/clang++" "clang++-37" ["-std=c++14", "-stdlib=libc++"]
     ,   Compiler Clang36 Clang  "/usr/bin/clang++" "clang++-36" ["-std=c++14", "-stdlib=libc++"]
     ,   Compiler Clang35 Clang  "/usr/bin/clang++" "clang++-35" ["-std=c++1y", "-stdlib=libc++"]
@@ -52,7 +57,7 @@ defaultCompilerList =
 
 -- Compiler:
 
-data CompilerType = Gcc46 | Gcc47 | Gcc48 | Gcc49 | Gcc5 | Gcc6 | Clang31 | Clang32 | Clang33 | Clang34 | Clang35 | Clang36 | Clang37
+data CompilerType = Gcc46 | Gcc47 | Gcc48 | Gcc49 | Gcc5 | Gcc6 | Gcc7 | Clang31 | Clang32 | Clang33 | Clang34 | Clang35 | Clang36 | Clang37 | Clang38 | Clang39
                     deriving (Eq,Show,Read,Enum,Bounded)
 
 
@@ -83,6 +88,7 @@ getCompilerVersion Gcc48   = "4.8"
 getCompilerVersion Gcc49   = "4.9"
 getCompilerVersion Gcc5    = "5"
 getCompilerVersion Gcc6    = "6"
+getCompilerVersion Gcc7    = "7"
 getCompilerVersion Clang31 = "3.1"
 getCompilerVersion Clang32 = "3.2"
 getCompilerVersion Clang33 = "3.3"
@@ -90,6 +96,8 @@ getCompilerVersion Clang34 = "3.4"
 getCompilerVersion Clang35 = "3.5"
 getCompilerVersion Clang36 = "3.6"
 getCompilerVersion Clang37 = "3.7"
+getCompilerVersion Clang38 = "3.8"
+getCompilerVersion Clang39 = "3.9"
 
 
 clean :: String -> String
@@ -120,7 +128,13 @@ isValidCompiler c =  ((getCompilerVersion . compilerType) c `isPrefixOf`) <$> as
 askCompilerVersion :: Compiler -> IO String
 askCompilerVersion comp
     | Gcc <- compilerFamily comp = readProcess (compilerExec comp) ["-dumpversion"] ""
-    | otherwise {- clang -}      = last . words . head . lines <$> readProcess (compilerExec comp) ["--version"] ""
+    | otherwise {- clang -}      = do
+        ws  <- words . head . lines <$> readProcess (compilerExec comp) ["--version"] ""
+        case ws of
+          "version" : x : _         -> return x
+          _ : "version" : x : _     -> return x
+          _ : _ : "version" : x : _ -> return x
+          _                         -> return "?"
 
 
 getCompilerFamilyByName :: IO CompilerFamily
@@ -138,40 +152,24 @@ compilerFilterType t = filter $ (== t) . compilerType
 
 getCompilerOpt :: Compiler -> [String]
 getCompilerOpt (Compiler ver _ _ _ opts) =
-        case ver of
-         Gcc46   -> gcc_opt ++ opts
-         Gcc47   -> gcc_opt ++ opts
-         Gcc48   -> gcc_opt ++ opts
-         Gcc49   -> gcc_opt ++ opts
-         Gcc5    -> gcc_opt ++ opts
-         Gcc6    -> gcc_opt ++ opts
-         Clang31 -> clg_opt ++ opts
-         Clang32 -> clg_opt ++ opts
-         Clang33 -> clg_opt ++ opts
-         Clang34 -> clg_opt ++ opts
-         Clang35 -> clg_opt ++ opts
-         Clang36 -> clg_opt ++ opts
-         Clang37 -> clg_opt ++ opts
+    case () of
+      _ | ver `elem` [Gcc46, Gcc47, Gcc48, Gcc49, Gcc5, Gcc6, Gcc7 ] -> gcc_opt <> opts
+        | otherwise                                                  -> clg_opt <> opts
     where gcc_opt = [ "-O0", "-D_GLIBCXX_DEBUG", "-pthread", "-Wall", "-Wextra", "-Wno-unused-parameter", "-Wno-unused-value" ]
           clg_opt = [ "-O0", "-D_GLIBCXX_DEBUG", "-pthread", "-Wall", "-Wextra", "-Wno-unused-parameter", "-Wno-unused-value", "-Wno-unneeded-internal-declaration"]
 
 
 getCompilerOptPCH :: Compiler -> [String]
 getCompilerOptPCH comp@(Compiler ver _ _ _ _) =
-        case ver of
-         Gcc46   -> getCompilerOpt comp ++ [ "-Winvalid-pch", "-I" ++ includeAssDir </> "4.6" ]  ++ ["-I" ++ includeAssDir ]
-         Gcc47   -> getCompilerOpt comp ++ [ "-Winvalid-pch", "-I" ++ includeAssDir </> "4.7" ]  ++ ["-I" ++ includeAssDir ]
-         Gcc48   -> getCompilerOpt comp ++ [ "-Winvalid-pch", "-I" ++ includeAssDir </> "4.8" ]  ++ ["-I" ++ includeAssDir ]
-         Gcc49   -> getCompilerOpt comp ++ [ "-Winvalid-pch", "-I" ++ includeAssDir </> "4.9" ]  ++ ["-I" ++ includeAssDir ]
-         Gcc5    -> getCompilerOpt comp ++ [ "-Winvalid-pch", "-I" ++ includeAssDir </> "5" ]    ++ ["-I" ++ includeAssDir ]
-         Gcc6    -> getCompilerOpt comp ++ [ "-Winvalid-pch", "-I" ++ includeAssDir </> "6" ]    ++ ["-I" ++ includeAssDir ]
-         Clang31 -> getCompilerOpt comp ++ ["-include ", getCompilerPchPath comp </> "ass.hpp" ] ++ ["-I" ++ includeAssDir ]
-         Clang32 -> getCompilerOpt comp ++ ["-include ", getCompilerPchPath comp </> "ass.hpp" ] ++ ["-I" ++ includeAssDir ]
-         Clang33 -> getCompilerOpt comp ++ ["-include ", getCompilerPchPath comp </> "ass.hpp" ] ++ ["-I" ++ includeAssDir ]
-         Clang34 -> getCompilerOpt comp ++ ["-include ", getCompilerPchPath comp </> "ass.hpp" ] ++ ["-I" ++ includeAssDir ]
-         Clang35 -> getCompilerOpt comp ++ ["-include ", getCompilerPchPath comp </> "ass.hpp" ] ++ ["-I" ++ includeAssDir ]
-         Clang36 -> getCompilerOpt comp ++ ["-include ", getCompilerPchPath comp </> "ass.hpp" ] ++ ["-I" ++ includeAssDir ]
-         Clang37 -> getCompilerOpt comp ++ ["-include ", getCompilerPchPath comp </> "ass.hpp" ] ++ ["-I" ++ includeAssDir ]
+    case () of
+    _ | ver ==  Gcc46   -> getCompilerOpt comp ++ [ "-Winvalid-pch", "-I" ++ includeAssDir </> "4.6" ]  ++ ["-I" ++ includeAssDir ]
+      | ver ==  Gcc47   -> getCompilerOpt comp ++ [ "-Winvalid-pch", "-I" ++ includeAssDir </> "4.7" ]  ++ ["-I" ++ includeAssDir ]
+      | ver ==  Gcc48   -> getCompilerOpt comp ++ [ "-Winvalid-pch", "-I" ++ includeAssDir </> "4.8" ]  ++ ["-I" ++ includeAssDir ]
+      | ver ==  Gcc49   -> getCompilerOpt comp ++ [ "-Winvalid-pch", "-I" ++ includeAssDir </> "4.9" ]  ++ ["-I" ++ includeAssDir ]
+      | ver ==  Gcc5    -> getCompilerOpt comp ++ [ "-Winvalid-pch", "-I" ++ includeAssDir </> "5" ]    ++ ["-I" ++ includeAssDir ]
+      | ver ==  Gcc6    -> getCompilerOpt comp ++ [ "-Winvalid-pch", "-I" ++ includeAssDir </> "6" ]    ++ ["-I" ++ includeAssDir ]
+      | ver ==  Gcc7    -> getCompilerOpt comp ++ [ "-Winvalid-pch", "-I" ++ includeAssDir </> "7" ]    ++ ["-I" ++ includeAssDir ]
+      | otherwise       -> getCompilerOpt comp ++ ["-include ", getCompilerPchPath comp </> "ass.hpp" ] ++ ["-I" ++ includeAssDir ]
 
 
 getCompilerPchPath ::  Compiler -> FilePath
@@ -183,6 +181,7 @@ getCompilerPchPath (Compiler ver _ _ _ opts) =
          Gcc49   -> includeAssDir </> "4.9"
          Gcc5    -> includeAssDir </> "5"
          Gcc6    -> includeAssDir </> "6"
+         Gcc7    -> includeAssDir </> "7"
          Clang31 -> includeAssDir </> "clang31" </> clangDir
          Clang32 -> includeAssDir </> "clang32" </> clangDir
          Clang33 -> includeAssDir </> "clang33" </> clangDir
@@ -190,6 +189,8 @@ getCompilerPchPath (Compiler ver _ _ _ opts) =
          Clang35 -> includeAssDir </> "clang35" </> clangDir
          Clang36 -> includeAssDir </> "clang36" </> clangDir
          Clang37 -> includeAssDir </> "clang37" </> clangDir
+         Clang38 -> includeAssDir </> "clang38" </> clangDir
+         Clang39 -> includeAssDir </> "clang39" </> clangDir
     where
         clangDir |  "-std=c++1y" `elem` opts && "-stdlib=libc++" `elem` opts = "libc++1y"
                  |  "-stdlib=libc++" `elem` opts                             = "libc++"

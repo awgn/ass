@@ -15,7 +15,7 @@
 -- along with this program; if not, write to the Free Software
 -- Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 --
--- ass: C++11/14 code assistant 
+-- ass: C++11/14 code assistant
 
 
 {-# LANGUAGE OverloadedStrings #-}
@@ -26,6 +26,7 @@ module Main where
 import Data.List
 import Data.Maybe
 import Data.Functor
+import Data.Monoid
 import Safe (tailSafe)
 
 import System.Process(system)
@@ -59,7 +60,7 @@ import Control.Applicative
 -- import Debug.Trace
 
 
-data REPLState = REPLState 
+data REPLState = REPLState
     { replBanner       :: !Bool
     , replPreload      :: !Bool
     , replPreloadBoost :: !Bool
@@ -75,7 +76,7 @@ data REPLState = REPLState
 
 
 mkDefaultState :: FilePath -> [Compiler] -> [String] -> [String] -> Bool -> Bool -> Bool -> REPLState
-mkDefaultState file clist args code prel pboost pcat = REPLState 
+mkDefaultState file clist args code prel pboost pcat = REPLState
     { replBanner       = True
     , replPreload      = prel
     , replPreloadBoost = pboost
@@ -102,7 +103,7 @@ data Opt = Opt
     , preloadCat     :: Bool
     , moreOpts       :: Maybe [String]
     } deriving (Show)
-     
+
 
 parseOpt :: Parser Opt
 parseOpt = Opt
@@ -117,7 +118,7 @@ parseOpt = Opt
              <> metavar "TARGET"
              <> help "Preload module/header" ))
      <*> (optional $ strOption
-            ( long "snippet" 
+            ( long "snippet"
              <> short 'S'
              <> metavar "\"Args...\""
              <> help "Make snippet" ))
@@ -149,25 +150,25 @@ parseOpt = Opt
 
 
 main :: IO ()
-main = do 
+main = do
     home  <- getHomeDirectory
     cfam  <- getCompilerFamilyByName
     clist <- getCompilerConf (home </> assrc)
-    execParser opts >>= mainRun home cfam clist 
+    execParser opts >>= mainRun home cfam clist
     where
        opts = info (helper <*> parseOpt)
         ( fullDesc
         <> header   "Ass++: a REPL C++11/14 assistant" )
-                               
+
 
 
 mainRun :: FilePath -> CompilerFamily -> [Compiler] -> Opt -> IO ()
 mainRun _ _ clist opt
     | version opt           = putStrLn banner
     | build opt             = buildPCH
-    | Just s <- snip opt    = mainGen $ words s 
+    | Just s <- snip opt    = mainGen $ words s
     | Just c <- check opt   = mainCheck clist c (fromMaybe [] $ moreOpts opt)
-    | Just l <- load opt    = getAvailCompilers clist >>= mainLoop opt (fromMaybe [] $ moreOpts opt) l 
+    | Just l <- load opt    = getAvailCompilers clist >>= mainLoop opt (fromMaybe [] $ moreOpts opt) l
     | interactive opt       = getAvailCompilers clist >>= mainLoop opt (fromMaybe [] $ moreOpts opt) ""
 mainRun _ cfam clist opt    = liftM (head . compilerFilter cfam) (getAvailCompilers clist) >>= mainFun (fromMaybe [] $ moreOpts opt)
 
@@ -178,10 +179,10 @@ mainGen = snippetRender
 
 
 mainCheck :: [Compiler] -> String -> [String] -> IO ()
-mainCheck clist filename opts = do 
-    cl <- getAvailCompilers clist 
-    _  <- testCompileHeader (C.pack ("#include \"" ++ filename ++ "\"")) True [ head cl ] (getCompilerArgs opts) 
-    putStrLn "Ok." 
+mainCheck clist filename opts = do
+    cl <- getAvailCompilers clist
+    _  <- testCompileHeader (C.pack ("#include \"" ++ filename ++ "\"")) True [ head cl ] (getCompilerArgs opts)
+    putStrLn "Ok."
 
 
 
@@ -475,7 +476,7 @@ makeSourceCode code cmd_code ns preload boost cat
             main'   | hasMain code = []
                     | otherwise    = [ CodeLine 0 "int main() { return 0; }" ]
             exit                   = [ CodeLine 0 "auto __EXIT__ = ass::eval([]() { std::exit(0); }); "]
-            headers                = [ makeInclude "<ass.hpp>" ] ++ 
+            headers                = [ makeInclude "<ass.hpp>" ] ++
                                      [ makeInclude "<ass-boost.hpp>" | boost ] ++
                                      [ makeInclude "<ass-cat.hpp>"   | cat ]
 

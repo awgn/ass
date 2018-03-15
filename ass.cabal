@@ -2,7 +2,7 @@
 -- see http://haskell.org/cabal/users-guide/
 
 name:                   ass
-version:                3.1
+version:                3.2
 
 license-file:           LICENSE
 author:                 Nicola Bonelli
@@ -14,8 +14,7 @@ cabal-version:          >=1.10
 Executable ass             
     Main-Is:             Ass.hs   
     Hs-Source-Dirs:      src
-    Other-Modules:       Paths 
-                         Ass.Compiler 
+    Other-Modules:       Ass.Compiler 
                          Ass.Config 
                          Ass.Types 
                          Ass.Build 
@@ -24,7 +23,7 @@ Executable ass
                          Ass.Cpp.Lang
                          Ass.Cpp.Source
                          Ass.Cpp.Token
-
+                         Paths_ass
     Build-depends:       base >=4.5,
                          bytestring >= 0.9,
                          optparse-applicative >= 0.8,

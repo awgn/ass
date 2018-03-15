@@ -54,7 +54,6 @@ import Ass.Types
 import Ass.Snippet
 
 import Options.Applicative
-import Control.Applicative
 
 
 -- import Debug.Trace
@@ -107,17 +106,17 @@ data Opt = Opt
 
 parseOpt :: Parser Opt
 parseOpt = Opt
-     <$> (optional $ strOption
+     <$> optional (strOption
             ( long "check"
                 <> short 'c'
                 <> metavar "TARGET"
-                <> help "Check header" ))
-     <*> (optional $ strOption
+                <> help "Check header"))
+     <*> optional (strOption
             ( long "load"
              <> short 'l'
              <> metavar "TARGET"
-             <> help "Preload module/header" ))
-     <*> (optional $ strOption
+             <> help "Preload module/header"))
+     <*> optional (strOption
             ( long "snippet"
              <> short 'S'
              <> metavar "\"Args...\""
@@ -146,7 +145,7 @@ parseOpt = Opt
          ( long "cat"
             <> short 'a'
             <> help "Preload cat library (PHC)" )
-     <*> (optional $ some (argument str (metavar "-- [COMPILER OPTs...] -- [PROG ARGs...]")))
+     <*> optional (some (argument str (metavar "-- [COMPILER OPTs...] -- [PROG ARGs...]")))
 
 
 main :: IO ()
@@ -170,7 +169,7 @@ mainRun _ _ clist opt
     | Just c <- check opt   = mainCheck clist c (fromMaybe [] $ moreOpts opt)
     | Just l <- load opt    = getAvailCompilers clist >>= mainLoop opt (fromMaybe [] $ moreOpts opt) l
     | interactive opt       = getAvailCompilers clist >>= mainLoop opt (fromMaybe [] $ moreOpts opt) ""
-mainRun _ cfam clist opt    = liftM (head . compilerFilter cfam) (getAvailCompilers clist) >>= mainFun (fromMaybe [] $ moreOpts opt)
+mainRun _ cfam clist opt    = fmap (head . compilerFilter cfam) (getAvailCompilers clist) >>= mainFun (fromMaybe [] $ moreOpts opt)
 
 
 
@@ -271,7 +270,7 @@ mainLoop opt args file clist = do
                                                       outputStrLn $ show e
                                                       lift (put $ s{ replBanner = False}) >> loop
 
-                         Just (":snippet" :xs)  -> (liftIO $ snippetRender xs) >> loop
+                         Just (":snippet" :xs)  -> liftIO (snippetRender xs) >> loop
 
                          Just input | ":" `isPrefixOf` unwords input -> outputStrLn("Unknown command '" ++ unwords input ++ "'") >>
                                                                         outputStrLn "use :? for help." >> lift (put $ s{ replBanner = False}) >> loop

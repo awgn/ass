@@ -24,7 +24,6 @@
 module Ass.Cpp.Lang where
 
 import Prelude hiding (const)
-import Data.Monoid
 import Data.List
 
 type Identifier = String
@@ -306,7 +305,7 @@ instance CppShow ClassAccessSpecifier where
     render (Private xs)   = "\nprivate:\n"   ++ intercalate "\n" (map render xs)
 
 
-data CppEntities = CppEntities [CppEntity]
+newtype CppEntities = CppEntities [CppEntity]
 
 instance CppShow CppEntities where
     render (CppEntities xs) =  intercalate "\n" (map render xs)
